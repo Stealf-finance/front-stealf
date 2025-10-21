@@ -1,0 +1,86 @@
+node_modules/
+.expo/
+dist/
+npm-debug.*
+*.jks
+*.p8
+*.p12
+*.key
+*.mobileprovision
+*.orig.*
+web-build/
+
+# macOS
+.DS_Store
+
+# Temporary files created by Metro to check the health of the file watcher
+.metro-health-check*
+
+
+
+# Environment variables
+.env
+.env.*
+.env.local
+.env.production
+.env.development
+api/.env
+api/.env.*
+*.env
+
+# Node modules
+node_modules/
+api/venv/
+api/__pycache__/
+*.pyc
+
+# Backend build
+back/dist/
+back/build/
+
+# Logs
+logs/
+*.log
+api/logs/
+
+# Build outputs
+dist/
+build/
+*.js.map
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Temporary files
+*.tmp
+tmp/
+temp/
+
+# Private keys (NEVER commit these!)
+*.pem
+*.key
+private-key.json
+keypair.json
+wallet-keypair.json
+
+# Test coverage
+coverage/
+.nyc_output/
+
+# Cache
+.cache/
+.parcel-cache/
+
+# Docker
+deployment/.env
+deployment/docker compose.override.yml
+
+# Database dumps
+*.dump
+*.backup
+
+# OS generated files
+Thumbs.db
