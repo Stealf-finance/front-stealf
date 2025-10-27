@@ -15,6 +15,8 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useFonts } from 'expo-font';
 import { authStorage } from '../services/authStorage';
 import { API_URL } from '../config/config';
+import { GridClient } from '@sqds/grid/native';
+import * as SecureStore from 'expo-secure-store';
 
 interface SendConfirmationProps {
   amount: string;
@@ -71,65 +73,160 @@ export default function SendConfirmation({ amount, onBack, onSuccess }: SendConf
 
     setIsLoading(true);
     try {
+      console.log('🚀 Starting transaction...');
+
+      // Get authentication token
       const token = await authStorage.getAccessToken();
       if (!token) {
+        console.log('❌ No access token');
         Alert.alert('Error', 'Authentication required');
         setIsLoading(false);
         return;
       }
 
-      let response;
-      if (destinationType === 'privacy') {
-        // Transfer to privacy wallet
-        response = await fetch(`${API_URL}/api/v1/transaction/private`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${token}`,
-          },
-          body: JSON.stringify({
-            amount: parseFloat(amount),
-          }),
-        });
-      } else {
-        // Transfer to external wallet
-        response = await fetch(`${API_URL}/api/v1/transaction/public`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${token}`,
-          },
-          body: JSON.stringify({
-            toAddress: externalAddress,
-            amount: parseFloat(amount),
-          }),
-        });
+      // Get user's GRID smart account address
+      const userWalletAddress = await authStorage.getGridAddress();
+      console.log('💳 User wallet address:', userWalletAddress);
+
+      if (!userWalletAddress) {
+        console.log('❌ No wallet address found');
+        Alert.alert('Error', 'User wallet address not found');
+        setIsLoading(false);
+        return;
       }
 
-      const data = await response.json();
+      // Get user data for grid_user_id
+      const userData = await authStorage.getUserData();
+      const gridUserId = userData?.grid_user_id || userData?.grid_address;
+      console.log('👤 Grid user ID:', gridUserId);
 
-      if (response.ok && data.success) {
-        setTransactionSignature(data.data?.signature || data.signature || 'COMPLETED');
-        setShowSuccessModal(true);
-
-        Animated.parallel([
-          Animated.timing(successAnimation, {
-            toValue: 1,
-            duration: 300,
-            useNativeDriver: true,
-          }),
-          Animated.spring(checkmarkScale, {
-            toValue: 1,
-            friction: 6,
-            tension: 80,
-            useNativeDriver: true,
-          }),
-        ]).start();
-      } else {
-        Alert.alert('Transfer Failed', data.message || 'Unknown error occurred');
+      if (!gridUserId) {
+        console.log('❌ No grid user ID found');
+        Alert.alert('Error', 'User ID not found');
+        setIsLoading(false);
+        return;
       }
+
+      // ========== STEP 1: Create Payment Intent ==========
+      console.log('📝 Creating payment intent...');
+      const recipientAddress = destinationType === 'privacy' ? selectedPrivacyWallet : externalAddress;
+
+      const intentResponse = await fetch(`${API_URL}/grid/payment-intent`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          smartAccountAddress: userWalletAddress,
+          payload: {
+            amount: (parseFloat(amount) * 1_000_000).toString(), // Convert to microUSDC
+            grid_user_id: gridUserId,
+            source: {
+              account: userWalletAddress,
+              currency: 'usdc'
+            },
+            destination: {
+              address: recipientAddress,
+              currency: 'usdc'
+            }
+          },
+          useMpcProvider: true
+        }),
+      });
+
+      console.log('📥 Payment intent response status:', intentResponse.status);
+
+      if (!intentResponse.ok) {
+        const errorData = await intentResponse.json();
+        console.log('❌ Payment intent failed:', errorData);
+        throw new Error(errorData.error || errorData.detail || 'Failed to create payment intent');
+      }
+
+      const paymentIntentData = await intentResponse.json();
+      console.log('✅ Payment intent created');
+
+      const transactionPayload = paymentIntentData.data?.transactionPayload;
+      if (!transactionPayload) {
+        throw new Error('No transaction payload received');
+      }
+
+      // ========== STEP 2: Sign Transaction ==========
+      console.log('✍️ Signing transaction...');
+
+      // Get session secrets
+      const sessionSecretsStr = await SecureStore.getItemAsync('session_secrets');
+      if (!sessionSecretsStr) {
+        throw new Error('Session secrets not found. Please log in again.');
+      }
+      const sessionSecrets = JSON.parse(sessionSecretsStr);
+
+      // Get authentication data
+      const authentication = userData?.authentication;
+      if (!authentication) {
+        throw new Error('Authentication data not found. Please log in again.');
+      }
+
+      // Initialize Grid Client
+      const gridClient = new GridClient({
+        environment: 'sandbox', // Change to 'production' when ready
+        baseUrl: API_URL
+      });
+
+      // Sign the transaction
+      const signedPayload = await gridClient.sign({
+        sessionSecrets: sessionSecrets,
+        session: authentication,
+        transactionPayload: transactionPayload
+      });
+
+      console.log('✅ Transaction signed');
+
+      // ========== STEP 3: Confirm and Send Transaction ==========
+      console.log('🚀 Sending transaction...');
+
+      const confirmResponse = await fetch(`${API_URL}/grid/confirm`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          address: userWalletAddress,
+          signedTransactionPayload: signedPayload,
+        }),
+      });
+
+      console.log('📥 Confirm response status:', confirmResponse.status);
+
+      if (!confirmResponse.ok) {
+        const errorData = await confirmResponse.json();
+        console.log('❌ Confirm failed:', errorData);
+        throw new Error(errorData.error || errorData.detail || 'Failed to confirm transaction');
+      }
+
+      const result = await confirmResponse.json();
+      console.log('✅ Transaction sent successfully!');
+
+      setTransactionSignature(result.signature || 'COMPLETED');
+      setShowSuccessModal(true);
+
+      Animated.parallel([
+        Animated.timing(successAnimation, {
+          toValue: 1,
+          duration: 300,
+          useNativeDriver: true,
+        }),
+        Animated.spring(checkmarkScale, {
+          toValue: 1,
+          friction: 6,
+          tension: 80,
+          useNativeDriver: true,
+        }),
+      ]).start();
+
     } catch (error: any) {
-      console.error('Transfer error:', error);
+      console.error('❌ Transfer error:', error);
       Alert.alert('Error', error.message || 'Failed to transfer');
     } finally {
       setIsLoading(false);

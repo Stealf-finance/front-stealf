@@ -1,9 +1,11 @@
-import React, { useRef, useState } from 'react';
+import React, { useRef, useState, useEffect } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Image, ImageBackground, Animated, PanResponder, Dimensions, Easing } from 'react-native';
 import { BalanceCard } from '../components/features';
 import TransactionHistory from '../components/TransactionHistory';
 import NavigationBar from '../components/NavigationBar';
 import CardScreen from './CardScreen';
+import AddFundsModal from '../components/AddFundsModal';
+import SendModal from '../components/SendModal';
 import type { PageType } from '../navigation/types';
 
 interface HomeScreenProps {
@@ -14,6 +16,7 @@ interface HomeScreenProps {
   onCardScreenChange?: (isOpen: boolean) => void;
   userEmail?: string;
   username?: string;
+  currentPage?: PageType;
 }
 
 export default function HomeScreen({
@@ -24,8 +27,26 @@ export default function HomeScreen({
   onCardScreenChange,
   userEmail,
   username,
+  currentPage = 'home',
 }: HomeScreenProps) {
   const [showCardScreen, setShowCardScreen] = useState(false);
+  const [showAddFundsModal, setShowAddFundsModal] = useState(false);
+  const [showSendModal, setShowSendModal] = useState(false);
+
+  const slideUpAnim = useRef(new Animated.Value(100)).current;
+
+  useEffect(() => {
+    if (currentPage === 'home') {
+      Animated.timing(slideUpAnim, {
+        toValue: 0,
+        duration: 250,
+        useNativeDriver: true,
+        easing: Easing.out(Easing.cubic),
+      }).start();
+    } else {
+      slideUpAnim.setValue(100);
+    }
+  }, [currentPage]);
 
   // Pan Responder pour le swipe
   const panResponder = PanResponder.create({
@@ -51,60 +72,112 @@ export default function HomeScreen({
     onCardScreenChange?.(false);
   };
 
+  const handleAddFundsPress = () => {
+    setShowAddFundsModal(true);
+  };
+
+  const handleSelectStablecoin = () => {
+    setShowAddFundsModal(false);
+    onOpenAddFunds();
+  };
+
+  const handleSendPress = () => {
+    setShowSendModal(true);
+  };
+
+  const handleSelectStablecoinSend = () => {
+    setShowSendModal(false);
+    onOpenSend();
+  };
+
   return (
     <View style={styles.container} {...panResponder.panHandlers}>
         {/* Header Spacer */}
         <View style={styles.headerSpacer} />
 
+        {/* Title */}
+        <View style={styles.titleContainer}>
+          <Text style={styles.pageTitle}>Cash</Text>
+        </View>
+
         {/* Cards Container */}
         <View style={styles.cardsContainer}>
-          {/* Stealf Card (behind) */}
-          {!showCardScreen && (
-            <View style={styles.stealthCardContainer}>
-            <TouchableOpacity
-              activeOpacity={0.9}
-              onPress={handleCardPress}
-            >
-              <ImageBackground
-                source={require('../../assets/stealf-card.png')}
-                style={styles.stealthCardImage}
-                resizeMode="cover"
-                imageStyle={{ borderRadius: 20 }}
-              />
-            </TouchableOpacity>
-
-            {/* Arrow indicator */}
-            <TouchableOpacity
-              style={styles.arrowIndicator}
-              onPress={handleCardPress}
-              activeOpacity={0.7}
-            >
-              <Text style={styles.arrowText}>⌄</Text>
-            </TouchableOpacity>
-          </View>
-          )}
-
-          {/* Balance Card (in front with notch) */}
+          {/* Balance Card */}
           <BalanceCard
-            onWithdraw={onOpenSend}
-            onTopUp={onOpenAddFunds}
+            onWithdraw={handleSendPress}
+            onTopUp={handleAddFundsPress}
             onExchange={() => console.log('Exchange')}
+            isDemo={true}
           />
         </View>
 
+        {/* Cards Section */}
+        <View style={styles.cardsCarouselContainer}>
+          <Text style={styles.cardsTitle}>Cards</Text>
+          <View style={styles.cardsCarousel}>
+            {/* Stealf Card */}
+            {!showCardScreen && (
+              <TouchableOpacity
+                style={styles.miniCard}
+                activeOpacity={0.9}
+                onPress={handleCardPress}
+              >
+                <ImageBackground
+                  source={require('../../assets/stealf-card.png')}
+                  style={styles.miniCardImage}
+                  resizeMode="cover"
+                  imageStyle={{ borderRadius: 16 }}
+                />
+              </TouchableOpacity>
+            )}
+
+            {/* Add Card Button */}
+            <TouchableOpacity style={styles.miniCard} activeOpacity={0.8}>
+              <View style={styles.addCard}>
+                <Text style={styles.addCardIcon}>+</Text>
+              </View>
+            </TouchableOpacity>
+          </View>
+        </View>
+
         {/* Recent Activity */}
-        <View style={styles.activityContainer}>
+        <Animated.View
+          style={[
+            styles.activityContainer,
+            {
+              transform: [{ translateY: slideUpAnim }],
+              opacity: slideUpAnim.interpolate({
+                inputRange: [0, 100],
+                outputRange: [1, 0],
+              }),
+            }
+          ]}
+        >
           <View style={styles.activityHeader}>
             <Text style={styles.activityTitle}>Recent Activity</Text>
             <TouchableOpacity onPress={() => onNavigateToPage('transactionHistory')}>
               <Text style={styles.seeAllText}>See All</Text>
             </TouchableOpacity>
           </View>
-          <TransactionHistory limit={2} />
-        </View>
+          <TransactionHistory limit={2} isDemo={true} />
+        </Animated.View>
 
         {/* Card Detail Screen */}
         {showCardScreen && <CardScreen onClose={handleCloseCard} />}
+
+        {/* Add Funds Modal */}
+        <AddFundsModal
+          visible={showAddFundsModal}
+          onClose={() => setShowAddFundsModal(false)}
+          onSelectStablecoin={handleSelectStablecoin}
+        />
+
+        {/* Send Modal */}
+        <SendModal
+          visible={showSendModal}
+          onClose={() => setShowSendModal(false)}
+          onSelectStablecoin={handleSelectStablecoinSend}
+        />
     </View>
   );
 }
@@ -120,62 +193,52 @@ const styles = StyleSheet.create({
   },
   cardsContainer: {
     alignItems: 'center',
-    marginTop: 100,
+    marginTop: 20,
     marginBottom: 10,
     position: 'relative',
   },
-  stealthCardContainer: {
-    position: 'absolute',
-    top: -60,
-    width: '85%',
-    maxWidth: 320,
-    height: 200,
-    alignSelf: 'center',
-    borderRadius: 20,
-    zIndex: 1,
+  cardsCarouselContainer: {
+    marginTop: 20,
+    marginBottom: 20,
+    paddingHorizontal: 20,
   },
-  stealthCardImage: {
+  cardsTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: 'white',
+    marginBottom: 12,
+    letterSpacing: 0.5,
+    fontFamily: 'Sansation-Bold',
+  },
+  cardsCarousel: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  miniCard: {
+    width: 180,
+    height: 110,
+    borderRadius: 16,
+  },
+  miniCardImage: {
     width: '100%',
     height: '100%',
-    borderRadius: 20,
-    overflow: 'hidden',
+    borderRadius: 16,
   },
-  comingSoonContainer: {
+  addCard: {
     width: '100%',
     height: '100%',
+    backgroundColor: 'rgba(60, 60, 60, 0.5)',
+    borderRadius: 16,
+    borderWidth: 2,
+    borderStyle: 'dashed',
+    borderColor: 'rgba(100, 100, 100, 0.5)',
     justifyContent: 'center',
     alignItems: 'center',
   },
-  comingSoonBadge: {
-    backgroundColor: 'rgba(255, 255, 255, 0.9)',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 12,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
-  },
-  comingSoonText: {
-    color: '#333',
-    fontSize: 11,
-    fontWeight: 'bold',
-    fontFamily: 'Sansation-Bold',
-    letterSpacing: 0.5,
-  },
-  arrowIndicator: {
-    position: 'absolute',
-    bottom: -20,
-    left: 0,
-    right: 0,
-    alignItems: 'center',
-    padding: 10,
-  },
-  arrowText: {
-    color: 'rgba(255, 255, 255, 0.6)',
-    fontSize: 20,
-    fontWeight: 'bold',
+  addCardIcon: {
+    fontSize: 36,
+    color: 'rgba(255, 255, 255, 0.5)',
+    fontWeight: '300',
   },
   activityContainer: {
     paddingHorizontal: 20,
@@ -196,5 +259,17 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '500',
     color: 'rgba(255, 255, 255, 0.6)',
+  },
+  titleContainer: {
+    alignItems: 'center',
+    marginTop: 0,
+    marginBottom: 16,
+  },
+  pageTitle: {
+    fontSize: 28,
+    fontWeight: '600',
+    color: 'white',
+    letterSpacing: 0.5,
+    fontFamily: 'Sansation-Bold',
   },
 });

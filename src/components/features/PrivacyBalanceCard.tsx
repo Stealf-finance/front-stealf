@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator, Dimensions, Image } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
+import { BlurView } from 'expo-blur';
 import { useFonts } from 'expo-font';
 import { usePrivateBalance } from '../../hooks';
 import { authStorage } from '../../services/authStorage';
@@ -60,14 +61,19 @@ export default function PrivacyBalanceCard({ walletId, onWithdraw, onTopUp, onEx
   return (
     <View style={styles.container}>
       {/* Main Card - Purple Theme */}
-      <LinearGradient
-        colors={['rgba(30, 20, 45, 1)', 'rgba(20, 12, 32, 1)']}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 0, y: 1 }}
-        style={[styles.card, styles.cardWithNotch, { width: cardWidth, height: cardHeight }]}
+      <BlurView
+        intensity={30}
+        tint="dark"
+        style={[styles.blurContainer, { width: cardWidth, height: cardHeight }]}
       >
-        {/* Balance Section */}
-        <View style={styles.balanceSection}>
+        <LinearGradient
+          colors={['rgba(30, 20, 45, 0.4)', 'rgba(20, 12, 32, 0.4)']}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 0, y: 1 }}
+          style={[styles.card, styles.cardWithNotch, { width: cardWidth, height: cardHeight }]}
+        >
+          {/* Balance Section */}
+          <View style={styles.balanceSection}>
           <View style={styles.balanceHeader}>
             <Text style={styles.balanceLabel}>Privacy Balance</Text>
             <TouchableOpacity
@@ -127,7 +133,8 @@ export default function PrivacyBalanceCard({ walletId, onWithdraw, onTopUp, onEx
             </TouchableOpacity>
           </View>
         </View>
-      </LinearGradient>
+        </LinearGradient>
+      </BlurView>
     </View>
   );
 }
@@ -138,17 +145,21 @@ const styles = StyleSheet.create({
     marginTop: 0,
     zIndex: 1,
   },
+  blurContainer: {
+    borderRadius: 24,
+    overflow: 'hidden',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 12 },
+    shadowOpacity: 0.6,
+    shadowRadius: 24,
+    elevation: 20,
+  },
   card: {
     borderRadius: 24,
     padding: 24,
     paddingTop: 24,
     paddingBottom: 24,
     borderWidth: 0,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.3,
-    shadowRadius: 16,
-    elevation: 10,
     justifyContent: 'center',
   },
   balanceSection: {
@@ -207,7 +218,7 @@ const styles = StyleSheet.create({
   primaryActionButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'rgba(180, 180, 180, 0.3)',
+    backgroundColor: 'rgba(255, 255, 255, 0.15)',
     paddingVertical: 26,
     paddingHorizontal: 22,
     paddingLeft: 18,
@@ -225,7 +236,7 @@ const styles = StyleSheet.create({
     width: 22,
     height: 22,
     borderRadius: 11,
-    backgroundColor: 'rgba(45, 30, 65, 0.9)',
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -261,7 +272,7 @@ const styles = StyleSheet.create({
     width: 22,
     height: 22,
     borderRadius: 11,
-    backgroundColor: 'rgba(45, 30, 65, 0.9)',
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -269,7 +280,7 @@ const styles = StyleSheet.create({
     width: 22,
     height: 22,
     borderRadius: 11,
-    backgroundColor: 'rgba(45, 30, 65, 0.9)',
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
     justifyContent: 'center',
     alignItems: 'center',
   },

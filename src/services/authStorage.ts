@@ -25,6 +25,9 @@ export const authStorage = {
       // Extract grid_address or grid_user_id (API returns grid_user_id)
       const gridAddress = data.user.grid_address || data.user.grid_user_id || '';
 
+      console.log('💾 Saving Grid address to storage:', gridAddress);
+      console.log('💾 Full user data:', JSON.stringify(data.user, null, 2));
+
       await AsyncStorage.multiSet([
         [KEYS.ACCESS_TOKEN, data.access_token],
         [KEYS.REFRESH_TOKEN, data.refresh_token],

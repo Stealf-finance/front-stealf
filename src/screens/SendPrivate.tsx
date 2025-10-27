@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import {
   View,
   Text,
@@ -12,7 +12,6 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useFonts } from 'expo-font';
 import type { SendScreenProps } from '../types';
 import { useBalance, useWallet } from '../hooks';
-import { priceService } from '../services';
 import SendPrivateConfirmation from './SendPrivateConfirmation';
 
 export default function SendScreen({ onBack }: SendScreenProps) {
@@ -22,46 +21,17 @@ export default function SendScreen({ onBack }: SendScreenProps) {
   // Get wallet and balance
   const { walletAddress } = useWallet();
   const { balance } = useBalance(walletAddress);
-  const [solPrice, setSolPrice] = useState<number>(100);
 
-  // Fetch real SOL price
-  useEffect(() => {
-    const fetchPrice = async () => {
-      try {
-        const price = await priceService.getSOLPrice();
-        setSolPrice(price);
-      } catch (err) {
-        console.error('Failed to fetch SOL price:', err);
-      }
-    };
-
-    fetchPrice();
-
-    // Refresh price every minute
-    const interval = setInterval(fetchPrice, 60000);
-    return () => clearInterval(interval);
-  }, []);
-
-  // Calculate total USD using same logic as BalanceCard
+  // Calculate total USD - only using USDC balance
   const calculateTotalUSD = () => {
     if (!balance) return 0;
-    let total = 0;
 
-    // SOL balance using real price
-    total += balance.sol * solPrice;
+    // Chercher le token USDC dans la liste
+    const usdcToken = balance.tokens.find(
+      (token) => token.symbol === 'USDC' || token.symbol === 'usdc'
+    );
 
-    // Token balances
-    balance.tokens.forEach((token) => {
-      if (token.symbol === 'USDC' || token.symbol === 'USDT') {
-        // Stablecoins = 1:1 USD
-        total += token.uiAmount;
-      } else if (token.symbol === 'SOL') {
-        // SOL tokens using real price
-        total += token.uiAmount * solPrice;
-      }
-    });
-
-    return total;
+    return usdcToken ? usdcToken.uiAmount : 0;
   };
 
   const totalUSD = calculateTotalUSD();

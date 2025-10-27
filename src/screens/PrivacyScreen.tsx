@@ -1,7 +1,7 @@
-import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, PanResponder, Image, Dimensions } from 'react-native';
+import React, { useRef, useEffect } from 'react';
+import { View, Text, StyleSheet, TouchableOpacity, PanResponder, Image, Dimensions, Animated, Easing, ScrollView } from 'react-native';
 import { BlurView } from 'expo-blur';
-import { PrivacyBalanceCard } from '../components/features';
+import { BalanceCard } from '../components/features';
 import PrivateTransactionHistory from '../components/PrivateTransactionHistory';
 import NavigationBar from '../components/NavigationBar';
 import type { PageType } from '../navigation/types';
@@ -13,6 +13,7 @@ interface PrivacyScreenProps {
   onOpenProfile: () => void;
   userEmail?: string;
   username?: string;
+  currentPage?: PageType;
 }
 
 export default function PrivacyScreen({
@@ -22,8 +23,24 @@ export default function PrivacyScreen({
   onOpenProfile,
   userEmail,
   username,
+  currentPage = 'privacy',
 }: PrivacyScreenProps) {
   const [selectedWallet, setSelectedWallet] = React.useState(0);
+
+  const slideUpAnim = useRef(new Animated.Value(100)).current;
+
+  useEffect(() => {
+    if (currentPage === 'privacy') {
+      Animated.timing(slideUpAnim, {
+        toValue: 0,
+        duration: 250,
+        useNativeDriver: true,
+        easing: Easing.out(Easing.cubic),
+      }).start();
+    } else {
+      slideUpAnim.setValue(100);
+    }
+  }, [currentPage]);
 
   // Liste des wallets privacy (à remplacer par des vraies données plus tard)
   const privateWallets = [
@@ -41,10 +58,8 @@ export default function PrivacyScreen({
       if (gestureState.dx > 50) {
         // Swipe vers la droite → Home
         onNavigateToPage('home');
-      } else if (gestureState.dx < -50) {
-        // Swipe vers la gauche → Profile
-        onOpenProfile();
       }
+      // Swipe vers la gauche désactivé (ne fait plus rien)
     },
   });
 
@@ -53,51 +68,76 @@ export default function PrivacyScreen({
           {/* Header Spacer */}
           <View style={styles.headerSpacer} />
 
-          {/* Cards Container with Tabs */}
+          {/* Title */}
+          <View style={styles.titleContainer}>
+            <Text style={styles.pageTitle}>Privacy</Text>
+          </View>
+
+          {/* Balance Card */}
           <View style={styles.cardsContainer}>
-            {/* Wallet Tabs - Positioned above the card */}
-            <View style={styles.tabsContainer}>
-              {privateWallets.map((wallet, index) => (
-                <TouchableOpacity
-                  key={wallet.id}
-                  style={[
-                    styles.walletTab,
-                    index === 0 && styles.walletTabFirst,
-                    selectedWallet === index && styles.walletTabActive
-                  ]}
-                  onPress={() => setSelectedWallet(index)}
-                  activeOpacity={0.7}
-                >
-                  <Text style={[
-                    styles.walletTabText,
-                    selectedWallet === index && styles.walletTabTextActive
-                  ]}>
-                    {wallet.name}
-                  </Text>
-                </TouchableOpacity>
-              ))}
-
-              {/* Add Wallet Button */}
-              <TouchableOpacity
-                style={styles.walletTab}
-                onPress={() => console.log('Add new wallet')}
-                activeOpacity={0.7}
-              >
-                <Text style={styles.walletTabText}>+</Text>
-              </TouchableOpacity>
-            </View>
-
-            {/* Privacy Balance Card */}
-            <PrivacyBalanceCard
-              walletId={privateWallets[selectedWallet]?.id}
+            <BalanceCard
               onWithdraw={onOpenSendPrivate}
               onTopUp={onOpenAddFundsPrivacy}
               onExchange={() => console.log('Exchange')}
+              isPrivacy={true}
+              privacyAccountNumber={selectedWallet + 1}
             />
           </View>
 
+          {/* Private Accounts Section */}
+          <View style={styles.accountsContainer}>
+            <Text style={styles.accountsTitle}>Private Accounts</Text>
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.accountsCarousel}
+            >
+              {/* Account 1 */}
+              <TouchableOpacity
+                style={[styles.accountCard, selectedWallet === 0 && styles.accountCardActive]}
+                activeOpacity={0.8}
+                onPress={() => setSelectedWallet(0)}
+              >
+                <View style={styles.accountContent}>
+                  <Text style={styles.accountNumber}>1</Text>
+                  <Text style={styles.accountLabel}>Account</Text>
+                </View>
+              </TouchableOpacity>
+
+              {/* Account 2 */}
+              <TouchableOpacity
+                style={[styles.accountCard, selectedWallet === 1 && styles.accountCardActive]}
+                activeOpacity={0.8}
+                onPress={() => setSelectedWallet(1)}
+              >
+                <View style={styles.accountContent}>
+                  <Text style={styles.accountNumber}>2</Text>
+                  <Text style={styles.accountLabel}>Account</Text>
+                </View>
+              </TouchableOpacity>
+
+              {/* Add Account Button */}
+              <TouchableOpacity style={styles.accountCard} activeOpacity={0.8}>
+                <View style={styles.addAccount}>
+                  <Text style={styles.addAccountIcon}>+</Text>
+                </View>
+              </TouchableOpacity>
+            </ScrollView>
+          </View>
+
           {/* Recent Activity */}
-          <View style={styles.activityContainer}>
+          <Animated.View
+            style={[
+              styles.activityContainer,
+              {
+                transform: [{ translateY: slideUpAnim }],
+                opacity: slideUpAnim.interpolate({
+                  inputRange: [0, 100],
+                  outputRange: [1, 0],
+                }),
+              }
+            ]}
+          >
             <View style={styles.activityHeader}>
               <Text style={styles.activityTitle}>Recent Activity</Text>
               <TouchableOpacity onPress={() => onNavigateToPage('transactionHistory')}>
@@ -105,7 +145,7 @@ export default function PrivacyScreen({
               </TouchableOpacity>
             </View>
             <PrivateTransactionHistory limit={2} />
-          </View>
+          </Animated.View>
       </View>
   );
 }
@@ -121,8 +161,9 @@ const styles = StyleSheet.create({
   },
   cardsContainer: {
     alignItems: 'center',
-    marginTop: 60,
+    marginTop: 20,
     marginBottom: 10,
+    position: 'relative',
   },
   activityContainer: {
     paddingHorizontal: 20,
@@ -144,35 +185,78 @@ const styles = StyleSheet.create({
     fontWeight: '500',
     color: 'rgba(255, 255, 255, 0.6)',
   },
-  tabsContainer: {
-    flexDirection: 'row',
-    alignItems: 'flex-end',
-    justifyContent: 'flex-start',
-    width: Math.min(Dimensions.get('window').width * 0.9, 400),
-    marginBottom: -1,
-    zIndex: 10,
-  },
-  walletTab: {
-    paddingHorizontal: 18,
-    paddingVertical: 8,
-    backgroundColor: 'rgba(20, 12, 32, 0.6)',
-    borderTopLeftRadius: 12,
-    borderTopRightRadius: 12,
-    minWidth: 50,
+  titleContainer: {
     alignItems: 'center',
+    marginTop: 0,
+    marginBottom: 16,
   },
-  walletTabActive: {
-    backgroundColor: 'rgba(30, 20, 45, 1)',
-  },
-  walletTabText: {
-    color: 'rgba(255, 255, 255, 0.5)',
-    fontSize: 15,
+  pageTitle: {
+    fontSize: 28,
     fontWeight: '600',
+    color: 'white',
+    letterSpacing: 0.5,
+    fontFamily: 'Sansation-Bold',
   },
-  walletTabTextActive: {
-    color: 'rgba(255, 255, 255, 0.95)',
+  accountsContainer: {
+    marginTop: 20,
+    marginBottom: 20,
+    paddingHorizontal: 20,
   },
-  walletTabFirst: {
-    borderTopLeftRadius: 24,
+  accountsTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: 'white',
+    marginBottom: 12,
+    letterSpacing: 0.5,
+    fontFamily: 'Sansation-Bold',
+  },
+  accountsCarousel: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  accountCard: {
+    width: 180,
+    height: 110,
+    borderRadius: 16,
+    backgroundColor: 'rgba(60, 40, 80, 0.3)',
+    borderWidth: 2,
+    borderColor: 'rgba(100, 80, 120, 0.3)',
+  },
+  accountCardActive: {
+    backgroundColor: 'rgba(80, 60, 120, 0.5)',
+    borderColor: 'rgba(150, 120, 200, 0.6)',
+  },
+  accountContent: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    gap: 8,
+  },
+  accountNumber: {
+    fontSize: 32,
+    fontWeight: 'bold',
+    color: 'white',
+    fontFamily: 'Sansation-Bold',
+  },
+  accountLabel: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: 'rgba(255, 255, 255, 0.7)',
+    fontFamily: 'Sansation-Regular',
+  },
+  addAccount: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: 'rgba(60, 40, 80, 0.3)',
+    borderRadius: 16,
+    borderWidth: 2,
+    borderStyle: 'dashed',
+    borderColor: 'rgba(100, 80, 120, 0.5)',
+  },
+  addAccountIcon: {
+    fontSize: 36,
+    color: 'rgba(255, 255, 255, 0.5)',
+    fontWeight: '300',
   },
 });

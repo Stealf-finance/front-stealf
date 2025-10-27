@@ -3,7 +3,9 @@ import { View, StyleSheet, Animated } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { LinearGradient } from 'expo-linear-gradient';
 import NavigationBar from '../components/NavigationBar';
-import AuthScreen from '../screens/Auth';
+import MinimalNavBar from '../components/MinimalNavBar';
+import LoginScreen from '../screens/Login';
+import RegisterScreen from '../screens/Register';
 import HomeScreen from '../screens/HomeScreen';
 import PrivacyScreen from '../screens/PrivacyScreen';
 import TransactionHistoryScreen from '../screens/TransactionHistoryScreen';
@@ -23,28 +25,14 @@ export default function AppNavigator() {
   const [currentScreen, setCurrentScreen] = useState<'main' | 'send' | 'sendPrivate' | 'addFunds' | 'addFundsPrivacy'>('main');
   const [showProfile, setShowProfile] = useState(false);
   const [isCardScreenOpen, setIsCardScreenOpen] = useState(false);
+  const [authScreen, setAuthScreen] = useState<'login' | 'register'>('login');
 
   // Animations
-  const fadeAnim = useRef(new Animated.Value(1)).current;
   const slideAnim = useRef(new Animated.Value(0)).current;
   const screenFadeAnim = useRef(new Animated.Value(1)).current;
   const screenSlideAnim = useRef(new Animated.Value(0)).current;
   const profileFadeAnim = useRef(new Animated.Value(0)).current;
   const profileSlideAnim = useRef(new Animated.Value(100)).current;
-  const gradientOpacity = useRef(new Animated.Value(0)).current;
-
-  // Animate gradient transition
-  useEffect(() => {
-    // Le gradient est en mode privacy si on est sur privacy ET que le profil n'est pas ouvert
-    // OU si on vient de cliquer sur privacy depuis le profil (currentPage === 'privacy' même si showProfile est encore true)
-    const shouldShowPrivacyGradient = (currentPage === 'privacy' || currentScreen === 'sendPrivate' || currentScreen === 'addFundsPrivacy');
-
-    Animated.timing(gradientOpacity, {
-      toValue: shouldShowPrivacyGradient ? 1 : 0,
-      duration: 400,
-      useNativeDriver: true,
-    }).start();
-  }, [currentPage, currentScreen]);
 
   const handleNavigateToPage = (page: PageType) => {
     // Si le profil est ouvert, le fermer d'abord
@@ -52,15 +40,22 @@ export default function AppNavigator() {
       handleCloseProfile();
     }
 
-    // Animation fluide
-    Animated.timing(fadeAnim, {
-      toValue: 0,
+    // Determine slide direction
+    const pageOrder = ['home', 'privacy', 'transactionHistory'];
+    const currentIndex = pageOrder.indexOf(currentPage);
+    const nextIndex = pageOrder.indexOf(page);
+    const direction = nextIndex > currentIndex ? -1 : 1;
+
+    // Slide animation
+    Animated.timing(slideAnim, {
+      toValue: direction,
       duration: 200,
       useNativeDriver: true,
     }).start(() => {
       setCurrentPage(page);
-      Animated.timing(fadeAnim, {
-        toValue: 1,
+      slideAnim.setValue(-direction);
+      Animated.timing(slideAnim, {
+        toValue: 0,
         duration: 200,
         useNativeDriver: true,
       }).start();
@@ -76,33 +71,11 @@ export default function AppNavigator() {
   };
 
   const handleOpenProfile = () => {
-    Animated.timing(fadeAnim, {
-      toValue: 0,
-      duration: 200,
-      useNativeDriver: true,
-    }).start(() => {
-      setShowProfile(true);
-      Animated.timing(fadeAnim, {
-        toValue: 1,
-        duration: 200,
-        useNativeDriver: true,
-      }).start();
-    });
+    setShowProfile(true);
   };
 
   const handleCloseProfile = () => {
-    Animated.timing(fadeAnim, {
-      toValue: 0,
-      duration: 200,
-      useNativeDriver: true,
-    }).start(() => {
-      setShowProfile(false);
-      Animated.timing(fadeAnim, {
-        toValue: 1,
-        duration: 200,
-        useNativeDriver: true,
-      }).start();
-    });
+    setShowProfile(false);
   };
 
   const handleLogout = async () => {
@@ -126,68 +99,69 @@ export default function AppNavigator() {
   }
 
   if (!isAuthenticated) {
-    return <AuthScreen />;
+    return authScreen === 'login' ? (
+      <LoginScreen
+        onSwitchToRegister={() => setAuthScreen('register')}
+      />
+    ) : (
+      <RegisterScreen
+        onSwitchToLogin={() => setAuthScreen('login')}
+      />
+    );
   }
 
   return (
     <View style={styles.backgroundContainer}>
-      {/* Public Mode Gradient */}
+      {/* Fixed Background Gradient - Changes based on page */}
       <View style={styles.gradientContainer}>
-        <LinearGradient
-          colors={['#000000', '#0a0a0a', '#1a1a1a']}
-          locations={[0, 0.5, 1]}
-          start={{ x: 0, y: 1 }}
-          end={{ x: 0, y: 0 }}
-          style={styles.background}
-        />
+        <Animated.View
+          style={[
+            styles.background,
+            {
+              opacity: currentPage === 'home' ? 1 : 0,
+            }
+          ]}
+        >
+          <LinearGradient
+            colors={['#000000', '#0a0a0a', '#1a1a1a']}
+            locations={[0, 0.5, 1]}
+            start={{ x: 0, y: 1 }}
+            end={{ x: 0, y: 0 }}
+            style={styles.background}
+          />
+        </Animated.View>
+        <Animated.View
+          style={[
+            styles.background,
+            {
+              opacity: currentPage === 'privacy' ? 1 : 0,
+            }
+          ]}
+        >
+          <LinearGradient
+            colors={['#050008', '#0d0616', '#15092a']}
+            locations={[0, 0.5, 1]}
+            start={{ x: 0, y: 1 }}
+            end={{ x: 0, y: 0 }}
+            style={styles.background}
+          />
+        </Animated.View>
       </View>
-
-      {/* Privacy Mode Gradient - Overlay */}
-      <Animated.View
-        style={[
-          styles.gradientContainer,
-          {
-            opacity: gradientOpacity,
-          },
-        ]}
-      >
-        <LinearGradient
-          colors={['#050008', '#0a0510', '#0f0a18']}
-          locations={[0, 0.5, 1]}
-          start={{ x: 0, y: 1 }}
-          end={{ x: 0, y: 0 }}
-          style={styles.background}
-        />
-      </Animated.View>
 
       <StatusBar style="light" />
 
-      {/* Fixed Navigation Bar */}
-      {currentScreen === 'main' && !showProfile && !isCardScreenOpen && (
-        <View style={styles.fixedNavigation}>
-          <NavigationBar
-            currentPage={currentPage}
-            onNavigateToPage={handleNavigateToPage}
-            onOpenProfile={handleOpenProfile}
-            userEmail={userData?.email}
-            username={userData?.username}
-          />
+      {/* Minimal NavBar - Fixed at top */}
+      {currentScreen === 'main' && !showProfile && !isCardScreenOpen && currentPage !== 'transactionHistory' && (
+        <View style={styles.fixedNavBar}>
+          <MinimalNavBar onOpenProfile={handleOpenProfile} />
         </View>
       )}
 
-      {/* Fixed Navigation Bar for Profile */}
-      {showProfile && (
-        <View style={styles.fixedNavigation}>
-          <NavigationBar
-            currentPage="profile"
-            onNavigateToPage={(page) => {
-              handleCloseProfile();
-              handleNavigateToPage(page);
-            }}
-            onOpenProfile={handleCloseProfile}
-            userEmail={userData?.email}
-            username={userData?.username}
-          />
+      {/* Fixed Page Indicators - Above content */}
+      {currentScreen === 'main' && !showProfile && !isCardScreenOpen && currentPage !== 'transactionHistory' && (
+        <View style={styles.fixedPageIndicators}>
+          <View style={[styles.dot, currentPage === 'home' && styles.dotActive]} />
+          <View style={[styles.dot, currentPage === 'privacy' && styles.dotActive]} />
         </View>
       )}
 
@@ -196,7 +170,7 @@ export default function AppNavigator() {
         style={[
           styles.mainContainer,
           {
-            opacity: showProfile ? 0 : fadeAnim,
+            opacity: showProfile ? 0 : 1,
             zIndex: 3,
           },
         ]}
@@ -208,7 +182,15 @@ export default function AppNavigator() {
               style={[
                 styles.absolutePage,
                 {
-                  opacity: currentPage === 'home' ? fadeAnim : 0,
+                  opacity: currentPage === 'home' ? 1 : 0,
+                  transform: [
+                    {
+                      translateX: slideAnim.interpolate({
+                        inputRange: [-1, 0, 1],
+                        outputRange: [-400, 0, 400],
+                      }),
+                    },
+                  ],
                   zIndex: currentPage === 'home' ? 2 : 1,
                 },
               ]}
@@ -222,6 +204,7 @@ export default function AppNavigator() {
                 onCardScreenChange={setIsCardScreenOpen}
                 userEmail={userData?.email}
                 username={userData?.username}
+                currentPage={currentPage}
               />
             </Animated.View>
 
@@ -230,7 +213,15 @@ export default function AppNavigator() {
               style={[
                 styles.absolutePage,
                 {
-                  opacity: currentPage === 'privacy' ? fadeAnim : 0,
+                  opacity: currentPage === 'privacy' ? 1 : 0,
+                  transform: [
+                    {
+                      translateX: slideAnim.interpolate({
+                        inputRange: [-1, 0, 1],
+                        outputRange: [-400, 0, 400],
+                      }),
+                    },
+                  ],
                   zIndex: currentPage === 'privacy' ? 2 : 1,
                 },
               ]}
@@ -243,6 +234,7 @@ export default function AppNavigator() {
                 onOpenProfile={handleOpenProfile}
                 userEmail={userData?.email}
                 username={userData?.username}
+                currentPage={currentPage}
               />
             </Animated.View>
 
@@ -252,8 +244,15 @@ export default function AppNavigator() {
                 style={[
                   styles.absolutePage,
                   {
-                    opacity: fadeAnim,
-                    transform: [{ translateX: slideAnim }],
+                    opacity: 1,
+                    transform: [
+                      {
+                        translateX: slideAnim.interpolate({
+                          inputRange: [-1, 0, 1],
+                          outputRange: [-400, 0, 400],
+                        }),
+                      },
+                    ],
                     zIndex: 3,
                   },
                 ]}
@@ -277,7 +276,7 @@ export default function AppNavigator() {
         style={[
           styles.profileContainer,
           {
-            opacity: showProfile ? fadeAnim : 0,
+            opacity: showProfile ? 1 : 0,
             zIndex: showProfile ? 10 : -1,
           },
         ]}
@@ -310,9 +309,20 @@ const styles = StyleSheet.create({
     bottom: 0,
   },
   background: {
-    flex: 1,
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
     width: '100%',
     height: '100%',
+  },
+  fixedNavBar: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    zIndex: 1000,
   },
   fixedNavigation: {
     position: 'absolute',
@@ -327,6 +337,27 @@ const styles = StyleSheet.create({
   pageContainer: {
     flex: 1,
     overflow: 'hidden',
+  },
+  fixedPageIndicators: {
+    position: 'absolute',
+    top: 420,
+    left: 0,
+    right: 0,
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    gap: 8,
+    zIndex: 1001,
+  },
+  dot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: 'rgba(255, 255, 255, 0.3)',
+  },
+  dotActive: {
+    backgroundColor: 'rgba(255, 255, 255, 0.9)',
+    width: 24,
   },
   absolutePage: {
     position: 'absolute',

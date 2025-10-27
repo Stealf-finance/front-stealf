@@ -2,6 +2,7 @@ import React from 'react';
 import { StyleSheet, View, Text, TouchableOpacity, ScrollView, Image, PanResponder } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { LinearGradient } from 'expo-linear-gradient';
+import { Ionicons } from '@expo/vector-icons';
 import NavigationBar from '../components/NavigationBar';
 import type { ProfileScreenProps } from '../types';
 import { storageService } from '../services';
@@ -46,6 +47,15 @@ export default function ProfileScreen({ onBack, onNavigateToPage, onLogout, curr
 
         {/* Header Spacer */}
         <View style={styles.headerSpacer} />
+
+        {/* Back Button */}
+        <TouchableOpacity
+          style={styles.backButton}
+          onPress={onBack}
+          activeOpacity={0.7}
+        >
+          <Ionicons name="arrow-back" size={28} color="white" />
+        </TouchableOpacity>
 
         {/* Profile Header */}
         <View style={styles.profileHeader}>
@@ -122,6 +132,13 @@ const styles = StyleSheet.create({
   },
   headerSpacer: {
     height: 110,
+  },
+  backButton: {
+    position: 'absolute',
+    top: 60,
+    left: 20,
+    padding: 8,
+    zIndex: 10,
   },
   profileHeader: {
     paddingHorizontal: 24,

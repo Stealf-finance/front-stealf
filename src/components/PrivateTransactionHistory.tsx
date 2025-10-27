@@ -19,10 +19,12 @@ const CACHE_DURATION = 5 * 1000;
 const CACHE_KEY = 'private_transactions_cache_';
 
 interface PrivateTransaction {
-  type: 'deposit' | 'withdrawal';
+  type: 'send' | 'receive';
   amount: number;
   signature: string;
   timestamp?: number;
+  to?: string;
+  from?: string;
 }
 
 interface PrivateTransactionHistoryProps {
@@ -54,89 +56,36 @@ export default function PrivateTransactionHistory({ limit = 10, style }: Private
       }
       setError(null);
 
-      // Récupérer userId depuis le JWT
-      const token = await authStorage.getAccessToken();
-      if (!token) {
-        setError('No user found');
-        setLoading(false);
-        return;
-      }
-
-      let userId: string | null = null;
-      try {
-        const tokenParts = token.split('.');
-        if (tokenParts.length === 3) {
-          const payload = JSON.parse(atob(tokenParts[1]));
-          userId = payload.sub || payload.user_id || payload.id;
-        }
-      } catch (e) {
-        console.error('Error decoding JWT:', e);
-      }
-
-      if (!userId) {
-        setError('No user found');
-        setLoading(false);
-        return;
-      }
-
-      const walletId = 'privacy_1'; // Wallet privé par défaut
-
-      // Vérifier le cache si pas de forceRefresh
-      if (!forceRefresh) {
-        const cacheKey = `${CACHE_KEY}${userId}_${walletId}`;
-        const cachedData = await AsyncStorage.getItem(cacheKey);
-
-        if (cachedData) {
-          try {
-            const { transactions: cachedTxs, timestamp } = JSON.parse(cachedData);
-            const age = Date.now() - timestamp;
-
-            if (age < CACHE_DURATION) {
-              setTransactions(cachedTxs.slice(0, limit));
-              setLoading(false);
-              return;
-            }
-          } catch (e) {
-            console.warn('Failed to parse cache:', e);
-          }
-        }
-      }
-
-      // Récupérer les transactions depuis le bridge
-      const response = await fetch(
-        `${BRIDGE_URL}/arcium/wallets/${userId}/${walletId}/transactions`,
+      // TODO: Remplacer par de vraies données API
+      // Données en dur temporaires
+      const hardcodedTransactions: PrivateTransaction[] = [
         {
-          method: 'GET',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-        }
-      );
+          type: 'receive',
+          amount: 56700000000, // 0.5 SOL
+          signature: '3ZxKqp8ZjR7vN9PqBxM4YwDgKL2tEaRzF5dHgGnPWxYcMvJ8U6rTpSbLqX4wKfH9',
+          timestamp: Date.now() - 3600000, // Il y a 1 heure
+          from: '5jGJS2b8kARKKmkBLvR1QuZmenXNTuL7EXuKp2x4aUW9',
+        },
+        {
+          type: 'send',
+          amount: 280000000000, // 0.2 SOL
+          signature: '2YxKqp8ZjR7vN9PqBxM4YwDgKL2tEaRzF5dHgGnPWxYcMvJ8U6rTpSbLqX4wKfH8',
+          timestamp: Date.now() - 7200000, // Il y a 2 heures
+          to: '96t84T2D9zSVqwarmjy2v8cYbw8xCW41aAwV2qXTCdgY',
+        },
+        {
+          type: 'receive',
+          amount: 1000000000, // 1.0 SOL
+          signature: '4AxKqp8ZjR7vN9PqBxM4YwDgKL2tEaRzF5dHgGnPWxYcMvJ8U6rTpSbLqX4wKfH7',
+          timestamp: Date.now() - 86400000, // Il y a 1 jour
+          from: '7zzJRum3RiJCLXBow1CoYEyETr711BzvXPax2DF1NvTV',
+        },
+      ];
 
-      if (!response.ok) {
-        throw new Error('Failed to fetch private transactions');
-      }
+      // Simuler un délai réseau
+      await new Promise(resolve => setTimeout(resolve, 500));
 
-      const data = await response.json();
-
-      if (data.success && data.transactions) {
-        // Trier par timestamp décroissant (plus récent en premier)
-        const sortedTxs = data.transactions.sort((a: PrivateTransaction, b: PrivateTransaction) => {
-          return (b.timestamp || 0) - (a.timestamp || 0);
-        });
-
-        setTransactions(sortedTxs.slice(0, limit));
-
-        // Sauvegarder dans le cache
-        const cacheKey = `${CACHE_KEY}${userId}_${walletId}`;
-        const cacheData = {
-          transactions: sortedTxs,
-          timestamp: Date.now(),
-        };
-        await AsyncStorage.setItem(cacheKey, JSON.stringify(cacheData));
-      } else {
-        setTransactions([]);
-      }
+      setTransactions(hardcodedTransactions.slice(0, limit));
 
     } catch (err: any) {
       console.error('❌ Error fetching private transactions:', err);
@@ -182,6 +131,11 @@ export default function PrivateTransactionHistory({ limit = 10, style }: Private
 
   const formatAmount = (amountLamports: number) => {
     return (amountLamports / 1e9).toFixed(4);
+  };
+
+  const formatAddress = (address: string) => {
+    if (!address) return 'Unknown';
+    return `${address.substring(0, 4)}...${address.substring(address.length - 4)}`;
   };
 
   if (loading && transactions.length === 0) {
@@ -232,21 +186,23 @@ export default function PrivateTransactionHistory({ limit = 10, style }: Private
         >
           <View style={styles.transactionIcon}>
             <Text style={styles.iconText}>
-              {tx.type === 'deposit' ? '↙' : '↗'}
+              {tx.type === 'send' ? '↗' : '↙'}
             </Text>
           </View>
 
           <View style={styles.transactionDetails}>
             <View style={styles.transactionHeader}>
               <Text style={styles.transactionType}>
-                {tx.type === 'deposit' ? 'Deposit' : 'Withdrawal'}
+                {tx.type === 'send' ? 'Sent' : 'Received'}
+                {tx.type === 'send' && tx.to ? ` to ${formatAddress(tx.to)}` : ''}
+                {tx.type === 'receive' && tx.from ? ` from ${formatAddress(tx.from)}` : ''}
               </Text>
               <Text style={[
                 styles.transactionAmount,
-                tx.type === 'deposit' ? styles.amountReceived : styles.amountSent
+                tx.type === 'send' ? styles.amountSent : styles.amountReceived
               ]}>
-                {tx.type === 'deposit' ? '+' : '-'}
-                {formatAmount(tx.amount)} SOL
+                {tx.type === 'send' ? '-' : '+'}
+                {formatAmount(tx.amount)} USD
               </Text>
             </View>
 
@@ -350,10 +306,10 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
   },
   amountSent: {
-    color: '#ff6b6b',
+    color: 'white',
   },
   amountReceived: {
-    color: '#51cf66',
+    color: 'white',
   },
   transactionFooter: {
     flexDirection: 'row',
@@ -375,14 +331,14 @@ const styles = StyleSheet.create({
     marginRight: 5,
   },
   statusConfirmed: {
-    backgroundColor: '#9b59b6',
+    backgroundColor: 'rgba(255, 255, 255, 0.6)',
   },
   statusText: {
     fontSize: 11,
     fontWeight: '600',
   },
   statusTextConfirmed: {
-    color: '#9b59b6',
+    color: 'rgba(255, 255, 255, 0.7)',
   },
   arrowContainer: {
     marginLeft: 8,
@@ -399,7 +355,7 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   errorText: {
-    color: '#ff6b6b',
+    color: 'white',
     fontSize: 14,
     textAlign: 'center',
     marginBottom: 15,

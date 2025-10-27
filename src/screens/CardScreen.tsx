@@ -34,7 +34,7 @@ export default function CardScreen({ onClose }: CardScreenProps) {
       opacity: fadeAnim,
       transform: [{ translateY: slideAnim }]
     }]}>
-      {/* Background Gradient */}
+      {/* Background Gradient - Same as HomeScreen */}
       <LinearGradient
         colors={['#000000', '#0a0a0a', '#1a1a1a']}
         locations={[0, 0.5, 1]}
@@ -282,6 +282,5 @@ const styles = StyleSheet.create({
   quickActionIcon: {
     width: 24,
     height: 24,
-    tintColor: '#ffffff',
   },
 });

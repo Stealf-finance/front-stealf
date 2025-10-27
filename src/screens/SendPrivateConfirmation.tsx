@@ -77,56 +77,83 @@ export default function SendConfirmation({ amount, onBack, onSuccess }: SendConf
         return;
       }
 
-      let response;
-      if (destinationType === 'privacy') {
-        // Transfer to privacy wallet
-        response = await fetch(`${API_URL}/api/v1/transaction/private`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${token}`,
-          },
-          body: JSON.stringify({
-            amount: parseFloat(amount),
-          }),
-        });
-      } else {
-        // Transfer to external wallet
-        response = await fetch(`${API_URL}/api/v1/transaction/public`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${token}`,
-          },
-          body: JSON.stringify({
-            toAddress: externalAddress,
-            amount: parseFloat(amount),
-          }),
-        });
+      // Get user's wallet address (you may need to adjust this based on your app's structure)
+      // This should come from your auth context or user data
+      const userWalletAddress = ''; // TODO: Get from user context/storage
+
+      if (!userWalletAddress) {
+        Alert.alert('Error', 'User wallet address not found');
+        setIsLoading(false);
+        return;
       }
 
-      const data = await response.json();
+      // Step 1: Create payment intent
+      const recipientAddress = destinationType === 'privacy' ? selectedPrivacyWallet : externalAddress;
 
-      if (response.ok && data.success) {
-        setTransactionSignature(data.data?.signature || data.signature || 'COMPLETED');
-        setShowSuccessModal(true);
+      const intentResponse = await fetch(`${API_URL}/grid/payment-intent`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          smartAccountAddress: userWalletAddress,
+          payload: {
+            amount: String(parseFloat(amount) * 1e9), // Convert to lamports
+            destination: recipientAddress,
+            token: 'SOL',
+          },
+        }),
+      });
 
-        Animated.parallel([
-          Animated.timing(successAnimation, {
-            toValue: 1,
-            duration: 300,
-            useNativeDriver: true,
-          }),
-          Animated.spring(checkmarkScale, {
-            toValue: 1,
-            friction: 6,
-            tension: 80,
-            useNativeDriver: true,
-          }),
-        ]).start();
-      } else {
-        Alert.alert('Transfer Failed', data.message || 'Unknown error occurred');
+      if (!intentResponse.ok) {
+        const errorData = await intentResponse.json();
+        throw new Error(errorData.error || errorData.detail || 'Failed to create payment intent');
       }
+
+      const paymentIntent = await intentResponse.json();
+
+      // Step 2: Sign transaction (simplified - in production you'd use a proper wallet)
+      // For now, we assume the backend handles signing or you need to implement wallet signing
+      const signedTx = paymentIntent.transaction; // TODO: Implement proper signing
+
+      // Step 3: Confirm and send transaction
+      const confirmResponse = await fetch(`${API_URL}/grid/confirm`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          address: userWalletAddress,
+          signedTransactionPayload: signedTx,
+        }),
+      });
+
+      if (!confirmResponse.ok) {
+        const errorData = await confirmResponse.json();
+        throw new Error(errorData.error || errorData.detail || 'Failed to confirm transaction');
+      }
+
+      const result = await confirmResponse.json();
+
+      setTransactionSignature(result.signature || 'COMPLETED');
+      setShowSuccessModal(true);
+
+      Animated.parallel([
+        Animated.timing(successAnimation, {
+          toValue: 1,
+          duration: 300,
+          useNativeDriver: true,
+        }),
+        Animated.spring(checkmarkScale, {
+          toValue: 1,
+          friction: 6,
+          tension: 80,
+          useNativeDriver: true,
+        }),
+      ]).start();
+
     } catch (error: any) {
       console.error('Transfer error:', error);
       Alert.alert('Error', error.message || 'Failed to transfer');

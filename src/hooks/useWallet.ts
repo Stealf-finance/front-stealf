@@ -13,56 +13,29 @@ export function useWallet() {
   const loadWalletAddress = async () => {
     console.log('🚀 useWallet - loadWalletAddress called');
     try {
-      // Get token
-      const token = await authStorage.getAccessToken();
-      if (!token) {
-        console.error('❌ useWallet - No token found');
+      // Get grid address directly from storage (saved during login/register)
+      const gridAddress = await authStorage.getGridAddress();
+
+      if (gridAddress) {
+        console.log('✅ Loaded Grid address from storage:', gridAddress);
+        console.log('⚠️ This is the GRID smart account address, NOT a standard Solana wallet address');
+        setWalletAddress(gridAddress);
         setLoading(false);
         return;
       }
-      console.log('✅ useWallet - Token found, length:', token.length);
 
-      // Essayer d'abord depuis le JWT (plus rapide)
-      try {
-        const tokenParts = token.split('.');
-        if (tokenParts.length === 3) {
-          const payload = JSON.parse(atob(tokenParts[1]));
-          const solanaWallet = payload.solana_wallet;
+      // Fallback: Try to get from user data
+      const userData = await authStorage.getUserData();
+      const walletFromUserData = userData?.grid_address || userData?.address;
 
-          if (solanaWallet) {
-            console.log('✅ Loaded Solana wallet from JWT:', solanaWallet);
-            setWalletAddress(solanaWallet);
-            setLoading(false);
-            return;
-          }
-        }
-      } catch (e) {
-        console.log('⚠️ Could not read wallet from JWT, fetching from API...');
+      if (walletFromUserData) {
+        console.log('✅ Loaded wallet from user data:', walletFromUserData);
+        setWalletAddress(walletFromUserData);
+        setLoading(false);
+        return;
       }
 
-      // Si pas dans le JWT, fetch depuis l'API
-      console.log('🔍 Fetching wallet from API...');
-      const response = await fetch(`${API_URL}/api/v1/wallet/info`, {
-        method: 'GET',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
-      });
-
-      if (response.ok) {
-        const data = await response.json();
-        const solanaWallet = data.solana_wallet || data.solana_public_key;
-
-        if (solanaWallet) {
-          console.log('✅ Loaded Solana wallet from API:', solanaWallet);
-          setWalletAddress(solanaWallet);
-        } else {
-          console.error('❌ No solana_wallet in API response');
-        }
-      } else {
-        console.error('❌ Failed to fetch wallet from API:', response.status);
-      }
+      console.error('❌ No wallet address found in storage or user data');
     } catch (error) {
       console.error('❌ Error loading wallet address:', error);
     } finally {

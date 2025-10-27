@@ -10,10 +10,12 @@ import {
   Linking,
   Alert,
 } from 'react-native';
-import { PublicKey, ParsedTransactionWithMeta } from '@solana/web3.js';
+// Removed Solana web3.js imports - now using GRID SDK
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useWallet } from '../hooks';
 import { solanaService } from '../services/solanaService';
+import { API_URL } from '../config/config';
+import { authStorage } from '../services/authStorage';
 
 // Cache des transactions (5 secondes pour éviter le rate limiting)
 const CACHE_DURATION = 5 * 1000; // 5 secondes en ms
@@ -34,9 +36,10 @@ interface Transaction {
 interface TransactionHistoryProps {
   limit?: number;
   style?: any;
+  isDemo?: boolean;
 }
 
-export default function TransactionHistory({ limit = 10, style }: TransactionHistoryProps) {
+export default function TransactionHistory({ limit = 10, style, isDemo = false }: TransactionHistoryProps) {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -46,6 +49,35 @@ export default function TransactionHistory({ limit = 10, style }: TransactionHis
   const { walletAddress } = useWallet();
 
   useEffect(() => {
+    // Si mode demo, afficher des transactions hardcodées
+    if (isDemo) {
+      const demoTransactions: Transaction[] = [
+        {
+          signature: 'demo-tx-1',
+          type: 'receive',
+          amount: 150.00,
+          token: 'USD',
+          timestamp: Date.now() - 2 * 60 * 60 * 1000, // 2h ago
+          status: 'confirmed',
+          from: '7xK...9pQ2',
+          isPrivate: false,
+        },
+        {
+          signature: 'demo-tx-2',
+          type: 'send',
+          amount: 45.50,
+          token: 'USD',
+          timestamp: Date.now() - 24 * 60 * 60 * 1000, // 1d ago
+          status: 'confirmed',
+          to: '3mF...8kL1',
+          isPrivate: false,
+        },
+      ];
+      setTransactions(demoTransactions);
+      setLoading(false);
+      return;
+    }
+
     if (walletAddress) {
       fetchTransactions();
 
@@ -56,11 +88,13 @@ export default function TransactionHistory({ limit = 10, style }: TransactionHis
 
       return () => clearInterval(interval);
     }
-  }, [walletAddress]);
+  }, [walletAddress, isDemo]);
 
-  const fetchTransactions = async (silent = false, forceRefresh = false) => {
+  const fetchTransactions = async (silent = true, forceRefresh = false) => {
     try {
-      if (!silent) {
+      // Ne plus jamais afficher le loading pour éviter les clignotements
+      // Le loading initial reste visible seulement si pas de transactions
+      if (transactions.length === 0 && !silent) {
         setLoading(true);
       }
       setError(null);
@@ -81,7 +115,7 @@ export default function TransactionHistory({ limit = 10, style }: TransactionHis
             const { transactions: cachedTxs, timestamp } = JSON.parse(cachedData);
             const age = Date.now() - timestamp;
 
-            // Si le cache a moins de 1 seconde, l'utiliser
+            // Si le cache a moins de 5 secondes, l'utiliser
             if (age < CACHE_DURATION) {
               // Limiter le nombre de transactions selon la prop limit
               setTransactions(cachedTxs.slice(0, limit));
@@ -94,45 +128,72 @@ export default function TransactionHistory({ limit = 10, style }: TransactionHis
         }
       }
 
-      // Utiliser le même service que BalanceDisplay (avec Helius RPC)
-      const connection = await solanaService.getConnection();
-      const pubkey = new PublicKey(walletAddress);
+      // Use GRID SDK backend endpoint instead of direct RPC calls
+      const token = await authStorage.getAccessToken();
 
-      // Récupérer les signatures de transactions
-      const signatures = await connection.getSignaturesForAddress(pubkey, { limit });
-
-      // Récupérer les détails de chaque transaction
-      // IMPORTANT: Ajouter un délai entre chaque requête pour éviter le rate limiting
-      const txs: Transaction[] = [];
-
-      for (let i = 0; i < signatures.length; i++) {
-        const sigInfo = signatures[i];
-
-        try {
-          // Délai de 100ms entre chaque transaction (Helius RPC plus rapide)
-          if (i > 0) {
-            await new Promise(resolve => setTimeout(resolve, 100));
-          }
-
-          const tx = await connection.getParsedTransaction(sigInfo.signature, {
-            maxSupportedTransactionVersion: 0,
-          });
-
-          if (tx) {
-            const parsed = parseTransaction(tx, walletAddress);
-            if (parsed) {
-              txs.push(parsed);
-            }
-          }
-        } catch (txErr: any) {
-          // Si rate limit (429), on arrête et on affiche ce qu'on a
-          if (txErr.message?.includes('429')) {
-            console.warn(`⚠️ Rate limit hit at transaction ${i + 1}. Showing ${txs.length} transactions.`);
-            break;
-          }
-          console.warn(`⚠️ Failed to parse transaction ${sigInfo.signature}:`, txErr);
-        }
+      if (!token) {
+        throw new Error('Authentication required to fetch transactions');
       }
+
+      const smartAccountAddress = encodeURIComponent(walletAddress);
+
+      const response = await fetch(
+        `${API_URL}/grid/transfers?smart_account_address=${smartAccountAddress}`,
+        {
+          method: 'GET',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`,
+          },
+        }
+      );
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || errorData.detail || 'Failed to fetch transactions');
+      }
+
+      const responseData = await response.json();
+
+      // Extract data from response wrapper
+      const data = responseData.data || responseData;
+
+      // Check different possible structures
+      let transfers = [];
+      if (Array.isArray(data)) {
+        transfers = data;
+      } else if (data.transfers && Array.isArray(data.transfers)) {
+        transfers = data.transfers;
+      } else if (data.data && Array.isArray(data.data)) {
+        transfers = data.data;
+      } else {
+        transfers = [];
+      }
+
+      // Transform GRID SDK response to match expected Transaction type
+      const txs: Transaction[] = transfers
+        .map((transfer: any) => {
+          // GRID SDK wraps transfers in { "Spl": {...} } or { "Native": {...} }
+          const txData = transfer.Spl || transfer.Native || transfer;
+
+          // GRID SDK returns created_at without timezone, so add 'Z' to treat it as UTC
+          const timestamp = txData.created_at ? new Date(txData.created_at + 'Z').getTime() :
+                            (transfer.timestamp ? new Date(transfer.timestamp).getTime() : Date.now());
+
+          return {
+            signature: txData.signature || transfer.signature || transfer.txId || 'unknown',
+            type: (txData.direction === 'outflow' || transfer.type === 'outgoing') ? 'send' : 'receive',
+            amount: parseFloat(txData.ui_amount || txData.amount || transfer.amount || '0'),
+            token: txData.mint ? 'USDC' : (transfer.token || 'SOL'),
+            timestamp: timestamp,
+            status: txData.confirmation_status === 'confirmed' || transfer.status === 'confirmed' ? 'confirmed' :
+                   (txData.confirmation_status === 'failed' || transfer.status === 'failed' ? 'failed' : 'pending'),
+            from: txData.from_address || transfer.from || transfer.sender,
+            to: txData.to_address || transfer.to || transfer.recipient,
+            isPrivate: transfer.isPrivate || false,
+          };
+        })
+        .slice(0, limit); // Apply limit AFTER mapping to ensure we get diverse transactions
 
       setTransactions(txs);
 
@@ -147,7 +208,7 @@ export default function TransactionHistory({ limit = 10, style }: TransactionHis
       }
 
     } catch (err: any) {
-      console.error('❌ Error fetching transactions:', err);
+      console.error('❌ Error fetching transactions via GRID SDK:', err);
       setError(err.message || 'Failed to load transactions');
     } finally {
       setLoading(false);
@@ -155,108 +216,6 @@ export default function TransactionHistory({ limit = 10, style }: TransactionHis
     }
   };
 
-  const parseTransaction = (tx: ParsedTransactionWithMeta, userAddr: string): Transaction | null => {
-    try {
-      // Extraire la signature
-      const signature = tx.transaction.signatures[0];
-
-      // Timestamp (blockTime est en secondes, on convertit en millisecondes)
-      const timestamp = tx.blockTime ? tx.blockTime * 1000 : Date.now();
-
-      // Status
-      const status = tx.meta?.err ? 'failed' : 'confirmed';
-
-      // Analyser les instructions pour trouver les transfers
-      const instructions = tx.transaction.message.instructions;
-
-      for (const instruction of instructions) {
-        if ('parsed' in instruction && instruction.parsed) {
-          const parsed = instruction.parsed;
-
-          // Transfer SOL (System Program)
-          if (parsed.type === 'transfer' && instruction.program === 'system') {
-            const info = parsed.info;
-            const from = info.source;
-            const to = info.destination;
-            const amount = info.lamports / 1e9; // Convertir lamports en SOL
-
-            const type = from === userAddr ? 'send' : 'receive';
-
-            // Détecter si c'est une transaction privée (vers un PDA inconnu, pas une adresse normale)
-            // Les PDAs Arcium ont généralement des adresses qui ne ressemblent pas à des wallets normaux
-            const isPrivate = tx.transaction.message.accountKeys.length > 5; // Transaction complexe avec plusieurs comptes = probablement privée
-
-            return {
-              signature,
-              type,
-              amount,
-              token: 'SOL',
-              timestamp,
-              status,
-              from,
-              to,
-              isPrivate,
-            };
-          }
-
-          // Transfer SPL Token (Token Program)
-          if (
-            (parsed.type === 'transfer' || parsed.type === 'transferChecked') &&
-            (instruction.program === 'spl-token')
-          ) {
-            const info = parsed.info;
-
-            // Pour transferChecked, on a tokenAmount directement
-            // Pour transfer, on a amount en unités brutes
-            let amount = 0;
-            let tokenSymbol = 'TOKEN';
-
-            if (parsed.type === 'transferChecked' && info.tokenAmount) {
-              amount = parseFloat(info.tokenAmount.uiAmountString || '0');
-            } else if (info.amount) {
-              // Fallback: on assume 6 decimals pour USDC/USDT
-              amount = parseInt(info.amount) / 1e6;
-            }
-
-            // Récupérer les adresses source et destination
-            const sourceOwner = info.authority || info.source;
-            const destOwner = info.destination;
-
-            // Déterminer le type de transaction
-            const type = sourceOwner === userAddr ? 'send' : 'receive';
-
-            // Essayer de déterminer le symbole du token (USDC, USDT, etc.)
-            // On pourrait enrichir cela avec un mapping mint -> symbol
-            if (info.mint) {
-              // USDC devnet: 4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU
-              if (info.mint === '4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU') {
-                tokenSymbol = 'USDC';
-              }
-              // Ajouter d'autres mints connus ici
-            }
-
-            return {
-              signature,
-              type,
-              amount,
-              token: tokenSymbol,
-              timestamp,
-              status,
-              from: sourceOwner,
-              to: destOwner,
-            };
-          }
-        }
-      }
-
-      // Si aucune instruction de transfer n'est trouvée, on retourne null
-      return null;
-
-    } catch (err) {
-      console.warn('⚠️ Error parsing transaction:', err);
-      return null;
-    }
-  };
 
   const handleRefresh = () => {
     setRefreshing(true);
@@ -296,27 +255,8 @@ export default function TransactionHistory({ limit = 10, style }: TransactionHis
     return `${address.substring(0, 4)}...${address.substring(address.length - 4)}`;
   };
 
-  if (loading && transactions.length === 0) {
-    return (
-      <View style={[styles.container, style]}>
-        <ActivityIndicator size="large" color="#FFFFFF" />
-        <Text style={styles.loadingText}>Loading transactions...</Text>
-      </View>
-    );
-  }
-
-  if (error && transactions.length === 0) {
-    return (
-      <View style={[styles.container, style]}>
-        <Text style={styles.errorText}>⚠️ {error}</Text>
-        <TouchableOpacity onPress={handleRefresh} style={styles.retryButton}>
-          <Text style={styles.retryButtonText}>Retry</Text>
-        </TouchableOpacity>
-      </View>
-    );
-  }
-
-  if (transactions.length === 0) {
+  // Ne jamais afficher d'état de chargement, toujours afficher directement le contenu
+  if (transactions.length === 0 && !loading) {
     return (
       <View style={[styles.container, style]}>
         <View style={styles.emptyContainer}>
