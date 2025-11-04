@@ -10,15 +10,13 @@ import {
   Linking,
   Alert,
 } from 'react-native';
-// Removed Solana web3.js imports - now using GRID SDK
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useWallet } from '../hooks';
-import { solanaService } from '../services/solanaService';
-import { API_URL } from '../config/config';
 import { authStorage } from '../services/authStorage';
+import { getGridClient } from '../config/grid';
 
-// Cache des transactions (5 secondes pour éviter le rate limiting)
-const CACHE_DURATION = 5 * 1000; // 5 secondes en ms
+
+const CACHE_DURATION = 5 * 1000;
 const CACHE_KEY = 'transactions_cache_';
 
 interface Transaction {
@@ -45,7 +43,7 @@ export default function TransactionHistory({ limit = 10, style, isDemo = false }
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Utiliser le même hook que BalanceDisplay pour cohérence
+ 
   const { walletAddress } = useWallet();
 
   useEffect(() => {
@@ -129,45 +127,28 @@ export default function TransactionHistory({ limit = 10, style, isDemo = false }
       }
 
       // Use GRID SDK backend endpoint instead of direct RPC calls
-      const token = await authStorage.getAccessToken();
+      const gridClient = getGridClient();
 
-      if (!token) {
-        throw new Error('Authentication required to fetch transactions');
+      // Utiliser le SDK Grid pour récupérer les transactions
+      const responseData = await gridClient.getTransfers(walletAddress);
+
+      if (!responseData.success) {
+        throw new Error(responseData.error || 'Failed to fetch transactions');
       }
-
-      const smartAccountAddress = encodeURIComponent(walletAddress);
-
-      const response = await fetch(
-        `${API_URL}/grid/transfers?smart_account_address=${smartAccountAddress}`,
-        {
-          method: 'GET',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${token}`,
-          },
-        }
-      );
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || errorData.detail || 'Failed to fetch transactions');
-      }
-
-      const responseData = await response.json();
 
       // Extract data from response wrapper
-      const data = responseData.data || responseData;
+      const data: any = responseData.data || [];
 
       // Check different possible structures
-      let transfers = [];
+      let transfers: any[] = [];
       if (Array.isArray(data)) {
         transfers = data;
-      } else if (data.transfers && Array.isArray(data.transfers)) {
-        transfers = data.transfers;
-      } else if (data.data && Array.isArray(data.data)) {
-        transfers = data.data;
-      } else {
-        transfers = [];
+      } else if (typeof data === 'object' && data !== null) {
+        if (data.transfers && Array.isArray(data.transfers)) {
+          transfers = data.transfers;
+        } else if (data.data && Array.isArray(data.data)) {
+          transfers = data.data;
+        }
       }
 
       // Transform GRID SDK response to match expected Transaction type
@@ -180,14 +161,18 @@ export default function TransactionHistory({ limit = 10, style, isDemo = false }
           const timestamp = txData.created_at ? new Date(txData.created_at + 'Z').getTime() :
                             (transfer.timestamp ? new Date(transfer.timestamp).getTime() : Date.now());
 
+          const type: 'send' | 'receive' = (txData.direction === 'outflow' || transfer.type === 'outgoing') ? 'send' : 'receive';
+          const status: 'confirmed' | 'pending' | 'failed' =
+            txData.confirmation_status === 'confirmed' || transfer.status === 'confirmed' ? 'confirmed' :
+            (txData.confirmation_status === 'failed' || transfer.status === 'failed' ? 'failed' : 'pending');
+
           return {
             signature: txData.signature || transfer.signature || transfer.txId || 'unknown',
-            type: (txData.direction === 'outflow' || transfer.type === 'outgoing') ? 'send' : 'receive',
+            type,
             amount: parseFloat(txData.ui_amount || txData.amount || transfer.amount || '0'),
             token: txData.mint ? 'USDC' : (transfer.token || 'SOL'),
-            timestamp: timestamp,
-            status: txData.confirmation_status === 'confirmed' || transfer.status === 'confirmed' ? 'confirmed' :
-                   (txData.confirmation_status === 'failed' || transfer.status === 'failed' ? 'failed' : 'pending'),
+            timestamp,
+            status,
             from: txData.from_address || transfer.from || transfer.sender,
             to: txData.to_address || transfer.to || transfer.recipient,
             isPrivate: transfer.isPrivate || false,

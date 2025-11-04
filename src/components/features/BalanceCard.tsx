@@ -20,7 +20,7 @@ export default function BalanceCard({ onWithdraw, onTopUp, onExchange, isPrivacy
 
   // Load fonts
   const [fontsLoaded] = useFonts({
-    'Sansation-Regular': require('../../../assets/font/Sansation/Sansation-Regular.ttf'),
+    'Sansation-Regular': require('../../assets/font/Sansation/Sansation-Regular.ttf'),
   });
 
   // Debug logs
@@ -57,7 +57,7 @@ export default function BalanceCard({ onWithdraw, onTopUp, onExchange, isPrivacy
       (token) => token.symbol === 'USDC' || token.symbol === 'usdc'
     );
 
-    return usdcToken ? usdcToken.uiAmount : 0;
+    return usdcToken ? usdcToken.amount : 0;
   };
 
   React.useEffect(() => {
@@ -68,7 +68,7 @@ export default function BalanceCard({ onWithdraw, onTopUp, onExchange, isPrivacy
     }
   }, [balance, isDemo]);
 
-  const totalUSD = displayBalance;
+  const totalUSD = displayBalance || 0;
 
   return (
     <View style={styles.container}>

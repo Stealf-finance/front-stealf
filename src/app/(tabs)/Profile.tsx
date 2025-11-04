@@ -1,0 +1,348 @@
+import React, { useState, useEffect } from 'react';
+import { StyleSheet, View, Text, TouchableOpacity, ScrollView, Image, PanResponder, Switch, Linking } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
+import AppBackground from '../../components/common/AppBackground';
+import { storageService } from '../../services';
+import { isBiometricAvailable, isBiometricEnabled, enableBiometric, disableBiometric, getBiometricType } from '../../services/biometricService';
+import { authStorage } from '../../services/authStorage';
+
+interface ProfileScreenProps {
+  onBack?: () => void;
+  onNavigateToPage?: (page: string) => void;
+  onLogout?: () => void;
+  currentPage?: string;
+  userEmail?: string;
+  username?: string;
+}
+
+export default function ProfileScreen({ onBack, onNavigateToPage, onLogout, currentPage, userEmail, username }: ProfileScreenProps) {
+  const [biometricAvailable, setBiometricAvailable] = useState(false);
+  const [biometricEnabled, setBiometricEnabled] = useState(false);
+  const [biometricType, setBiometricType] = useState<string | null>(null);
+  const [isTogglingBiometric, setIsTogglingBiometric] = useState(false);
+
+  useEffect(() => {
+    checkBiometricStatus();
+  }, []);
+
+  const checkBiometricStatus = async () => {
+    const available = await isBiometricAvailable();
+    const enabled = await isBiometricEnabled();
+    const type = await getBiometricType();
+
+    setBiometricAvailable(available);
+    setBiometricEnabled(enabled);
+    setBiometricType(type);
+  };
+
+  const handleToggleBiometric = async (value: boolean) => {
+    setIsTogglingBiometric(true);
+
+    try {
+      if (value) {
+        const token = await authStorage.getAccessToken();
+        if (token) {
+          const success = await enableBiometric(token);
+          if (success) {
+            setBiometricEnabled(true);
+            console.log('✅ Biometric enabled successfully');
+          } else {
+            console.log('❌ Failed to enable biometric');
+          }
+        }
+      } else {
+        await disableBiometric();
+        setBiometricEnabled(false);
+        console.log('✅ Biometric disabled');
+      }
+    } catch (error) {
+      console.error('Error toggling biometric:', error);
+    } finally {
+      setIsTogglingBiometric(false);
+    }
+  };
+
+  const handleLogout = async () => {
+    try {
+      await storageService.clearAll();
+      console.log('✅ All user data cleared from storage');
+      onLogout();
+    } catch (error) {
+      console.error('❌ Error clearing user data:', error);
+      onLogout();
+    }
+  };
+
+  const handleOpenTelegramBot = async () => {
+    const url = 'https://t.me/stealf_bot';
+    const canOpen = await Linking.canOpenURL(url);
+    if (canOpen) {
+      await Linking.openURL(url);
+    } else {
+      console.error('Cannot open Telegram URL');
+    }
+  };
+
+  // Pan Responder pour le swipe depuis le profil
+  const panResponder = PanResponder.create({
+    onStartShouldSetPanResponder: () => true,
+    onMoveShouldSetPanResponder: (_, gestureState) => {
+      return Math.abs(gestureState.dx) > Math.abs(gestureState.dy) && Math.abs(gestureState.dx) > 20;
+    },
+    onPanResponderRelease: (_, gestureState) => {
+      if (gestureState.dx > 50) {
+        // Swipe vers la droite depuis le profil - retour vers Privacy
+        onBack();
+      }
+    },
+  });
+
+  return (
+    <View style={styles.container}>
+      <AppBackground>
+
+        {/* Header */}
+        <View style={styles.header}>
+          <TouchableOpacity style={styles.backButton} onPress={onBack} activeOpacity={0.8}>
+            <Text style={styles.backArrow}>←</Text>
+          </TouchableOpacity>
+          <View style={styles.placeholder} />
+        </View>
+
+        {/* Profile Header */}
+        <View style={styles.profileHeader}>
+          {/* User Info */}
+          <View style={styles.userInfo}>
+            <Text style={styles.userType}>Personal</Text>
+            <Text style={styles.userEmail}>{userEmail || 'No email provided'}</Text>
+            {username && (
+              <Text style={styles.username}>{username}</Text>
+            )}
+          </View>
+        </View>
+
+        {/* Profile Content */}
+        <View style={{ flex: 1 }} {...panResponder.panHandlers}>
+          <ScrollView style={styles.profileContent} showsVerticalScrollIndicator={false}>
+
+          {/* Spacer pour pousser les boutons vers le bas */}
+          <View style={{ flex: 1 }} />
+
+          {/* Bottom Actions */}
+          <View style={styles.bottomActions}>
+            {/* Biometric Toggle */}
+            {biometricAvailable && (
+              <View style={styles.profileActionButton}>
+                <View style={styles.profileActionIcon}>
+                  <Ionicons name="scan" size={20} color="white" />
+                </View>
+                <View style={styles.profileActionInfo}>
+                  <Text style={styles.profileActionTitle}>{biometricType}</Text>
+                  <Text style={styles.profileActionSubtitle}>
+                    {biometricEnabled ? 'Active' : 'Disabled'}
+                  </Text>
+                </View>
+                <Switch
+                  value={biometricEnabled}
+                  onValueChange={handleToggleBiometric}
+                  disabled={isTogglingBiometric}
+                  trackColor={{ false: 'rgba(255, 255, 255, 0.2)', true: 'rgba(255, 255, 255, 0.4)' }}
+                  thumbColor={biometricEnabled ? '#ffffff' : '#f4f3f4'}
+                />
+              </View>
+            )}
+
+            <TouchableOpacity style={styles.profileActionButton} activeOpacity={0.8} onPress={handleOpenTelegramBot}>
+              <View style={styles.profileActionIcon}>
+                <Text style={styles.profileActionIconText}>?</Text>
+              </View>
+              <View style={styles.profileActionInfo}>
+                <Text style={styles.profileActionTitle}>Help</Text>
+                <Text style={styles.profileActionSubtitle}>Customer service</Text>
+              </View>
+            </TouchableOpacity>
+
+            <TouchableOpacity style={styles.profileActionButton} activeOpacity={0.8} onPress={handleLogout}>
+              <View style={styles.profileActionIcon}>
+                <Text style={styles.profileActionIconText}>←</Text>
+              </View>
+              <View style={styles.profileActionInfo}>
+                <Text style={styles.profileActionTitle}>Logout</Text>
+              </View>
+            </TouchableOpacity>
+          </View>
+
+          {/* Spacer pour pousser le footer vers le bas */}
+          <View style={{ minHeight: 80 }} />
+
+          {/* Footer */}
+          <View style={styles.profileFooter}>
+            <Text style={styles.versionText}>Version 0.1</Text>
+            <View style={styles.brandContainer}>
+              <Image
+                source={require('../../assets/logo-transparent.png')}
+                style={styles.brandLogo}
+                resizeMode="contain"
+              />
+              <Text style={styles.brandText}>STEALF</Text>
+            </View>
+          </View>
+        </ScrollView>
+        </View>
+      </AppBackground>
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+  },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 24,
+    paddingTop: 80,
+    paddingBottom: 20,
+  },
+  backButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: 'rgba(60, 60, 60, 0.9)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  backArrow: {
+    fontSize: 18,
+    color: 'white',
+    fontWeight: 'bold',
+  },
+  placeholder: {
+    width: 40,
+  },
+  profileHeader: {
+    paddingHorizontal: 24,
+    paddingTop: 10,
+    paddingBottom: 10,
+  },
+  userInfo: {
+    alignItems: 'flex-start',
+  },
+  userType: {
+    color: 'rgba(255, 255, 255, 0.7)',
+    fontSize: 16,
+    fontFamily: 'Sansation-Regular',
+    marginBottom: 8,
+  },
+  userEmail: {
+    color: 'white',
+    fontSize: 18,
+    fontWeight: 'bold',
+    fontFamily: 'Sansation-Bold',
+    marginBottom: 4,
+  },
+  username: {
+    color: 'rgba(255, 255, 255, 0.7)',
+    fontSize: 16,
+    fontFamily: 'Sansation-Regular',
+  },
+  profileContent: {
+    flex: 1,
+    paddingHorizontal: 24,
+  },
+  totalCashContainer: {
+    alignItems: 'center',
+    marginTop: 40,
+    marginBottom: 60,
+  },
+  totalCashCard: {
+    paddingVertical: 20,
+    paddingHorizontal: 32,
+    borderRadius: 20,
+    backgroundColor: 'rgb(255, 255, 255)',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    width: '100%',
+    maxWidth: 400,
+  },
+  totalCashLabel: {
+    color: 'rgba(0, 0, 0, 0.7)',
+    fontSize: 16,
+    fontWeight: '500',
+    fontFamily: 'Sansation-Regular',
+  },
+  totalCashAmount: {
+    color: 'rgba(0, 0, 0, 0.9)',
+    fontSize: 24,
+    fontWeight: 'bold',
+    fontFamily: 'Sansation-Bold',
+  },
+  bottomActions: {
+    gap: 20,
+    marginBottom: 40,
+  },
+  profileActionButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 16,
+  },
+  profileActionIcon: {
+    width: 50,
+    height: 50,
+    borderRadius: 25,
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.2)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 16,
+  },
+  profileActionIconText: {
+    color: 'white',
+    fontSize: 20,
+    fontWeight: 'bold',
+  },
+  profileActionInfo: {
+    flex: 1,
+  },
+  profileActionTitle: {
+    color: 'white',
+    fontSize: 18,
+    fontWeight: '600',
+    fontFamily: 'Sansation-Bold',
+    marginBottom: 4,
+  },
+  profileActionSubtitle: {
+    color: 'rgba(255, 255, 255, 0.7)',
+    fontSize: 14,
+    fontFamily: 'Sansation-Regular',
+  },
+  profileFooter: {
+    alignItems: 'center',
+    paddingTop: 40,
+    paddingBottom: 40,
+  },
+  versionText: {
+    color: 'white',
+    fontSize: 16,
+    fontFamily: 'Sansation-Regular',
+    marginBottom: 20,
+  },
+  brandContainer: {
+    alignItems: 'center',
+  },
+  brandLogo: {
+    width: 40,
+    height: 40,
+    marginBottom: 8,
+  },
+  brandText: {
+    color: 'white',
+    fontSize: 18,
+    fontWeight: 'bold',
+    fontFamily: 'Sansation-Bold',
+  },
+});

@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
-import { solanaService } from '../services';
 import type { Balance } from '../types';
+import { getGridClient } from '../config/grid';
 
 // Cache global pour éviter les rechargements inutiles
 const balanceCache: { [key: string]: { data: Balance; timestamp: number } } = {};
@@ -43,7 +43,26 @@ export function useBalance(walletAddress: string | null) {
         setLoading(true);
       }
       setError(null);
-      const balanceData = await solanaService.getBalance(walletAddress);
+
+      // Utiliser le SDK Grid pour récupérer la balance
+      const gridClient = getGridClient();
+      const response = await gridClient.getAccountBalances(walletAddress);
+
+      if (!response.success || !response.data) {
+        throw new Error('Failed to fetch balance');
+      }
+
+      // Convertir la réponse Grid en format Balance
+      const balanceData: Balance = {
+        sol: Number(response.data.sol) || 0,
+        tokens: response.data.tokens.map(token => ({
+          mint: token.token_address,
+          amount: Number(token.amount_decimal) || 0,
+          decimals: token.decimals,
+          symbol: token.symbol,
+        })),
+      };
+
       setBalance(balanceData);
 
       // Mettre en cache

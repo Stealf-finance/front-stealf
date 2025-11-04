@@ -1,5 +1,4 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { API_URL } from '../config/config';
 
 const KEYS = {
   ACCESS_TOKEN: 'access_token',
@@ -59,8 +58,8 @@ export const authStorage = {
       const expires = parseInt(expiresAt);
 
       if (now >= expires - (5 * 60 * 1000)) { // Refresh 5 min before expiry
-        console.log('🔄 Token expired or expiring soon, refreshing...');
-        return await this.refreshToken();
+        console.log('⚠️ Token expired or expiring soon');
+        return null; // Grid SDK gère le refresh automatiquement
       }
 
       return token;
@@ -70,48 +69,6 @@ export const authStorage = {
     }
   },
 
-  /**
-   * Refresh access token using refresh token
-   */
-  async refreshToken(): Promise<string | null> {
-    try {
-      const refreshToken = await AsyncStorage.getItem(KEYS.REFRESH_TOKEN);
-
-      if (!refreshToken) {
-        console.log('❌ No refresh token available');
-        return null;
-      }
-
-      console.log('🔄 Refreshing access token...');
-
-      const response = await fetch(`${API_URL}/api/v1/auth/refresh`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ refresh_token: refreshToken }),
-      });
-
-      if (!response.ok) {
-        console.log('❌ Token refresh failed, need to re-login');
-        return null;
-      }
-
-      const data = await response.json();
-
-      // Save new tokens
-      await this.saveAuth({
-        access_token: data.access_token,
-        refresh_token: data.refresh_token,
-        expires_in: data.expires_in,
-        user: await this.getUserData(), // Reuse existing user data
-      });
-
-      console.log('✅ Token refreshed successfully');
-      return data.access_token;
-    } catch (error) {
-      console.error('Token refresh failed:', error);
-      return null;
-    }
-  },
 
   /**
    * Get user data

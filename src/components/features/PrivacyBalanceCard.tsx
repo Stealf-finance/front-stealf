@@ -20,7 +20,7 @@ export default function PrivacyBalanceCard({ walletId, onWithdraw, onTopUp, onEx
 
   // Load fonts
   const [fontsLoaded] = useFonts({
-    'Sansation-Regular': require('../../../assets/font/Sansation/Sansation-Regular.ttf'),
+    'Sansation-Regular': require('../../assets/font/Sansation/Sansation-Regular.ttf'),
   });
 
   const screenWidth = Dimensions.get('window').width;
@@ -85,7 +85,7 @@ export default function PrivacyBalanceCard({ walletId, onWithdraw, onTopUp, onEx
               activeOpacity={0.6}
             >
               <Image
-                source={isBalanceVisible ? require('../../../assets/eyeon.png') : require('../../../assets/eyeoff.png')}
+                source={isBalanceVisible ? require('../../assets/eyeon.png') : require('../../assets/eyeoff.png')}
                 style={styles.eyeIcon}
                 resizeMode="contain"
               />

@@ -1,6 +1,5 @@
 import { useState, useEffect } from 'react';
 import { authStorage } from '../services/authStorage';
-import { API_URL } from '../config/config';
 
 export function useWallet() {
   const [walletAddress, setWalletAddress] = useState<string | null>(null);

@@ -2,8 +2,8 @@ import React, { useState, useRef, useEffect } from 'react';
 import { View, StyleSheet, Animated } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { LinearGradient } from 'expo-linear-gradient';
-import NavigationBar from '../components/NavigationBar';
 import MinimalNavBar from '../components/MinimalNavBar';
+<<<<<<< Updated upstream
 import LoginScreen from '../screens/Login';
 import RegisterScreen from '../screens/Register';
 import HomeScreen from '../screens/HomeScreen';
@@ -14,6 +14,19 @@ import SendPrivateScreen from '../screens/SendPrivate';
 import AddFundsScreen from '../screens/AddFunds';
 import AddFundsPrivacyScreen from '../screens/AddFundsPrivacy';
 import ProfileScreen from '../screens/Profile';
+=======
+import LoginScreen from '../app/(auth)/Login';
+import RegisterScreen from '../app/(auth)/Register';
+import HomeScreen from '../app/(tabs)/HomeScreen';
+import PrivacyScreen from '../app/(tabs)/PrivacyScreen';
+import TransactionHistoryScreen from '../app/(infos)/TransactionHistoryScreen';
+import SendScreen from '../app/(send)/Send';
+import SendPrivateScreen from '../app/(send)/SendPrivate';
+import AddFundsScreen from '../app/(add)/AddFunds';
+import AddFundsPrivacyScreen from '../app/(add)/AddFundsPrivacy';
+import ProfileScreen from '../app/(tabs)/Profile';
+import InfoScreen from '../app/(infos)/InfoScreen';
+>>>>>>> Stashed changes
 import { useAuth } from '../contexts/AuthContext';
 import { animatePageTransition, animateScreenTransition, animateSlideIn, animateSlideOut } from '../utils/animations';
 import type { PageType } from './types';
@@ -90,7 +103,7 @@ export default function AppNavigator() {
       <View style={styles.splashContainer}>
         <StatusBar style="light" />
         <Image
-          source={require('../../assets/logo-transparent.png')}
+          source={require('../assets/logo-transparent.png')}
           style={styles.splashLogo}
           resizeMode="contain"
         />

@@ -11,8 +11,9 @@ import {
   Alert,
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { BRIDGE_URL } from '../config/config';
 import { authStorage } from '../services/authStorage';
+
+// TODO: Privacy feature not implemented yet with Grid SDK
 
 // Cache des transactions (5 secondes pour éviter le rate limiting)
 const CACHE_DURATION = 5 * 1000;

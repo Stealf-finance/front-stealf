@@ -11,7 +11,7 @@ export default function MinimalNavBar({ onOpenProfile, onOpenNotifications }: Mi
   return (
     <View style={styles.container}>
       <Image
-        source={require('../../assets/logo-transparent.png')}
+        source={require('../assets/logo-transparent.png')}
         style={styles.logo}
         resizeMode="contain"
       />
