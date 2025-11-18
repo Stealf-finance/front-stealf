@@ -1,3 +1,10 @@
+// IMPORTANT: Polyfills must be imported FIRST before anything else
+import 'react-native-get-random-values';
+import { Buffer } from 'buffer';
+
+// Make Buffer global for Solana SDK compatibility
+global.Buffer = Buffer;
+
 import React from 'react';
 import { useFonts } from 'expo-font';
 import { AuthProvider } from './src/contexts/AuthContext';

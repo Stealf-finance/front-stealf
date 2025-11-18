@@ -3,6 +3,7 @@ import * as SecureStore from 'expo-secure-store';
 import { useAuth } from '../../contexts/AuthContext';
 import { authStorage } from '../../services/authStorage';
 import { getGridClient } from '../../config/grid';
+import stealfService from '../../services/stealfService';
 
 export const useRegister = (onSuccess?: (userData: any) => void) => {
   const { login } = useAuth();
@@ -145,6 +146,22 @@ export const useRegister = (onSuccess?: (userData: any) => void) => {
       });
 
       console.log('✅ Auth data saved');
+
+      // STEALF INTEGRATION: Créer et lier le Private Wallet
+      try {
+        console.log('🔗 Creating and linking Private Wallet with Stealf SDK...');
+
+        const privateWalletResult = await stealfService.linkPrivateWallet(gridData.address);
+
+        console.log('✅ Private Wallet created successfully!');
+        console.log('   Private Wallet Address:', privateWalletResult.privateWallet.publicKey.toBase58());
+
+        // La clé privée est automatiquement sauvegardée dans SecureStore par le service
+      } catch (stealfError: any) {
+        // Ne pas bloquer la registration si Stealf échoue
+        console.warn('⚠️ Failed to create Private Wallet (non-blocking):', stealfError);
+        console.warn('   User can still use Grid wallet. Private wallet can be created later.');
+      }
 
       setShowLogoAnimation(true);
     } catch (err: any) {

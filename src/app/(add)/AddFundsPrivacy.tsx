@@ -1,19 +1,16 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   View,
   Text,
   StyleSheet,
   TouchableOpacity,
-  ScrollView,
-  Clipboard,
-  Animated,
   Image,
 } from 'react-native';
-import { StatusBar } from 'expo-status-bar';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useFonts } from 'expo-font';
 import QRCode from 'react-native-qrcode-svg';
-import { useWallet } from '../../hooks/useWallet';
+import * as Clipboard from 'expo-clipboard';
+import * as SecureStore from 'expo-secure-store';
 import type { AddFundsScreenProps } from '../../types';
 
 export default function AddFundsScreen({ onBack }: AddFundsScreenProps) {
@@ -24,51 +21,48 @@ export default function AddFundsScreen({ onBack }: AddFundsScreenProps) {
     'Sansation-Italic': require('../../assets/font/Sansation/Sansation-Italic.ttf'),
   });
 
-  const { walletAddress } = useWallet();
+  const [walletAddress, setWalletAddress] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
-  const [isRevealed, setIsRevealed] = useState(false);
-  const [showWarning, setShowWarning] = useState(false);
-  const fadeAnim = useState(new Animated.Value(0))[0];
 
-  const handleReveal = () => {
-    setShowWarning(true);
-  };
+  // Load private wallet address from SecureStore
+  useEffect(() => {
+    loadPrivateWalletAddress();
+  }, []);
 
-  const handleConfirmReveal = () => {
-    setShowWarning(false);
-    setIsRevealed(true);
-
-    // Auto-hide after 10 seconds
-    setTimeout(() => {
-      setIsRevealed(false);
-    }, 10000);
-  };
-
-  const handleCancelReveal = () => {
-    setShowWarning(false);
+  const loadPrivateWalletAddress = async () => {
+    try {
+      const address = await SecureStore.getItemAsync('private_wallet_address');
+      if (address) {
+        setWalletAddress(address);
+        console.log('✅ Private wallet address loaded:', address);
+      } else {
+        console.log('⚠️ No private wallet address found');
+      }
+    } catch (error) {
+      console.error('❌ Error loading private wallet address:', error);
+    }
   };
 
   const handleCopy = async () => {
-    if (walletAddress && isRevealed) {
-      await Clipboard.setString(walletAddress);
+    if (walletAddress) {
+      await Clipboard.setStringAsync(walletAddress);
       setCopied(true);
-
-      // Animation
-      Animated.sequence([
-        Animated.timing(fadeAnim, {
-          toValue: 1,
-          duration: 200,
-          useNativeDriver: true,
-        }),
-        Animated.delay(1500),
-        Animated.timing(fadeAnim, {
-          toValue: 0,
-          duration: 200,
-          useNativeDriver: true,
-        }),
-      ]).start(() => setCopied(false));
+      setTimeout(() => setCopied(false), 2000);
     }
   };
+
+  const qrCode = useMemo(() => {
+    if (!walletAddress) return null;
+    return (
+      <QRCode
+        value={walletAddress}
+        size={200}
+        color="white"
+        backgroundColor="#000000"
+        ecl="L"
+      />
+    );
+  }, [walletAddress]);
 
   if (!fontsLoaded) {
     return null;
@@ -77,14 +71,12 @@ export default function AddFundsScreen({ onBack }: AddFundsScreenProps) {
   return (
     <View style={styles.container}>
       <LinearGradient
-        colors={['#050008', '#0a0510', '#0f0a18']}
+        colors={['#050008', '#0d0616', '#15092a']}
         locations={[0, 0.5, 1]}
         start={{ x: 0, y: 1 }}
         end={{ x: 0, y: 0 }}
         style={styles.background}
       >
-        <StatusBar style="light" />
-
         {/* Header */}
         <View style={styles.header}>
           <TouchableOpacity style={styles.backButton} onPress={onBack} activeOpacity={0.8}>
@@ -94,128 +86,40 @@ export default function AddFundsScreen({ onBack }: AddFundsScreenProps) {
           <View style={styles.placeholder} />
         </View>
 
-        <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
+        <View style={styles.content}>
           {/* QR Code Section */}
           <View style={styles.qrSection}>
-            <Text style={styles.sectionTitle}>Scan QR Code</Text>
+            <Text style={styles.qrTitle}>Scan QR Code</Text>
             <View style={styles.qrContainer}>
-              {isRevealed ? (
-                <View style={styles.qrCodePlaceholder}>
-                  {walletAddress ? (
-                    <QRCode
-                      value={walletAddress}
-                      size={180}
-                      backgroundColor="white"
-                      color="black"
-                    />
-                  ) : (
-                    <>
-                      <Text style={styles.qrPlaceholderText}>QR CODE</Text>
-                      <Text style={styles.qrSubtext}>Loading...</Text>
-                    </>
-                  )}
+              {qrCode || (
+                <View style={styles.qrPlaceholder}>
+                  <Text style={styles.qrPlaceholderText}>Loading...</Text>
                 </View>
-              ) : (
-                <TouchableOpacity
-                  style={styles.qrCodeHidden}
-                  onPress={handleReveal}
-                  activeOpacity={0.8}
-                >
-                  <Image
-                    source={require('../../assets/eyeoff.png')}
-                    style={styles.eyeIconLarge}
-                    resizeMode="contain"
-                  />
-                  <Text style={styles.revealText}>Tap to reveal</Text>
-                </TouchableOpacity>
               )}
             </View>
           </View>
 
           {/* Wallet Address Section */}
           <View style={styles.addressSection}>
-            <Text style={styles.sectionTitle}>Wallet Address</Text>
-            {isRevealed ? (
-              <TouchableOpacity
-                style={[styles.addressButton, copied && styles.addressButtonCopied]}
-                onPress={handleCopy}
-                activeOpacity={0.8}
-              >
-                <Text style={styles.addressButtonText} numberOfLines={1} ellipsizeMode="middle">
-                  {copied ? 'Copied' : (walletAddress || 'Loading...')}
-                </Text>
-                {copied && (
-                  <Animated.View style={[styles.checkmarkContainer, { opacity: fadeAnim }]}>
-                    <Text style={styles.checkmark}>✓</Text>
-                  </Animated.View>
-                )}
-                {!copied && (
-                  <Image
-                    source={require('../../assets/copiercoller.png')}
-                    style={styles.copyIcon}
-                    resizeMode="contain"
-                  />
-                )}
-              </TouchableOpacity>
-            ) : (
-              <TouchableOpacity
-                style={styles.addressButtonHidden}
-                onPress={handleReveal}
-                activeOpacity={0.8}
-              >
-                <Text style={styles.addressHiddenText}>••••••••••••••••</Text>
-                <Image
-                  source={require('../../assets/eyeoff.png')}
-                  style={styles.eyeIconSmall}
-                  resizeMode="contain"
-                />
-              </TouchableOpacity>
-            )}
-          </View>
-
-          {/* Info Section */}
-          <View style={styles.infoContainer}>
-            <Text style={styles.infoTitle}>How to add funds</Text>
             <Text style={styles.infoText}>
-              • Send SOL or USDC to this address{'\n'}
-              • Use the QR code for easy scanning{'\n'}
-              • Funds will appear in your balance once confirmed
+              USDC only - Solana Network
             </Text>
-          </View>
-        </ScrollView>
-
-        {/* Warning Modal */}
-        {showWarning && (
-          <View style={styles.modalOverlay}>
-            <View style={styles.modalContent}>
+            <TouchableOpacity
+              style={styles.addressButton}
+              onPress={handleCopy}
+              activeOpacity={0.8}
+            >
+              <Text style={styles.addressButtonText} numberOfLines={1} ellipsizeMode="middle">
+                {copied ? 'Copied!' : (walletAddress || 'Loading...')}
+              </Text>
               <Image
-                source={require('../../assets/infos.png')}
-                style={styles.warningIcon}
+                source={require('../../assets/copiercoller.png')}
+                style={styles.copyIcon}
                 resizeMode="contain"
               />
-              <Text style={styles.modalTitle}>Privacy Warning</Text>
-              <Text style={styles.modalText}>
-                Warning: Sharing this address with anyone may compromise your privacy. Only reveal if you understand the risks.
-              </Text>
-              <View style={styles.modalButtons}>
-                <TouchableOpacity
-                  style={styles.cancelButton}
-                  onPress={handleCancelReveal}
-                  activeOpacity={0.8}
-                >
-                  <Text style={styles.cancelButtonText}>Cancel</Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={styles.confirmButton}
-                  onPress={handleConfirmReveal}
-                  activeOpacity={0.8}
-                >
-                  <Text style={styles.confirmButtonText}>I Understand</Text>
-                </TouchableOpacity>
-              </View>
-            </View>
+            </TouchableOpacity>
           </View>
-        )}
+        </View>
       </LinearGradient>
     </View>
   );
@@ -267,6 +171,13 @@ const styles = StyleSheet.create({
     marginBottom: 40,
     marginTop: 20,
   },
+  qrTitle: {
+    color: 'white',
+    fontSize: 24,
+    fontWeight: 'normal',
+    fontFamily: 'Sansation-Regular',
+    marginBottom: 24,
+  },
   sectionTitle: {
     color: 'rgba(255, 255, 255, 0.8)',
     fontSize: 16,
@@ -274,28 +185,26 @@ const styles = StyleSheet.create({
     fontFamily: 'Sansation-Regular',
     marginBottom: 16,
   },
+  infoText: {
+    color: 'rgba(255, 255, 255, 0.7)',
+    fontSize: 14,
+    fontFamily: 'Sansation-Regular',
+    textAlign: 'center',
+    marginBottom: 16,
+  },
   qrContainer: {
     alignItems: 'center',
   },
-  qrCodePlaceholder: {
+  qrPlaceholder: {
     width: 200,
     height: 200,
-    backgroundColor: 'white',
-    borderRadius: 20,
+    backgroundColor: '#000000',
     alignItems: 'center',
     justifyContent: 'center',
-    padding: 10,
   },
   qrPlaceholderText: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#333',
-    fontFamily: 'Sansation-Bold',
-    marginBottom: 4,
-  },
-  qrSubtext: {
-    fontSize: 12,
-    color: '#666',
+    fontSize: 16,
+    color: 'white',
     fontFamily: 'Sansation-Regular',
   },
   addressSection: {
@@ -312,9 +221,6 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     width: '100%',
   },
-  addressButtonCopied: {
-    backgroundColor: 'rgba(60, 60, 60, 0.95)',
-  },
   addressButtonText: {
     color: 'white',
     fontSize: 14,
@@ -327,157 +233,5 @@ const styles = StyleSheet.create({
     height: 24,
     tintColor: 'rgba(255, 255, 255, 0.7)',
     marginLeft: 12,
-  },
-  checkmarkContainer: {
-    marginLeft: 8,
-  },
-  checkmark: {
-    color: 'white',
-    fontSize: 18,
-    fontWeight: 'bold',
-  },
-  infoContainer: {
-    padding: 20,
-    backgroundColor: 'rgba(255, 255, 255, 0.05)',
-    borderRadius: 20,
-    marginBottom: 40,
-  },
-  infoTitle: {
-    color: 'white',
-    fontSize: 15,
-    fontWeight: 'normal',
-    fontFamily: 'Sansation-Regular',
-    marginBottom: 12,
-  },
-  infoText: {
-    fontSize: 14,
-    color: 'rgba(255, 255, 255, 0.6)',
-    lineHeight: 22,
-    fontFamily: 'Sansation-Regular',
-  },
-  qrCodeHidden: {
-    width: 200,
-    height: 200,
-    backgroundColor: 'rgba(255, 255, 255, 0.1)',
-    borderRadius: 20,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 2,
-    borderColor: 'rgba(255, 255, 255, 0.2)',
-    borderStyle: 'dashed',
-  },
-  eyeIconLarge: {
-    width: 40,
-    height: 40,
-    tintColor: 'rgba(255, 255, 255, 0.6)',
-    marginBottom: 12,
-  },
-  revealText: {
-    color: 'rgba(255, 255, 255, 0.7)',
-    fontSize: 14,
-    fontFamily: 'Sansation-Regular',
-  },
-  addressButtonHidden: {
-    backgroundColor: 'rgba(255, 255, 255, 0.1)',
-    borderRadius: 16,
-    paddingVertical: 20,
-    paddingHorizontal: 24,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    width: '100%',
-    borderWidth: 2,
-    borderColor: 'rgba(255, 255, 255, 0.2)',
-    borderStyle: 'dashed',
-  },
-  addressHiddenText: {
-    color: 'rgba(255, 255, 255, 0.5)',
-    fontSize: 14,
-    fontFamily: 'Sansation-Regular',
-    flex: 1,
-    letterSpacing: 2,
-  },
-  eyeIconSmall: {
-    width: 24,
-    height: 24,
-    tintColor: 'rgba(255, 255, 255, 0.6)',
-  },
-  modalOverlay: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    backgroundColor: 'rgba(0, 0, 0, 0.85)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 24,
-  },
-  modalContent: {
-    backgroundColor: 'rgba(30, 20, 45, 0.98)',
-    borderRadius: 24,
-    padding: 32,
-    width: '100%',
-    maxWidth: 400,
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.1)',
-  },
-  warningIcon: {
-    width: 56,
-    height: 56,
-    tintColor: 'rgba(255, 255, 255, 0.8)',
-    marginBottom: 20,
-  },
-  modalTitle: {
-    fontSize: 22,
-    fontWeight: 'bold',
-    color: 'white',
-    fontFamily: 'Sansation-Bold',
-    marginBottom: 16,
-    textAlign: 'center',
-  },
-  modalText: {
-    fontSize: 15,
-    color: 'rgba(255, 255, 255, 0.8)',
-    lineHeight: 22,
-    fontFamily: 'Sansation-Regular',
-    textAlign: 'center',
-    marginBottom: 28,
-  },
-  modalButtons: {
-    flexDirection: 'row',
-    gap: 12,
-    width: '100%',
-  },
-  cancelButton: {
-    flex: 1,
-    backgroundColor: 'rgba(255, 255, 255, 0.1)',
-    borderRadius: 16,
-    paddingVertical: 16,
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.2)',
-  },
-  cancelButtonText: {
-    color: 'white',
-    fontSize: 16,
-    fontWeight: '600',
-    fontFamily: 'Sansation-Regular',
-  },
-  confirmButton: {
-    flex: 1,
-    backgroundColor: 'rgba(255, 255, 255, 0.15)',
-    borderRadius: 16,
-    paddingVertical: 16,
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.3)',
-  },
-  confirmButtonText: {
-    color: 'white',
-    fontSize: 16,
-    fontWeight: '600',
-    fontFamily: 'Sansation-Bold',
   },
 });

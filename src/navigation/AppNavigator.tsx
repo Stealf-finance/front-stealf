@@ -3,18 +3,6 @@ import { View, StyleSheet, Animated } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { LinearGradient } from 'expo-linear-gradient';
 import MinimalNavBar from '../components/MinimalNavBar';
-<<<<<<< Updated upstream
-import LoginScreen from '../screens/Login';
-import RegisterScreen from '../screens/Register';
-import HomeScreen from '../screens/HomeScreen';
-import PrivacyScreen from '../screens/PrivacyScreen';
-import TransactionHistoryScreen from '../screens/TransactionHistoryScreen';
-import SendScreen from '../screens/Send';
-import SendPrivateScreen from '../screens/SendPrivate';
-import AddFundsScreen from '../screens/AddFunds';
-import AddFundsPrivacyScreen from '../screens/AddFundsPrivacy';
-import ProfileScreen from '../screens/Profile';
-=======
 import LoginScreen from '../app/(auth)/Login';
 import RegisterScreen from '../app/(auth)/Register';
 import HomeScreen from '../app/(tabs)/HomeScreen';
@@ -26,7 +14,6 @@ import AddFundsScreen from '../app/(add)/AddFunds';
 import AddFundsPrivacyScreen from '../app/(add)/AddFundsPrivacy';
 import ProfileScreen from '../app/(tabs)/Profile';
 import InfoScreen from '../app/(infos)/InfoScreen';
->>>>>>> Stashed changes
 import { useAuth } from '../contexts/AuthContext';
 import { animatePageTransition, animateScreenTransition, animateSlideIn, animateSlideOut } from '../utils/animations';
 import type { PageType } from './types';
@@ -35,7 +22,7 @@ import { Image } from 'react-native';
 export default function AppNavigator() {
   const { isAuthenticated, userData, logout, loading } = useAuth();
   const [currentPage, setCurrentPage] = useState<PageType>('home');
-  const [currentScreen, setCurrentScreen] = useState<'main' | 'send' | 'sendPrivate' | 'addFunds' | 'addFundsPrivacy'>('main');
+  const [currentScreen, setCurrentScreen] = useState<'main' | 'send' | 'sendPrivate' | 'addFunds' | 'addFundsPrivacy' | 'info'>('main');
   const [showProfile, setShowProfile] = useState(false);
   const [isCardScreenOpen, setIsCardScreenOpen] = useState(false);
   const [authScreen, setAuthScreen] = useState<'login' | 'register'>('login');
@@ -75,7 +62,7 @@ export default function AppNavigator() {
     });
   };
 
-  const handleOpenScreen = (screen: 'send' | 'sendPrivate' | 'addFunds' | 'addFundsPrivacy') => {
+  const handleOpenScreen = (screen: 'send' | 'sendPrivate' | 'addFunds' | 'addFundsPrivacy' | 'info') => {
     animateScreenTransition(screenFadeAnim, screenSlideAnim, () => setCurrentScreen(screen));
   };
 
@@ -85,6 +72,10 @@ export default function AppNavigator() {
 
   const handleOpenProfile = () => {
     setShowProfile(true);
+  };
+
+  const handleOpenInfo = () => {
+    handleOpenScreen('info');
   };
 
   const handleCloseProfile = () => {
@@ -214,6 +205,7 @@ export default function AppNavigator() {
                 onOpenSend={() => handleOpenScreen('send')}
                 onOpenAddFunds={() => handleOpenScreen('addFunds')}
                 onOpenProfile={handleOpenProfile}
+                onOpenInfo={handleOpenInfo}
                 onCardScreenChange={setIsCardScreenOpen}
                 userEmail={userData?.email}
                 username={userData?.username}
@@ -282,6 +274,7 @@ export default function AppNavigator() {
         {currentScreen === 'sendPrivate' && <SendPrivateScreen onBack={handleBackToMain} />}
         {currentScreen === 'addFunds' && <AddFundsScreen onBack={handleBackToMain} />}
         {currentScreen === 'addFundsPrivacy' && <AddFundsPrivacyScreen onBack={handleBackToMain} />}
+        {currentScreen === 'info' && <InfoScreen onBack={handleBackToMain} />}
       </Animated.View>
 
       {/* Profile Screen - Always mounted, absolute overlay */}

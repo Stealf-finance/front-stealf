@@ -6,6 +6,8 @@ const KEYS = {
   USER_DATA: 'user_data',
   GRID_ADDRESS: 'gridAddress',
   EXPIRES_AT: 'token_expires_at',
+  PRIVATE_WALLET_SECRET_KEY: 'private_wallet_secret_key',
+  PRIVATE_WALLET_ADDRESS: 'private_wallet_address',
 };
 
 export const authStorage = {

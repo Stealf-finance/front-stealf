@@ -24,15 +24,10 @@
       "predictiveBackGestureEnabled": false
     },
     "web": {
-<<<<<<< Updated upstream
-      "favicon": "./assets/favicon.png"
-    }
-=======
       "favicon": "./src/assets/favicon.png"
     },
     "plugins": [
       "expo-secure-store"
     ]
->>>>>>> Stashed changes
   }
 }

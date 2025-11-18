@@ -1,10 +1,8 @@
-import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator, Dimensions, Image } from 'react-native';
+import React, { useState } from 'react';
+import { View, Text, StyleSheet, TouchableOpacity, Dimensions, Image } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { BlurView } from 'expo-blur';
 import { useFonts } from 'expo-font';
-import { usePrivateBalance } from '../../hooks';
-import { authStorage } from '../../services/authStorage';
 
 interface PrivacyBalanceCardProps {
   walletId?: number;
@@ -14,9 +12,7 @@ interface PrivacyBalanceCardProps {
 }
 
 export default function PrivacyBalanceCard({ walletId, onWithdraw, onTopUp, onExchange }: PrivacyBalanceCardProps) {
-  const [userId, setUserId] = useState<string | null>(null);
   const [isBalanceVisible, setIsBalanceVisible] = useState(false);
-  const { balances: privateBalances, totalBalance: privateTotalBalance, loading: privateLoading } = usePrivateBalance(userId);
 
   // Load fonts
   const [fontsLoaded] = useFonts({
@@ -29,34 +25,11 @@ export default function PrivacyBalanceCard({ walletId, onWithdraw, onTopUp, onEx
 
   console.log('PrivacyBalanceCard render - isBalanceVisible:', isBalanceVisible);
 
-  // Load user ID from JWT for private balances
-  useEffect(() => {
-    loadUserId();
-  }, []);
-
-  const loadUserId = async () => {
-    try {
-      const token = await authStorage.getAccessToken();
-      if (token) {
-        const tokenParts = token.split('.');
-        if (tokenParts.length === 3) {
-          const payload = JSON.parse(atob(tokenParts[1]));
-          setUserId(payload.sub || payload.user_id || payload.id);
-        }
-      }
-    } catch (e) {
-      console.error('Error loading user ID:', e);
-    }
-  };
-
   // TEMPORAIRE : montant de test pour vérifier que le toggle fonctionne
-  const displayBalance = privateTotalBalance || 1.5; // Si pas de balance, on met 1.5 SOL pour tester
+  const displayBalance = 1.5; // Balance de test
   const displayBalanceUSD = displayBalance * 20; // Conversion SOL to USD (prix approximatif)
-  const isInitialLoading = privateLoading && !privateTotalBalance && privateBalances.length === 0;
 
-  console.log('PrivacyBalanceCard - privateTotalBalance:', privateTotalBalance);
   console.log('PrivacyBalanceCard - displayBalanceUSD:', displayBalanceUSD);
-  console.log('PrivacyBalanceCard - privateBalances:', privateBalances);
 
   return (
     <View style={styles.container}>

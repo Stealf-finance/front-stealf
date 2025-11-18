@@ -3,6 +3,7 @@ import * as SecureStore from 'expo-secure-store';
 import { useAuth } from '../../contexts/AuthContext';
 import { authStorage } from '../../services/authStorage';
 import { getGridClient } from '../../config/grid';
+import stealfService from '../../services/stealfService';
 
 export const useLogin = (onSuccess?: (userData: any, accessToken: string) => void) => {
   const { login } = useAuth();
@@ -121,6 +122,29 @@ export const useLogin = (onSuccess?: (userData: any, accessToken: string) => voi
       });
 
       console.log('✅ Auth data saved');
+
+      // STEALF INTEGRATION: Récupérer le Private Wallet lié
+      try {
+        console.log('🔍 Checking for linked Private Wallet...');
+
+        const hasLinkedWallets = await stealfService.hasLinkedWallets(gridData.address);
+
+        if (hasLinkedWallets) {
+          console.log('🔗 Retrieving linked Private Wallet with Stealf SDK...');
+
+          const wallets = await stealfService.retrieveLinkedWallets(gridData.address);
+
+          console.log('✅ Private Wallet retrieved successfully!');
+          console.log('   Grid Wallet:', wallets.gridWallet.toBase58());
+          console.log('   Private Wallet:', wallets.privateWallet.toBase58());
+        } else {
+          console.log('ℹ️ No linked Private Wallet found for this account');
+        }
+      } catch (stealfError: any) {
+        // Ne pas bloquer le login si Stealf échoue
+        console.warn('⚠️ Failed to retrieve Private Wallet (non-blocking):', stealfError);
+        console.warn('   User can still use Grid wallet.');
+      }
 
       setShowLogoAnimation(true);
     } catch (err: any) {
