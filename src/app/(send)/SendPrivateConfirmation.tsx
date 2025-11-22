@@ -12,7 +12,9 @@ import {
   KeyboardAvoidingView,
   Platform,
   ScrollView,
+  Linking,
 } from 'react-native';
+import * as Clipboard from 'expo-clipboard';
 import { StatusBar } from 'expo-status-bar';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useFonts } from 'expo-font';
@@ -362,20 +364,36 @@ export default function SendConfirmation({ amount, onBack, onSuccess }: SendConf
                 </Text>
 
                 {transactionSignature && transactionSignature !== 'COMPLETED' && (
-                  <View style={styles.signatureContainer}>
-                    <Text style={styles.signatureLabel}>Signature:</Text>
+                  <TouchableOpacity
+                    style={styles.signatureContainer}
+                    onPress={async () => {
+                      await Clipboard.setStringAsync(transactionSignature);
+                    }}
+                    activeOpacity={0.7}
+                  >
+                    <Text style={styles.signatureLabel}>Signature (tap to copy):</Text>
                     <Text style={styles.signatureText}>
                       {transactionSignature.substring(0, 20)}...
                     </Text>
-                  </View>
+                  </TouchableOpacity>
                 )}
 
                 <TouchableOpacity
                   style={styles.viewExplorerButton}
+                  onPress={() => {
+                    Linking.openURL(`https://explorer.solana.com/tx/${transactionSignature}?cluster=devnet`);
+                  }}
+                  activeOpacity={0.8}
+                >
+                  <Text style={styles.viewExplorerText}>View on Explorer</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={[styles.viewExplorerButton, { marginTop: 10, backgroundColor: 'rgba(255, 255, 255, 0.1)', borderColor: 'rgba(255, 255, 255, 0.3)' }]}
                   onPress={closeSuccessModal}
                   activeOpacity={0.8}
                 >
-                  <Text style={styles.viewExplorerText}>Close</Text>
+                  <Text style={[styles.viewExplorerText, { color: 'white' }]}>Close</Text>
                 </TouchableOpacity>
               </Animated.View>
             </TouchableOpacity>

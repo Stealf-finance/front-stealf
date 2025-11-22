@@ -140,11 +140,14 @@ class SolanaWalletService {
 
       console.log(`💸 Sending ${amountSOL} SOL to ${toAddress}...`);
 
+      // Convert to lamports and ensure it's an integer
+      const lamports = Math.floor(amountSOL * LAMPORTS_PER_SOL);
+
       const transaction = new Transaction().add(
         SystemProgram.transfer({
           fromPubkey: this.keypair.publicKey,
           toPubkey: new PublicKey(toAddress),
-          lamports: amountSOL * LAMPORTS_PER_SOL,
+          lamports,
         })
       );
 
