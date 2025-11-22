@@ -4,7 +4,7 @@ const KEYS = {
   ACCESS_TOKEN: 'access_token',
   REFRESH_TOKEN: 'refresh_token',
   USER_DATA: 'user_data',
-  GRID_ADDRESS: 'gridAddress',
+  SOLANA_ADDRESS: 'solanaAddress', // Remplace GRID_ADDRESS
   EXPIRES_AT: 'token_expires_at',
   PRIVATE_WALLET_SECRET_KEY: 'private_wallet_secret_key',
   PRIVATE_WALLET_ADDRESS: 'private_wallet_address',
@@ -23,17 +23,17 @@ export const authStorage = {
     try {
       const expiresAt = Date.now() + (data.expires_in * 1000);
 
-      // Extract grid_address or grid_user_id (API returns grid_user_id)
-      const gridAddress = data.user.grid_address || data.user.grid_user_id || '';
+      // Extract solana_address from user data
+      const solanaAddress = data.user.solana_address || '';
 
-      console.log('💾 Saving Grid address to storage:', gridAddress);
+      console.log('💾 Saving Solana address to storage:', solanaAddress);
       console.log('💾 Full user data:', JSON.stringify(data.user, null, 2));
 
       await AsyncStorage.multiSet([
         [KEYS.ACCESS_TOKEN, data.access_token],
         [KEYS.REFRESH_TOKEN, data.refresh_token],
         [KEYS.USER_DATA, JSON.stringify(data.user)],
-        [KEYS.GRID_ADDRESS, gridAddress],
+        [KEYS.SOLANA_ADDRESS, solanaAddress],
         [KEYS.EXPIRES_AT, expiresAt.toString()],
       ]);
 
@@ -86,10 +86,41 @@ export const authStorage = {
   },
 
   /**
-   * Get Grid address
+   * Get Solana wallet address
    */
-  async getGridAddress(): Promise<string | null> {
-    return await AsyncStorage.getItem(KEYS.GRID_ADDRESS);
+  async getSolanaAddress(): Promise<string | null> {
+    return await AsyncStorage.getItem(KEYS.SOLANA_ADDRESS);
+  },
+
+  /**
+   * Save Solana wallet address
+   */
+  async saveSolanaAddress(address: string): Promise<void> {
+    try {
+      await AsyncStorage.setItem(KEYS.SOLANA_ADDRESS, address);
+      console.log('💾 Solana address saved:', address);
+    } catch (error) {
+      console.error('Failed to save Solana address:', error);
+    }
+  },
+
+  /**
+   * Save Private Wallet address
+   */
+  async savePrivateWalletAddress(address: string): Promise<void> {
+    try {
+      await AsyncStorage.setItem(KEYS.PRIVATE_WALLET_ADDRESS, address);
+      console.log('💾 Private wallet address saved:', address);
+    } catch (error) {
+      console.error('Failed to save private wallet address:', error);
+    }
+  },
+
+  /**
+   * Get Private Wallet address
+   */
+  async getPrivateWalletAddress(): Promise<string | null> {
+    return await AsyncStorage.getItem(KEYS.PRIVATE_WALLET_ADDRESS);
   },
 
   /**
@@ -109,7 +140,7 @@ export const authStorage = {
         KEYS.ACCESS_TOKEN,
         KEYS.REFRESH_TOKEN,
         KEYS.USER_DATA,
-        KEYS.GRID_ADDRESS,
+        KEYS.SOLANA_ADDRESS,
         KEYS.EXPIRES_AT,
       ]);
       console.log('✅ Auth data cleared');

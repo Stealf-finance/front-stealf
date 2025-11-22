@@ -128,8 +128,24 @@ export default function SendConfirmation({ amount, onBack, onSuccess }: SendConf
               </TouchableOpacity>
             </View>
 
-            {/* Privacy Wallet Dropdown */}
+            {/* Privacy Wallet Info */}
             {destinationType === 'privacy' && (
+              <View style={styles.privacyInfoContainer}>
+                <Text style={styles.privacyInfoTitle}>🔒 Umbra Privacy Transfer</Text>
+                <Text style={styles.privacyInfoText}>
+                  Your funds will be anonymously deposited into the Umbra mixer pool.
+                </Text>
+                <Text style={styles.privacyInfoDetails}>
+                  • Transaction is anonymous{'\n'}
+                  • Amount visible on-chain{'\n'}
+                  • Estimated time: 30-60 seconds{'\n'}
+                  • Can be claimed later from Privacy Balance
+                </Text>
+              </View>
+            )}
+
+            {/* Privacy Wallet Dropdown - Commented for now (single wallet) */}
+            {false && destinationType === 'privacy' && (
               <View style={styles.dropdownContainer}>
                 <TouchableOpacity
                   style={styles.dropdownButton}
@@ -510,5 +526,33 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: 'bold',
     fontFamily: 'Sansation-Bold',
+  },
+  privacyInfoContainer: {
+    marginTop: 16,
+    backgroundColor: 'rgba(138, 43, 226, 0.1)',
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: 'rgba(138, 43, 226, 0.3)',
+    padding: 16,
+  },
+  privacyInfoTitle: {
+    color: '#B19CD9',
+    fontSize: 16,
+    fontWeight: '600',
+    marginBottom: 8,
+    fontFamily: 'Sansation-Bold',
+  },
+  privacyInfoText: {
+    color: 'rgba(255, 255, 255, 0.8)',
+    fontSize: 14,
+    marginBottom: 12,
+    fontFamily: 'Sansation-Regular',
+    lineHeight: 20,
+  },
+  privacyInfoDetails: {
+    color: 'rgba(255, 255, 255, 0.6)',
+    fontSize: 12,
+    fontFamily: 'Sansation-Regular',
+    lineHeight: 18,
   },
 });

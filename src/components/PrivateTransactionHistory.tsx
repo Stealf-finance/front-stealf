@@ -11,9 +11,9 @@ import {
   Alert,
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { Connection, PublicKey, ParsedTransactionWithMeta, LAMPORTS_PER_SOL } from '@solana/web3.js';
 import { authStorage } from '../services/authStorage';
-
-// TODO: Privacy feature not implemented yet with Grid SDK
+import { SOLANA_CONFIG } from '../config/umbra';
 
 // Cache des transactions (5 secondes pour éviter le rate limiting)
 const CACHE_DURATION = 5 * 1000;
@@ -57,36 +57,111 @@ export default function PrivateTransactionHistory({ limit = 10, style }: Private
       }
       setError(null);
 
-      // TODO: Remplacer par de vraies données API
-      // Données en dur temporaires
-      const hardcodedTransactions: PrivateTransaction[] = [
-        {
-          type: 'receive',
-          amount: 56700000000, // 0.5 SOL
-          signature: '3ZxKqp8ZjR7vN9PqBxM4YwDgKL2tEaRzF5dHgGnPWxYcMvJ8U6rTpSbLqX4wKfH9',
-          timestamp: Date.now() - 3600000, // Il y a 1 heure
-          from: '5jGJS2b8kARKKmkBLvR1QuZmenXNTuL7EXuKp2x4aUW9',
-        },
-        {
-          type: 'send',
-          amount: 280000000000, // 0.2 SOL
-          signature: '2YxKqp8ZjR7vN9PqBxM4YwDgKL2tEaRzF5dHgGnPWxYcMvJ8U6rTpSbLqX4wKfH8',
-          timestamp: Date.now() - 7200000, // Il y a 2 heures
-          to: '96t84T2D9zSVqwarmjy2v8cYbw8xCW41aAwV2qXTCdgY',
-        },
-        {
-          type: 'receive',
-          amount: 1000000000, // 1.0 SOL
-          signature: '4AxKqp8ZjR7vN9PqBxM4YwDgKL2tEaRzF5dHgGnPWxYcMvJ8U6rTpSbLqX4wKfH7',
-          timestamp: Date.now() - 86400000, // Il y a 1 jour
-          from: '7zzJRum3RiJCLXBow1CoYEyETr711BzvXPax2DF1NvTV',
-        },
-      ];
+      // Get private wallet address from storage
+      const privateWalletAddress = await authStorage.getPrivateWalletAddress();
 
-      // Simuler un délai réseau
-      await new Promise(resolve => setTimeout(resolve, 500));
+      if (!privateWalletAddress) {
+        console.log('[PrivateTransactionHistory] No private wallet address found');
+        setTransactions([]);
+        setLoading(false);
+        return;
+      }
 
-      setTransactions(hardcodedTransactions.slice(0, limit));
+      console.log('[PrivateTransactionHistory] Fetching transactions for private wallet:', privateWalletAddress);
+
+      // Check cache first
+      if (!forceRefresh) {
+        const cacheKey = `${CACHE_KEY}${privateWalletAddress}`;
+        const cached = await AsyncStorage.getItem(cacheKey);
+
+        if (cached) {
+          try {
+            const { transactions: cachedTxs, timestamp } = JSON.parse(cached);
+            const age = Date.now() - timestamp;
+
+            if (age < CACHE_DURATION) {
+              console.log('[PrivateTransactionHistory] Using cached transactions');
+              setTransactions(cachedTxs.slice(0, limit));
+              setLoading(false);
+              return;
+            }
+          } catch (e) {
+            console.warn('Failed to parse cache:', e);
+          }
+        }
+      }
+
+      // Fetch on-chain transactions from Solana RPC
+      const connection = new Connection(SOLANA_CONFIG.RPC_URL, 'confirmed');
+      const publicKey = new PublicKey(privateWalletAddress);
+
+      // Fetch confirmed signatures for this address
+      const signatures = await connection.getSignaturesForAddress(publicKey, {
+        limit: limit * 2,
+      });
+
+      console.log(`[PrivateTransactionHistory] Found ${signatures.length} signatures`);
+
+      // Fetch transaction details for each signature
+      const txPromises = signatures.map(sig =>
+        connection.getParsedTransaction(sig.signature, {
+          maxSupportedTransactionVersion: 0,
+        })
+      );
+
+      const parsedTxs = await Promise.all(txPromises);
+
+      // Transform Solana transactions to our PrivateTransaction type
+      const txs: PrivateTransaction[] = parsedTxs
+        .filter((tx): tx is ParsedTransactionWithMeta => tx !== null)
+        .map((tx, index) => {
+          const signature = signatures[index].signature;
+          const blockTime = tx.blockTime || 0;
+          const timestamp = blockTime * 1000;
+
+          // Find transfers involving our wallet
+          const preBalance = tx.meta?.preBalances?.[0] || 0;
+          const postBalance = tx.meta?.postBalances?.[0] || 0;
+          const balanceChange = postBalance - preBalance;
+
+          // Determine type (send or receive) based on balance change
+          const type: 'send' | 'receive' = balanceChange < 0 ? 'send' : 'receive';
+
+          // Calculate amount (in lamports for compatibility with existing code)
+          const amount = Math.abs(balanceChange);
+
+          // Try to find the other party's address
+          let otherAddress: string | undefined;
+          if (tx.transaction.message.accountKeys.length > 1) {
+            otherAddress = tx.transaction.message.accountKeys
+              .find(key => key.pubkey.toBase58() !== privateWalletAddress)?.pubkey.toBase58();
+          }
+
+          return {
+            signature,
+            type,
+            amount,
+            timestamp,
+            from: type === 'send' ? privateWalletAddress : otherAddress,
+            to: type === 'send' ? otherAddress : privateWalletAddress,
+          };
+        })
+        .filter(tx => tx.amount > 0)
+        .slice(0, limit);
+
+      console.log(`[PrivateTransactionHistory] Processed ${txs.length} transactions`);
+
+      setTransactions(txs);
+
+      // Save to cache
+      if (txs.length > 0 && privateWalletAddress) {
+        const cacheKey = `${CACHE_KEY}${privateWalletAddress}`;
+        const cacheData = {
+          transactions: txs,
+          timestamp: Date.now(),
+        };
+        await AsyncStorage.setItem(cacheKey, JSON.stringify(cacheData));
+      }
 
     } catch (err: any) {
       console.error('❌ Error fetching private transactions:', err);
@@ -136,7 +211,10 @@ export default function PrivateTransactionHistory({ limit = 10, style }: Private
 
   const formatAddress = (address: string) => {
     if (!address) return 'Unknown';
-    return `${address.substring(0, 4)}...${address.substring(address.length - 4)}`;
+    // For private transactions, we mask the address to show it's a stealth address
+    if (address === 'Private') return 'Private Address';
+    // Show stealth address indicator
+    return `🔒 ${address.substring(0, 4)}...${address.substring(address.length - 4)}`;
   };
 
   if (loading && transactions.length === 0) {
@@ -194,16 +272,16 @@ export default function PrivateTransactionHistory({ limit = 10, style }: Private
           <View style={styles.transactionDetails}>
             <View style={styles.transactionHeader}>
               <Text style={styles.transactionType}>
-                {tx.type === 'send' ? 'Sent' : 'Received'}
-                {tx.type === 'send' && tx.to ? ` to ${formatAddress(tx.to)}` : ''}
-                {tx.type === 'receive' && tx.from ? ` from ${formatAddress(tx.from)}` : ''}
+                {tx.type === 'send' ? '🔒 Private Send' : '🔒 Private Receive'}
+                {tx.type === 'send' && tx.to ? ` → ${formatAddress(tx.to)}` : ''}
+                {tx.type === 'receive' && tx.from ? ` ← ${formatAddress(tx.from)}` : ''}
               </Text>
               <Text style={[
                 styles.transactionAmount,
                 tx.type === 'send' ? styles.amountSent : styles.amountReceived
               ]}>
                 {tx.type === 'send' ? '-' : '+'}
-                {formatAmount(tx.amount)} USD
+                {formatAmount(tx.amount)} SOL
               </Text>
             </View>
 
@@ -212,7 +290,7 @@ export default function PrivateTransactionHistory({ limit = 10, style }: Private
               <View style={styles.statusContainer}>
                 <View style={[styles.statusDot, styles.statusConfirmed]} />
                 <Text style={[styles.statusText, styles.statusTextConfirmed]}>
-                  Private
+                  Arcium MPC
                 </Text>
               </View>
             </View>

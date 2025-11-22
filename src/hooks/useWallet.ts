@@ -12,29 +12,28 @@ export function useWallet() {
   const loadWalletAddress = async () => {
     console.log('🚀 useWallet - loadWalletAddress called');
     try {
-      // Get grid address directly from storage (saved during login/register)
-      const gridAddress = await authStorage.getGridAddress();
+      // Get Solana address directly from storage (saved during login/register)
+      const solanaAddress = await authStorage.getSolanaAddress();
 
-      if (gridAddress) {
-        console.log('✅ Loaded Grid address from storage:', gridAddress);
-        console.log('⚠️ This is the GRID smart account address, NOT a standard Solana wallet address');
-        setWalletAddress(gridAddress);
+      if (solanaAddress) {
+        console.log('✅ Loaded Solana address from storage:', solanaAddress);
+        setWalletAddress(solanaAddress);
         setLoading(false);
         return;
       }
 
       // Fallback: Try to get from user data
       const userData = await authStorage.getUserData();
-      const walletFromUserData = userData?.grid_address || userData?.address;
+      const walletFromUserData = userData?.solana_address;
 
       if (walletFromUserData) {
-        console.log('✅ Loaded wallet from user data:', walletFromUserData);
+        console.log('✅ Loaded Solana address from user data:', walletFromUserData);
         setWalletAddress(walletFromUserData);
         setLoading(false);
         return;
       }
 
-      console.error('❌ No wallet address found in storage or user data');
+      console.error('❌ No Solana wallet address found in storage or user data');
     } catch (error) {
       console.error('❌ Error loading wallet address:', error);
     } finally {

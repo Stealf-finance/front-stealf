@@ -6,9 +6,12 @@
     "start": "expo start",
     "android": "expo start --android",
     "ios": "expo start --ios",
-    "web": "expo start --web"
+    "web": "expo start --web",
+    "postinstall": "patch-package"
   },
   "dependencies": {
+    "@arcium-hq/client": "^0.3.0",
+    "@coral-xyz/anchor": "^0.32.1",
     "@expo/vector-icons": "^15.0.3",
     "@react-native-async-storage/async-storage": "^2.2.0",
     "@react-native-masked-view/masked-view": "^0.3.2",
@@ -16,7 +19,7 @@
     "@react-navigation/stack": "^7.4.8",
     "@solana/web3.js": "^1.98.4",
     "@sqds/grid": "^0.1.0",
-    "@stealf/wallet-link-sdk": "file:./sdk/sdk",
+    "@stealf/wallet-link-sdk": "file:../backend-stealf/sdk",
     "buffer": "^6.0.3",
     "expo": "~54.0.10",
     "expo-blur": "^15.0.7",
@@ -45,6 +48,7 @@
   "devDependencies": {
     "@types/react": "~19.1.10",
     "babel-preset-expo": "^54.0.4",
+    "patch-package": "^8.0.1",
     "typescript": "~5.9.2"
   },
   "private": true

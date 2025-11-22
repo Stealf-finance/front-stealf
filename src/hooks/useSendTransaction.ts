@@ -1,8 +1,20 @@
 import { useState, useRef } from 'react';
 import { Alert, Animated } from 'react-native';
-import * as SecureStore from 'expo-secure-store';
 import { authStorage } from '../services/authStorage';
-import { getGridClient } from '../config/grid';
+import solanaWalletService from '../services/solanaWalletService';
+import { umbraApi, isError } from '../services/umbraApiClient';
+import { arciumApi, isArciumError } from '../services/arciumApiClient';
+import stealfService from '../services/stealfService';
+import bs58 from 'bs58';
+import type {
+  DepositResponse,
+  UmbraApiError,
+  MixerTransferResponse
+} from '../types/umbra';
+import type {
+  PrivacyPoolTransferResponse,
+  ArciumApiError
+} from '../services/arciumApiClient';
 
 export const useSendTransaction = (onSuccess: () => void) => {
   const [isLoading, setIsLoading] = useState(false);
@@ -14,7 +26,6 @@ export const useSendTransaction = (onSuccess: () => void) => {
   const [showPrivacyDropdown, setShowPrivacyDropdown] = useState(false);
   const successAnimation = useRef(new Animated.Value(0)).current;
   const checkmarkScale = useRef(new Animated.Value(0)).current;
-  const gridClient = getGridClient();
 
   const privateWallets = [
     { id: 'privacy_1', name: 'Privacy 1' },
@@ -41,81 +52,118 @@ export const useSendTransaction = (onSuccess: () => void) => {
 
     setIsLoading(true);
     try {
-      console.log('🚀 Starting transaction with Grid SDK...');
+      console.log('🚀 Starting transaction with Solana Wallet...');
 
-      const userWalletAddress = await authStorage.getGridAddress();
-      console.log('💳 User wallet address:', userWalletAddress);
-
-      if (!userWalletAddress) {
-        console.log('❌ No wallet address found');
-        Alert.alert('Error', 'User wallet address not found');
+      // Load the Solana wallet
+      const solanaKeypair = await solanaWalletService.loadWallet();
+      if (!solanaKeypair) {
+        console.log('❌ No Solana wallet found');
+        Alert.alert('Error', 'Solana wallet not found. Please log in again.');
         setIsLoading(false);
         return;
       }
 
-      const userData = await authStorage.getUserData();
-      const gridUserId = userData?.grid_user_id || userData?.grid_address;
-      console.log('👤 Grid user ID:', gridUserId);
+      const userWalletAddress = solanaKeypair.publicKey.toBase58();
+      console.log('💳 Solana wallet address:', userWalletAddress);
 
-      if (!gridUserId) {
-        console.log('❌ No grid user ID found');
-        Alert.alert('Error', 'User ID not found');
-        setIsLoading(false);
-        return;
-      }
+      console.log('💸 Creating SOL transfer...');
 
-      const sessionSecretsStr = await SecureStore.getItemAsync('session_secrets');
-      if (!sessionSecretsStr) {
-        throw new Error('Session secrets not found. Please log in again.');
-      }
-      const sessionSecrets = JSON.parse(sessionSecretsStr);
+      // Convert USD amount to SOL (using fictive price: $140 per SOL)
+      const SOL_PRICE_USD = 140;
+      const amountInSOL = parseFloat(amount) / SOL_PRICE_USD;
+      const amountInLamports = Math.floor(amountInSOL * 1_000_000_000);
 
-      const authentication = userData?.authentication;
-      if (!authentication) {
-        throw new Error('Authentication data not found. Please log in again.');
-      }
+      console.log(`💰 Converting $${amount} USD to ${amountInSOL.toFixed(4)} SOL (${amountInLamports} lamports)`);
 
-      console.log('💸 Creating payment with Grid SDK...');
-      const recipientAddress = destinationType === 'privacy' ? selectedPrivacyWallet : externalAddress;
+      // PRIVATE TRANSFER: Solana Wallet → Privacy Pool → Private Wallet
+      if (destinationType === 'privacy') {
+        console.log('🔒 Starting PRIVATE transfer via Privacy Pool...');
+        console.log(`💸 Amount: ~${amountInSOL.toFixed(4)} SOL`);
 
-      const paymentPayload = {
-        amount: (parseFloat(amount) * 1_000_000).toString(),
-        source: {
-          account: userWalletAddress,
-          currency: 'usdc'
-        },
-        destination: {
-          address: recipientAddress,
-          currency: 'usdc'
+        // Get the private wallet's keypair
+        console.log('🔑 Retrieving private wallet...');
+        const privateWalletKeypair = await stealfService.getPrivateWalletKeypair();
+
+        if (!privateWalletKeypair) {
+          console.error('❌ No private wallet found');
+          throw new Error('Private wallet not found. Please set up your private wallet first.');
         }
-      };
 
-      const paymentIntentResponse = await gridClient.createPaymentIntent(userWalletAddress, paymentPayload);
+        const privateWalletAddress = privateWalletKeypair.publicKey.toBase58();
+        console.log(`📥 Private Wallet: ${privateWalletAddress}`);
 
-      console.log('✅ Payment intent created');
+        // Get Solana wallet secret key for signing
+        const solanaSecretKey = await solanaWalletService.getSecretKey();
+        if (!solanaSecretKey) {
+          throw new Error('Failed to retrieve Solana wallet secret key');
+        }
+        const solanaPrivateKeyBase58 = bs58.encode(solanaSecretKey);
 
-      if (!paymentIntentResponse.data?.transactionPayload) {
-        throw new Error('No transaction payload received');
+        // PRIVACY POOL TRANSFER: Breaks on-chain link between sender and recipient
+        console.log('');
+        console.log('🔒 Creating PRIVATE transfer via Privacy Pool...');
+        console.log(`   From: ${userWalletAddress.slice(0, 8)}...`);
+        console.log(`   To:   ${privateWalletAddress.slice(0, 8)}...`);
+        console.log(`   Amount: ${amountInSOL.toFixed(4)} SOL`);
+
+        // Call Privacy Pool API to create private transfer
+        const poolResult = await arciumApi.encryptedTransfer({
+          fromPrivateKey: solanaPrivateKeyBase58,
+          toAddress: privateWalletAddress,
+          amount: amountInSOL,
+          userId: userWalletAddress, // Use wallet address as user ID
+        });
+
+        if (isArciumError(poolResult)) {
+          const error = poolResult as ArciumApiError;
+          console.error('❌ Privacy pool transfer failed:', error.message);
+          throw new Error(`Private transfer failed: ${error.message}`);
+        }
+
+        const result = poolResult as PrivacyPoolTransferResponse;
+        console.log('✅ PRIVATE TRANSFER COMPLETE!');
+        console.log(`   Deposit TX: ${result.transactions.deposit.signature}`);
+        console.log(`   Withdraw TX: ${result.transactions.withdraw.signature}`);
+        console.log('');
+        console.log('🔒 PRIVACY GUARANTEED:');
+        console.log(`   ✅ No direct on-chain link between sender and recipient`);
+        console.log(`   ✅ Sender → Pool (visible)`);
+        console.log(`   ✅ Pool → Recipient (visible)`);
+        console.log(`   ✅ Link broken!`);
+
+        // Store withdraw transaction signature for display (recipient's incoming tx)
+        setTransactionSignature(result.transactions.withdraw.signature);
+        setShowSuccessModal(true);
+
+        // Animate success modal
+        Animated.parallel([
+          Animated.timing(successAnimation, {
+            toValue: 1,
+            duration: 300,
+            useNativeDriver: true,
+          }),
+          Animated.spring(checkmarkScale, {
+            toValue: 1,
+            friction: 6,
+            tension: 80,
+            useNativeDriver: true,
+          }),
+        ]).start();
+
+        setIsLoading(false);
+        return;
       }
 
-      console.log('✍️ Signing transaction...');
-      const signedPayload = await gridClient.sign({
-        sessionSecrets: sessionSecrets,
-        session: authentication,
-        transactionPayload: paymentIntentResponse.data.transactionPayload
-      });
+      // EXTERNAL TRANSFER: Use Solana Wallet directly
+      const recipientAddress = externalAddress;
+      console.log('📤 Sending to external address:', recipientAddress);
 
-      console.log('✅ Transaction signed');
+      console.log('✍️ Sending transaction...');
+      const signature = await solanaWalletService.sendSOL(recipientAddress, amountInSOL);
 
-      console.log('🚀 Sending transaction...');
-      const result = await gridClient.send({
-        address: userWalletAddress,
-        signedTransactionPayload: signedPayload,
-      });
+      console.log('✅ Transaction sent successfully!', signature);
 
-      console.log('✅ Transaction sent successfully!', result);
-
-      setTransactionSignature(result.transaction_signature || 'COMPLETED');
+      setTransactionSignature(signature);
       setShowSuccessModal(true);
 
       Animated.parallel([

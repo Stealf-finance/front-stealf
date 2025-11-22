@@ -11,9 +11,10 @@ import {
   Alert,
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { Connection, PublicKey, ParsedTransactionWithMeta, LAMPORTS_PER_SOL } from '@solana/web3.js';
 import { useWallet } from '../hooks';
 import { authStorage } from '../services/authStorage';
-import { getGridClient } from '../config/grid';
+import { SOLANA_CONFIG } from '../config/umbra';
 
 
 const CACHE_DURATION = 5 * 1000;
@@ -126,59 +127,75 @@ export default function TransactionHistory({ limit = 10, style, isDemo = false }
         }
       }
 
-      // Use GRID SDK backend endpoint instead of direct RPC calls
-      const gridClient = getGridClient();
+      // Use Solana RPC to fetch transactions directly
+      console.log('🔍 Fetching transactions for Solana wallet:', walletAddress);
 
-      // Utiliser le SDK Grid pour récupérer les transactions
-      const responseData = await gridClient.getTransfers(walletAddress);
+      const connection = new Connection(SOLANA_CONFIG.RPC_URL, 'confirmed');
+      const publicKey = new PublicKey(walletAddress);
 
-      if (!responseData.success) {
-        throw new Error(responseData.error || 'Failed to fetch transactions');
-      }
+      // Fetch confirmed signatures for this address
+      const signatures = await connection.getSignaturesForAddress(publicKey, {
+        limit: limit * 2, // Fetch more to account for failed transactions
+      });
 
-      // Extract data from response wrapper
-      const data: any = responseData.data || [];
+      console.log(`✅ Found ${signatures.length} signatures`);
 
-      // Check different possible structures
-      let transfers: any[] = [];
-      if (Array.isArray(data)) {
-        transfers = data;
-      } else if (typeof data === 'object' && data !== null) {
-        if (data.transfers && Array.isArray(data.transfers)) {
-          transfers = data.transfers;
-        } else if (data.data && Array.isArray(data.data)) {
-          transfers = data.data;
-        }
-      }
+      // Fetch transaction details for each signature
+      const txPromises = signatures.map(sig =>
+        connection.getParsedTransaction(sig.signature, {
+          maxSupportedTransactionVersion: 0,
+        })
+      );
 
-      // Transform GRID SDK response to match expected Transaction type
-      const txs: Transaction[] = transfers
-        .map((transfer: any) => {
-          // GRID SDK wraps transfers in { "Spl": {...} } or { "Native": {...} }
-          const txData = transfer.Spl || transfer.Native || transfer;
+      const parsedTxs = await Promise.all(txPromises);
 
-          // GRID SDK returns created_at without timezone, so add 'Z' to treat it as UTC
-          const timestamp = txData.created_at ? new Date(txData.created_at + 'Z').getTime() :
-                            (transfer.timestamp ? new Date(transfer.timestamp).getTime() : Date.now());
+      // Transform Solana transactions to our Transaction type
+      const txs: Transaction[] = parsedTxs
+        .filter((tx): tx is ParsedTransactionWithMeta => tx !== null)
+        .map((tx, index) => {
+          const signature = signatures[index].signature;
+          const blockTime = tx.blockTime || 0;
+          const timestamp = blockTime * 1000; // Convert to milliseconds
 
-          const type: 'send' | 'receive' = (txData.direction === 'outflow' || transfer.type === 'outgoing') ? 'send' : 'receive';
+          // Determine if transaction was successful
           const status: 'confirmed' | 'pending' | 'failed' =
-            txData.confirmation_status === 'confirmed' || transfer.status === 'confirmed' ? 'confirmed' :
-            (txData.confirmation_status === 'failed' || transfer.status === 'failed' ? 'failed' : 'pending');
+            tx.meta?.err ? 'failed' : 'confirmed';
+
+          // Find transfers involving our wallet
+          const preBalance = tx.meta?.preBalances?.[0] || 0;
+          const postBalance = tx.meta?.postBalances?.[0] || 0;
+          const balanceChange = postBalance - preBalance;
+
+          // Determine type (send or receive) based on balance change
+          const type: 'send' | 'receive' = balanceChange < 0 ? 'send' : 'receive';
+
+          // Calculate amount (in SOL)
+          const amount = Math.abs(balanceChange) / LAMPORTS_PER_SOL;
+
+          // Try to find the other party's address
+          let otherAddress: string | undefined;
+          if (tx.transaction.message.accountKeys.length > 1) {
+            // Get first non-wallet address
+            otherAddress = tx.transaction.message.accountKeys
+              .find(key => key.pubkey.toBase58() !== walletAddress)?.pubkey.toBase58();
+          }
 
           return {
-            signature: txData.signature || transfer.signature || transfer.txId || 'unknown',
+            signature,
             type,
-            amount: parseFloat(txData.ui_amount || txData.amount || transfer.amount || '0'),
-            token: txData.mint ? 'USDC' : (transfer.token || 'SOL'),
+            amount,
+            token: 'SOL',
             timestamp,
             status,
-            from: txData.from_address || transfer.from || transfer.sender,
-            to: txData.to_address || transfer.to || transfer.recipient,
-            isPrivate: transfer.isPrivate || false,
+            from: type === 'send' ? walletAddress : otherAddress,
+            to: type === 'send' ? otherAddress : walletAddress,
+            isPrivate: false,
           };
         })
-        .slice(0, limit); // Apply limit AFTER mapping to ensure we get diverse transactions
+        .filter(tx => tx.amount > 0) // Only show transactions with actual transfers
+        .slice(0, limit); // Apply final limit
+
+      console.log(`✅ Processed ${txs.length} transactions`);
 
       setTransactions(txs);
 
@@ -193,7 +210,7 @@ export default function TransactionHistory({ limit = 10, style, isDemo = false }
       }
 
     } catch (err: any) {
-      console.error('❌ Error fetching transactions via GRID SDK:', err);
+      console.error('❌ Error fetching transactions from Solana RPC:', err);
       setError(err.message || 'Failed to load transactions');
     } finally {
       setLoading(false);
@@ -209,8 +226,9 @@ export default function TransactionHistory({ limit = 10, style, isDemo = false }
   };
 
   const openExplorer = (signature: string) => {
-    // Mainnet = pas de cluster parameter
-    const explorerUrl = `https://explorer.solana.com/tx/${signature}`;
+    // Use devnet cluster parameter
+    const cluster = SOLANA_CONFIG.NETWORK === 'devnet' ? '?cluster=devnet' : '';
+    const explorerUrl = `https://explorer.solana.com/tx/${signature}${cluster}`;
     Linking.openURL(explorerUrl).catch(() => {
       Alert.alert('Error', 'Could not open Solana Explorer');
     });

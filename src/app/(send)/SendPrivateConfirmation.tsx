@@ -17,8 +17,11 @@ import { StatusBar } from 'expo-status-bar';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useFonts } from 'expo-font';
 import { authStorage } from '../../services/authStorage';
-
-// TODO: Privacy feature not implemented yet with Grid SDK
+import solanaWalletService from '../../services/solanaWalletService';
+import stealfService from '../../services/stealfService';
+import { arciumApi, isArciumError } from '../../services/arciumApiClient';
+import bs58 from 'bs58';
+import type { PrivacyPoolTransferResponse, ArciumApiError } from '../../services/arciumApiClient';
 
 interface SendConfirmationProps {
   amount: string;
@@ -66,8 +69,90 @@ export default function SendConfirmation({ amount, onBack, onSuccess }: SendConf
   };
 
   const handleConfirm = async () => {
-    // TODO: Implement with Grid SDK when Privacy feature is ready
-    Alert.alert('Coming Soon', 'Privacy transfers are not yet available');
+    if (destinationType === 'external' && !externalAddress.trim()) {
+      Alert.alert('Error', 'Please enter a wallet address');
+      return;
+    }
+
+    setIsLoading(true);
+    try {
+      console.log('🔒 Starting PRIVATE transfer from Privacy Wallet...');
+
+      // Get the private wallet's keypair (sender)
+      const privateWalletKeypair = await stealfService.getPrivateWalletKeypair();
+      if (!privateWalletKeypair) {
+        throw new Error('Private wallet not found');
+      }
+
+      const privateWalletAddress = privateWalletKeypair.publicKey.toBase58();
+      const privateKeyBase58 = bs58.encode(privateWalletKeypair.secretKey);
+      console.log(`📤 From Private Wallet: ${privateWalletAddress.slice(0, 8)}...`);
+
+      // Determine recipient address
+      let recipientAddress: string;
+      if (destinationType === 'privacy') {
+        // Send to public wallet
+        const solanaKeypair = await solanaWalletService.loadWallet();
+        if (!solanaKeypair) {
+          throw new Error('Public wallet not found');
+        }
+        recipientAddress = solanaKeypair.publicKey.toBase58();
+        console.log(`📥 To Public Wallet: ${recipientAddress.slice(0, 8)}...`);
+      } else {
+        // Send to external address
+        recipientAddress = externalAddress.trim();
+        console.log(`📥 To External Address: ${recipientAddress.slice(0, 8)}...`);
+      }
+
+      // Convert USD to SOL
+      const SOL_PRICE_USD = 140;
+      const amountInSOL = parseFloat(amount) / SOL_PRICE_USD;
+      console.log(`💰 Amount: ${amountInSOL.toFixed(4)} SOL`);
+
+      // Execute private transfer via Privacy Pool
+      console.log('🔒 Creating PRIVATE transfer via Privacy Pool...');
+      const poolResult = await arciumApi.encryptedTransfer({
+        fromPrivateKey: privateKeyBase58,
+        toAddress: recipientAddress,
+        amount: amountInSOL,
+      });
+
+      if (isArciumError(poolResult)) {
+        const error = poolResult as ArciumApiError;
+        console.error('❌ Privacy pool transfer failed:', error.message);
+        throw new Error(`Private transfer failed: ${error.message}`);
+      }
+
+      const result = poolResult as PrivacyPoolTransferResponse;
+      console.log('✅ PRIVATE TRANSFER COMPLETE!');
+      console.log(`   Deposit TX: ${result.transactions.deposit.signature}`);
+      console.log(`   Withdraw TX: ${result.transactions.withdraw.signature}`);
+      console.log('🔒 No direct on-chain link between sender and recipient!');
+
+      // Show success
+      setTransactionSignature(result.transactions.withdraw.signature);
+      setShowSuccessModal(true);
+
+      Animated.parallel([
+        Animated.timing(successAnimation, {
+          toValue: 1,
+          duration: 300,
+          useNativeDriver: true,
+        }),
+        Animated.spring(checkmarkScale, {
+          toValue: 1,
+          friction: 6,
+          tension: 80,
+          useNativeDriver: true,
+        }),
+      ]).start();
+
+    } catch (error: any) {
+      console.error('❌ Transfer error:', error);
+      Alert.alert('Error', error.message || 'Failed to transfer');
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const solPrice = 100; // TODO: Get real SOL price

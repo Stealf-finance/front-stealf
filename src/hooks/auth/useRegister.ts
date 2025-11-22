@@ -3,6 +3,7 @@ import * as SecureStore from 'expo-secure-store';
 import { useAuth } from '../../contexts/AuthContext';
 import { authStorage } from '../../services/authStorage';
 import { getGridClient } from '../../config/grid';
+import solanaWalletService from '../../services/solanaWalletService';
 import stealfService from '../../services/stealfService';
 
 export const useRegister = (onSuccess?: (userData: any) => void) => {
@@ -147,6 +148,37 @@ export const useRegister = (onSuccess?: (userData: any) => void) => {
 
       console.log('✅ Auth data saved');
 
+      // WALLET CREATION: Créer un wallet Solana classique
+      try {
+        console.log('🔑 Creating Solana wallet...');
+
+        const solanaWallet = await solanaWalletService.createWallet();
+
+        console.log('✅ Solana wallet created successfully!');
+        console.log('   Public Key:', solanaWallet.publicKey);
+
+        // Sauvegarder l'adresse Solana
+        await authStorage.saveSolanaAddress(solanaWallet.publicKey);
+
+        // Mettre à jour les données utilisateur avec l'adresse Solana
+        const updatedUserData = {
+          ...userData,
+          solana_address: solanaWallet.publicKey,
+        };
+
+        await authStorage.saveAuth({
+          access_token: dummyToken,
+          refresh_token: '',
+          expires_in: 86400,
+          user: updatedUserData,
+        });
+
+        console.log('💾 Solana address saved to user data');
+      } catch (solanaError: any) {
+        // Ne pas bloquer la registration si la création du wallet Solana échoue
+        console.warn('⚠️ Failed to create Solana wallet (non-blocking):', solanaError);
+      }
+
       // STEALF INTEGRATION: Créer et lier le Private Wallet
       try {
         console.log('🔗 Creating and linking Private Wallet with Stealf SDK...');
@@ -154,7 +186,11 @@ export const useRegister = (onSuccess?: (userData: any) => void) => {
         const privateWalletResult = await stealfService.linkPrivateWallet(gridData.address);
 
         console.log('✅ Private Wallet created successfully!');
-        console.log('   Private Wallet Address:', privateWalletResult.privateWallet.publicKey.toBase58());
+        console.log('   Grid Wallet:', privateWalletResult.gridWallet.toBase58());
+        console.log('   Private Wallet:', privateWalletResult.privateWallet.publicKey.toBase58());
+
+        // Sauvegarder l'adresse du Private Wallet
+        await authStorage.savePrivateWalletAddress(privateWalletResult.privateWallet.publicKey.toBase58());
 
         // La clé privée est automatiquement sauvegardée dans SecureStore par le service
       } catch (stealfError: any) {

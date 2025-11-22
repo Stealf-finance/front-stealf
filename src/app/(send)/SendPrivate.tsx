@@ -22,16 +22,26 @@ export default function SendScreen({ onBack }: SendScreenProps) {
   const { walletAddress } = useWallet();
   const { balance } = useBalance(walletAddress);
 
-  // Calculate total USD - only using USDC balance
+  // Calculate total USD - USDC tokens or SOL converted to USD
   const calculateTotalUSD = () => {
     if (!balance) return 0;
 
-    // Chercher le token USDC dans la liste
+    // Priorité 1: Chercher le token USDC dans la liste
     const usdcToken = balance.tokens.find(
       (token) => token.symbol === 'USDC' || token.symbol === 'usdc'
     );
 
-    return usdcToken ? usdcToken.amount : 0;
+    if (usdcToken && usdcToken.amount > 0) {
+      return usdcToken.amount;
+    }
+
+    // Priorité 2: Utiliser SOL et le convertir en USD (prix fictif: $140 par SOL)
+    if (balance.sol > 0) {
+      const SOL_PRICE_USD = 140; // Prix fictif pour le devnet
+      return balance.sol * SOL_PRICE_USD;
+    }
+
+    return 0;
   };
 
   const totalUSD = calculateTotalUSD();

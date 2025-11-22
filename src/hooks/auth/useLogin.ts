@@ -3,6 +3,7 @@ import * as SecureStore from 'expo-secure-store';
 import { useAuth } from '../../contexts/AuthContext';
 import { authStorage } from '../../services/authStorage';
 import { getGridClient } from '../../config/grid';
+import solanaWalletService from '../../services/solanaWalletService';
 import stealfService from '../../services/stealfService';
 
 export const useLogin = (onSuccess?: (userData: any, accessToken: string) => void) => {
@@ -84,11 +85,42 @@ export const useLogin = (onSuccess?: (userData: any, accessToken: string) => voi
       });
 
       console.log('✅ OTP verification successful:', JSON.stringify(verifyResult, null, 2));
+      console.log('🔍 verifyResult type:', typeof verifyResult);
+      console.log('🔍 verifyResult keys:', Object.keys(verifyResult));
+      console.log('🔍 verifyResult.data exists?', 'data' in verifyResult);
 
       // Grid SDK retourne GridResponse<CompleteAuthResponse>, extraire les données
-      const gridData = verifyResult.data;
+      // La structure peut être soit verifyResult.data, soit directement verifyResult
+      const gridData = verifyResult.data || verifyResult;
 
-      if (!gridData) {
+      console.log('🔍 gridData after extraction:', JSON.stringify(gridData, null, 2));
+
+      // Vérifier si l'authentification a réussi
+      if (!verifyResult.success || verifyResult.error) {
+        console.error('❌ Authentication failed:', verifyResult.error);
+
+        // Parser l'erreur pour donner un message clair
+        let errorMessage = 'Authentication failed. Please try again.';
+
+        if (typeof verifyResult.error === 'string') {
+          try {
+            const errors = JSON.parse(verifyResult.error);
+            if (Array.isArray(errors) && errors[0]?.code === 'grid_account_not_found') {
+              errorMessage = 'This email is not registered. Please sign up first.';
+            }
+          } catch (parseError) {
+            // Si le parsing échoue, vérifier si l'erreur contient des mots-clés
+            if (verifyResult.error.includes('not_found') || verifyResult.error.includes('No grid account')) {
+              errorMessage = 'This email is not registered. Please sign up first.';
+            }
+          }
+        }
+
+        throw new Error(errorMessage);
+      }
+
+      if (!gridData || (!gridData.grid_user_id && !gridData.address)) {
+        console.error('❌ Invalid gridData structure:', gridData);
         throw new Error('No data returned from authentication');
       }
 
@@ -123,6 +155,27 @@ export const useLogin = (onSuccess?: (userData: any, accessToken: string) => voi
 
       console.log('✅ Auth data saved');
 
+      // WALLET LOADING: Charger le wallet Solana existant
+      try {
+        console.log('🔑 Loading Solana wallet...');
+
+        const solanaKeypair = await solanaWalletService.loadWallet();
+
+        if (solanaKeypair) {
+          const solanaAddress = solanaKeypair.publicKey.toBase58();
+          console.log('✅ Solana wallet loaded successfully!');
+          console.log('   Public Key:', solanaAddress);
+
+          // Sauvegarder l'adresse Solana
+          await authStorage.saveSolanaAddress(solanaAddress);
+        } else {
+          console.log('ℹ️ No Solana wallet found for this account');
+        }
+      } catch (solanaError: any) {
+        // Ne pas bloquer le login si le chargement du wallet Solana échoue
+        console.warn('⚠️ Failed to load Solana wallet (non-blocking):', solanaError);
+      }
+
       // STEALF INTEGRATION: Récupérer le Private Wallet lié
       try {
         console.log('🔍 Checking for linked Private Wallet...');
@@ -137,6 +190,9 @@ export const useLogin = (onSuccess?: (userData: any, accessToken: string) => voi
           console.log('✅ Private Wallet retrieved successfully!');
           console.log('   Grid Wallet:', wallets.gridWallet.toBase58());
           console.log('   Private Wallet:', wallets.privateWallet.toBase58());
+
+          // Sauvegarder l'adresse du Private Wallet
+          await authStorage.savePrivateWalletAddress(wallets.privateWallet.toBase58());
         } else {
           console.log('ℹ️ No linked Private Wallet found for this account');
         }

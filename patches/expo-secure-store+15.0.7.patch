@@ -1,0 +1,102 @@
+diff --git a/node_modules/expo-secure-store/build/ExpoSecureStore.js b/node_modules/expo-secure-store/build/ExpoSecureStore.js
+index 2ef9664..693fb99 100644
+--- a/node_modules/expo-secure-store/build/ExpoSecureStore.js
++++ b/node_modules/expo-secure-store/build/ExpoSecureStore.js
+@@ -1,3 +1,25 @@
+ import { requireNativeModule } from 'expo-modules-core';
+-export default requireNativeModule('ExpoSecureStore');
++const ExpoSecureStoreModule = requireNativeModule('ExpoSecureStore');
++
++// Export the module with BOTH direct access AND .default property
++const wrappedModule = Object.assign(
++  function() { return ExpoSecureStoreModule; },
++  ExpoSecureStoreModule,
++  {
++    default: ExpoSecureStoreModule,
++    setValueWithKeyAsync: ExpoSecureStoreModule.setValueWithKeyAsync,
++    getValueWithKeyAsync: ExpoSecureStoreModule.getValueWithKeyAsync,
++    deleteValueWithKeyAsync: ExpoSecureStoreModule.deleteValueWithKeyAsync,
++  }
++);
++
++// Also add .default as a property with all methods
++Object.defineProperty(wrappedModule, 'default', {
++  value: ExpoSecureStoreModule,
++  writable: false,
++  enumerable: true,
++  configurable: true
++});
++
++export default wrappedModule;
+ //# sourceMappingURL=ExpoSecureStore.js.map
+diff --git a/node_modules/expo-secure-store/build/ExpoSecureStore.web.js b/node_modules/expo-secure-store/build/ExpoSecureStore.web.js
+index 1a318b9..595badc 100644
+--- a/node_modules/expo-secure-store/build/ExpoSecureStore.web.js
++++ b/node_modules/expo-secure-store/build/ExpoSecureStore.web.js
+@@ -1,2 +1,51 @@
+-export default {};
++// Web polyfill for ExpoSecureStore using localStorage
++const ExpoSecureStoreWeb = {
++  setValueWithKeyAsync: async (value, key, options) => {
++    try {
++      localStorage.setItem(key, value);
++    } catch (error) {
++      throw new Error(`Failed to set value for key "${key}": ${error.message}`);
++    }
++  },
++  getValueWithKeyAsync: async (key, options) => {
++    try {
++      return localStorage.getItem(key);
++    } catch (error) {
++      throw new Error(`Failed to get value for key "${key}": ${error.message}`);
++    }
++  },
++  deleteValueWithKeyAsync: async (key, options) => {
++    try {
++      localStorage.removeItem(key);
++    } catch (error) {
++      throw new Error(`Failed to delete value for key "${key}": ${error.message}`);
++    }
++  },
++  // Constants for compatibility
++  AFTER_FIRST_UNLOCK: 0,
++  AFTER_FIRST_UNLOCK_THIS_DEVICE_ONLY: 1,
++  ALWAYS: 2,
++  WHEN_PASSCODE_SET_THIS_DEVICE_ONLY: 3,
++  ALWAYS_THIS_DEVICE_ONLY: 4,
++  WHEN_UNLOCKED: 5,
++  WHEN_UNLOCKED_THIS_DEVICE_ONLY: 6,
++};
++
++// Create wrapper with .default property for Privy SDK compatibility
++const wrappedModule = Object.assign(
++  function() { return ExpoSecureStoreWeb; },
++  ExpoSecureStoreWeb,
++  {
++    default: ExpoSecureStoreWeb,
++  }
++);
++
++Object.defineProperty(wrappedModule, 'default', {
++  value: ExpoSecureStoreWeb,
++  writable: false,
++  enumerable: true,
++  configurable: true
++});
++
++export default wrappedModule;
+ //# sourceMappingURL=ExpoSecureStore.web.js.map
+\ No newline at end of file
+diff --git a/node_modules/expo-secure-store/build/SecureStore.js b/node_modules/expo-secure-store/build/SecureStore.js
+index 4d87b38..23b4223 100644
+--- a/node_modules/expo-secure-store/build/SecureStore.js
++++ b/node_modules/expo-secure-store/build/SecureStore.js
+@@ -1,5 +1,8 @@
+ import ExpoSecureStore from './ExpoSecureStore';
+ import { byteCountOverLimit, VALUE_BYTES_LIMIT } from './byteCounter';
++
++// Export ExpoSecureStore for Grid/Privy SDK compatibility
++export { ExpoSecureStore };
+ // @needsAudit
+ /**
+  * The data in the keychain item cannot be accessed after a restart until the device has been

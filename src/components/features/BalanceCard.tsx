@@ -4,6 +4,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { BlurView } from 'expo-blur';
 import { useFonts } from 'expo-font';
 import { useWallet, useBalance } from '../../hooks';
+import { usePrivateBalance } from '../../hooks/usePrivateBalance';
 
 interface BalanceCardProps {
   onWithdraw?: () => void;
@@ -17,6 +18,9 @@ interface BalanceCardProps {
 export default function BalanceCard({ onWithdraw, onTopUp, onExchange, isPrivacy = false, privacyAccountNumber = 1, isDemo = false }: BalanceCardProps) {
   const { walletAddress, loading: walletLoading } = useWallet();
   const { balance, loading, error } = useBalance(walletAddress);
+
+  // Use private balance hook when isPrivacy is true
+  const { totalBalance: privateBalanceUSD, loading: privateLoading, error: privateError } = usePrivateBalance();
 
   // Load fonts
   const [fontsLoaded] = useFonts({
@@ -38,35 +42,48 @@ export default function BalanceCard({ onWithdraw, onTopUp, onExchange, isPrivacy
   // Garder l'ancien montant pendant le chargement pour éviter les flashs
   const [displayBalance, setDisplayBalance] = React.useState<number>(0);
 
-  // Afficher uniquement le solde USDC (pas besoin de calcul, l'API retourne déjà le montant)
-  const getUSDCBalance = () => {
+  // MODIFIED: Afficher la balance SOL convertie en USD (prix SOL fictif: ~$140)
+  const getBalanceInUSD = () => {
     // Si c'est le mode demo, retourner un montant hardcodé
     if (isDemo) {
       return 278.00;
     }
 
-    // Si c'est la page Privacy, retourner un montant hardcodé différent
+    // Si c'est la page Privacy, utiliser la vraie balance on-chain du wallet privé
     if (isPrivacy) {
-      return 847.32;
+      return privateBalanceUSD || 0;
     }
 
     if (!balance) return 0;
 
-    // Chercher le token USDC dans la liste
+    // Priorité 1: Essayer de trouver USDC
     const usdcToken = balance.tokens.find(
       (token) => token.symbol === 'USDC' || token.symbol === 'usdc'
     );
 
-    return usdcToken ? usdcToken.amount : 0;
+    if (usdcToken && usdcToken.amount > 0) {
+      return usdcToken.amount;
+    }
+
+    // Priorité 2: Utiliser SOL et le convertir en USD (prix fictif: $140 par SOL)
+    if (balance.sol > 0) {
+      const SOL_PRICE_USD = 140; // Prix fictif pour le devnet
+      return balance.sol * SOL_PRICE_USD;
+    }
+
+    return 0;
   };
 
   React.useEffect(() => {
     if (isDemo) {
       setDisplayBalance(278.00);
+    } else if (isPrivacy) {
+      // Pour le wallet privé, utiliser privateBalanceUSD
+      setDisplayBalance(privateBalanceUSD || 0);
     } else if (balance) {
-      setDisplayBalance(getUSDCBalance());
+      setDisplayBalance(getBalanceInUSD());
     }
-  }, [balance, isDemo]);
+  }, [balance, isDemo, isPrivacy, privateBalanceUSD]);
 
   const totalUSD = displayBalance || 0;
 
