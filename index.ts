@@ -1,5 +1,8 @@
 import 'react-native-gesture-handler';
 import 'react-native-get-random-values';
+import { polyfillWebCrypto } from 'expo-standard-web-crypto';
+
+polyfillWebCrypto();
 
 // CRITICAL: Polyfill ExpoSecureStore BEFORE any other imports
 // This fixes the Grid SDK compatibility issue with expo-secure-store

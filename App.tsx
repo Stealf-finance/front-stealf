@@ -5,6 +5,18 @@ import { Buffer } from 'buffer';
 // Make Buffer global for Solana SDK compatibility
 global.Buffer = Buffer;
 
+// Add process polyfill for Node.js compatibility
+if (typeof global.process === 'undefined') {
+  global.process = { env: {} } as any;
+}
+
+// Add TextEncoder/TextDecoder polyfills if not available
+if (typeof global.TextEncoder === 'undefined') {
+  const { TextEncoder, TextDecoder } = require('text-encoding');
+  global.TextEncoder = TextEncoder;
+  global.TextDecoder = TextDecoder;
+}
+
 import React from 'react';
 import { useFonts } from 'expo-font';
 import { AuthProvider } from './src/contexts/AuthContext';

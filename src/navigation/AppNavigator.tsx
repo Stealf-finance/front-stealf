@@ -295,6 +295,7 @@ export default function AppNavigator() {
           currentPage={currentPage}
           userEmail={userData?.email}
           username={userData?.username}
+          profileImage={userData?.profileImage}
         />
       </Animated.View>
     </View>

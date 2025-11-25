@@ -20,7 +20,7 @@ export default function BalanceCard({ onWithdraw, onTopUp, onExchange, isPrivacy
   const { balance, loading, error } = useBalance(walletAddress);
 
   // Use private balance hook when isPrivacy is true
-  const { totalBalance: privateBalanceUSD, loading: privateLoading, error: privateError } = usePrivateBalance();
+  const { totalBalance: privateBalanceUSD, totalBalanceSOL: privateBalanceSOL, loading: privateLoading, error: privateError } = usePrivateBalance();
 
   // Load fonts
   const [fontsLoaded] = useFonts({
@@ -42,50 +42,44 @@ export default function BalanceCard({ onWithdraw, onTopUp, onExchange, isPrivacy
   // Garder l'ancien montant pendant le chargement pour éviter les flashs
   const [displayBalance, setDisplayBalance] = React.useState<number>(0);
 
-  // MODIFIED: Afficher la balance SOL convertie en USD (prix SOL fictif: ~$140)
-  const getBalanceInUSD = () => {
+  // MODIFIED: Afficher la balance en SOL directement
+  const getBalanceInSOL = () => {
     // Si c'est le mode demo, retourner un montant hardcodé
     if (isDemo) {
-      return 278.00;
+      return 2.5;
     }
 
-    // Si c'est la page Privacy, utiliser la vraie balance on-chain du wallet privé
+    // Si c'est la page Privacy, seul le compte 1 a une vraie balance
     if (isPrivacy) {
-      return privateBalanceUSD || 0;
+      // Seul le compte 1 affiche la vraie balance, les autres affichent 0
+      if (privacyAccountNumber === 1) {
+        return privateBalanceSOL || 0;
+      }
+      return 0; // Comptes 2, 3, etc. pas encore implémentés
     }
 
     if (!balance) return 0;
 
-    // Priorité 1: Essayer de trouver USDC
-    const usdcToken = balance.tokens.find(
-      (token) => token.symbol === 'USDC' || token.symbol === 'usdc'
-    );
-
-    if (usdcToken && usdcToken.amount > 0) {
-      return usdcToken.amount;
-    }
-
-    // Priorité 2: Utiliser SOL et le convertir en USD (prix fictif: $140 par SOL)
-    if (balance.sol > 0) {
-      const SOL_PRICE_USD = 140; // Prix fictif pour le devnet
-      return balance.sol * SOL_PRICE_USD;
-    }
-
-    return 0;
+    // Afficher directement le montant en SOL
+    return balance.sol || 0;
   };
 
   React.useEffect(() => {
     if (isDemo) {
-      setDisplayBalance(278.00);
+      setDisplayBalance(2.5);
     } else if (isPrivacy) {
-      // Pour le wallet privé, utiliser privateBalanceUSD
-      setDisplayBalance(privateBalanceUSD || 0);
+      // Pour le wallet privé, seul le compte 1 a une vraie balance
+      if (privacyAccountNumber === 1) {
+        setDisplayBalance(privateBalanceSOL || 0);
+      } else {
+        setDisplayBalance(0); // Comptes 2, 3, etc. pas encore implémentés
+      }
     } else if (balance) {
-      setDisplayBalance(getBalanceInUSD());
+      setDisplayBalance(getBalanceInSOL());
     }
-  }, [balance, isDemo, isPrivacy, privateBalanceUSD]);
+  }, [balance, isDemo, isPrivacy, privateBalanceSOL, privacyAccountNumber]);
 
-  const totalUSD = displayBalance || 0;
+  const totalSOL = displayBalance || 0;
 
   return (
     <View style={styles.container}>
@@ -106,8 +100,8 @@ export default function BalanceCard({ onWithdraw, onTopUp, onExchange, isPrivacy
             {isPrivacy ? `Privacy Balance ${privacyAccountNumber}` : 'Total Balance'}
           </Text>
           <View style={{ flexDirection: 'row', alignItems: 'baseline' }}>
-            <Text style={styles.dollarSign}>$</Text>
-            <Text style={styles.balanceAmount}>{totalUSD.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</Text>
+            <Text style={styles.balanceAmount}>{totalSOL.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</Text>
+            <Text style={styles.solLabel}> SOL</Text>
           </View>
         </View>
 
@@ -119,7 +113,7 @@ export default function BalanceCard({ onWithdraw, onTopUp, onExchange, isPrivacy
             activeOpacity={0.8}
           >
             <View style={styles.buttonIconContainer}>
-              <Text style={styles.buttonIcon}>+</Text>
+              <Text style={styles.plusIcon}>+</Text>
             </View>
             <Text style={styles.buttonText}>Add</Text>
           </TouchableOpacity>
@@ -129,7 +123,9 @@ export default function BalanceCard({ onWithdraw, onTopUp, onExchange, isPrivacy
             onPress={onWithdraw}
             activeOpacity={0.8}
           >
-            <Text style={styles.sendButtonIcon}>↑</Text>
+            <View style={styles.buttonIconContainer}>
+              <Text style={styles.arrowIcon}>‹</Text>
+            </View>
             <Text style={styles.buttonText}>Send</Text>
           </TouchableOpacity>
 
@@ -199,6 +195,13 @@ const styles = StyleSheet.create({
     marginBottom: 12,
     fontFamily: 'Sansation-Regular',
   },
+  solLabel: {
+    color: 'rgba(255, 255, 255, 0.8)',
+    fontSize: 28,
+    fontWeight: 'normal',
+    marginBottom: 12,
+    fontFamily: 'Sansation-Regular',
+  },
   balanceChange: {
     color: 'rgba(255, 255, 255, 0.7)',
     fontSize: 15,
@@ -242,6 +245,21 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: 'bold',
     fontFamily: 'Sansation-Regular',
+  },
+  plusIcon: {
+    color: '#ffffff',
+    fontSize: 18,
+    fontWeight: '300',
+    lineHeight: 18,
+    textAlign: 'center',
+  },
+  arrowIcon: {
+    color: '#ffffff',
+    fontSize: 20,
+    fontWeight: '300',
+    transform: [{ rotate: '90deg' }],
+    lineHeight: 19.5,
+    textAlign: 'center',
   },
   buttonText: {
     color: '#ffffff',

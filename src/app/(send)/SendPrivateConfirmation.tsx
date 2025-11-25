@@ -18,7 +18,6 @@ import * as Clipboard from 'expo-clipboard';
 import { StatusBar } from 'expo-status-bar';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useFonts } from 'expo-font';
-import { authStorage } from '../../services/authStorage';
 import solanaWalletService from '../../services/solanaWalletService';
 import stealfService from '../../services/stealfService';
 import { arciumApi, isArciumError } from '../../services/arciumApiClient';
@@ -106,9 +105,8 @@ export default function SendConfirmation({ amount, onBack, onSuccess }: SendConf
         console.log(`📥 To External Address: ${recipientAddress.slice(0, 8)}...`);
       }
 
-      // Convert USD to SOL
-      const SOL_PRICE_USD = 140;
-      const amountInSOL = parseFloat(amount) / SOL_PRICE_USD;
+      // Amount is already in SOL (user enters SOL directly)
+      const amountInSOL = parseFloat(amount);
       console.log(`💰 Amount: ${amountInSOL.toFixed(4)} SOL`);
 
       // Execute private transfer via Privacy Pool
@@ -157,8 +155,6 @@ export default function SendConfirmation({ amount, onBack, onSuccess }: SendConf
     }
   };
 
-  const solPrice = 100; // TODO: Get real SOL price
-
   return (
     <View style={styles.container}>
       <LinearGradient
@@ -194,7 +190,7 @@ export default function SendConfirmation({ amount, onBack, onSuccess }: SendConf
           {/* Amount */}
           <View style={styles.section}>
             <Text style={styles.label}>Amount</Text>
-            <Text style={styles.value}>{amount} USD</Text>
+            <Text style={styles.value}>{amount} SOL</Text>
           </View>
 
           {/* Network */}

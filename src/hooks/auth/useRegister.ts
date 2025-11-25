@@ -5,14 +5,22 @@ import { authStorage } from '../../services/authStorage';
 import { getGridClient } from '../../config/grid';
 import solanaWalletService from '../../services/solanaWalletService';
 import stealfService from '../../services/stealfService';
+import { UMBRA_CONFIG } from '../../config/umbra';
+
+// API base URL from config
+const API_BASE_URL = UMBRA_CONFIG.API_URL;
 
 export const useRegister = (onSuccess?: (userData: any) => void) => {
   const { login } = useAuth();
   const [email, setEmail] = useState('');
+  const [username, setUsername] = useState('');
+  const [profileImage, setProfileImage] = useState<string | null>(null);
   const [otpCode, setOtpCode] = useState('');
   const [showOtpInput, setShowOtpInput] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
+  const [usernameError, setUsernameError] = useState('');
+  const [isCheckingUsername, setIsCheckingUsername] = useState(false);
   const [timer, setTimer] = useState(600);
   const [showLogoAnimation, setShowLogoAnimation] = useState(false);
   const gridClient = getGridClient();
@@ -29,12 +37,56 @@ export const useRegister = (onSuccess?: (userData: any) => void) => {
     };
   }, [showOtpInput, timer]);
 
+  // Check if username is available
+  const checkUsernameAvailability = async (usernameToCheck: string): Promise<boolean> => {
+    if (!usernameToCheck || usernameToCheck.length < 3) {
+      return false;
+    }
+
+    try {
+      setIsCheckingUsername(true);
+      const response = await fetch(
+        `${API_BASE_URL}/api/users/check-username?username=${encodeURIComponent(usernameToCheck)}`,
+        {
+          headers: {
+            'ngrok-skip-browser-warning': 'true',
+          },
+        }
+      );
+
+      const data = await response.json();
+      return data.available === true;
+    } catch (err) {
+      console.error('Error checking username:', err);
+      return true; // Allow to proceed if check fails
+    } finally {
+      setIsCheckingUsername(false);
+    }
+  };
+
   const handleSubmitEmail = async () => {
     setError('');
+    setUsernameError('');
     setIsLoading(true);
 
     try {
       console.log('🔐 Creating account with Grid SDK:', email);
+      console.log('📝 Username from state:', username);
+      console.log('📝 Username length:', username?.length || 0);
+
+      // Check username availability first
+      if (username && username.trim().length >= 3) {
+        console.log('🔍 Checking username availability...');
+        const isAvailable = await checkUsernameAvailability(username.trim());
+
+        if (!isAvailable) {
+          setUsernameError('Username is already taken');
+          setError('Username is already taken. Please choose another one.');
+          setIsLoading(false);
+          return;
+        }
+        console.log('✅ Username is available');
+      }
 
       const result = await gridClient.createAccount({
         type: 'email',
@@ -43,8 +95,18 @@ export const useRegister = (onSuccess?: (userData: any) => void) => {
 
       console.log('✅ Account creation initiated:', result);
 
+      // IMPORTANT: Save username BEFORE any async operations
+      const usernameToStore = username?.trim() || '';
+      console.log('💾 Storing username to SecureStore:', usernameToStore);
+
       await SecureStore.setItemAsync('auth_email', email);
+      await SecureStore.setItemAsync('auth_username', usernameToStore);
+      await SecureStore.setItemAsync('auth_profile_image', profileImage || '');
       await SecureStore.setItemAsync('auth_user_data', JSON.stringify(result));
+
+      // Verify the username was saved
+      const verifyUsername = await SecureStore.getItemAsync('auth_username');
+      console.log('✅ Verified stored username:', verifyUsername);
 
       setShowOtpInput(true);
       setTimer(600);
@@ -75,6 +137,8 @@ export const useRegister = (onSuccess?: (userData: any) => void) => {
 
     try {
       const savedEmail = await SecureStore.getItemAsync('auth_email');
+      const savedUsername = await SecureStore.getItemAsync('auth_username');
+      const savedProfileImage = await SecureStore.getItemAsync('auth_profile_image');
       const savedUserDataStr = await SecureStore.getItemAsync('auth_user_data');
 
       if (!savedEmail || !savedUserDataStr) {
@@ -83,6 +147,11 @@ export const useRegister = (onSuccess?: (userData: any) => void) => {
         setIsLoading(false);
         return;
       }
+
+      console.log('📋 Retrieved from SecureStore:');
+      console.log('   Email:', savedEmail);
+      console.log('   Username:', savedUsername);
+      console.log('   Profile Image:', savedProfileImage ? 'Yes' : 'No');
 
       const savedUserData = JSON.parse(savedUserDataStr);
 
@@ -125,15 +194,24 @@ export const useRegister = (onSuccess?: (userData: any) => void) => {
 
       console.log('✅ Registration successful!');
 
+      // Clean up temporary auth data from SecureStore
       await SecureStore.deleteItemAsync('auth_email');
+      await SecureStore.deleteItemAsync('auth_username');
+      await SecureStore.deleteItemAsync('auth_profile_image');
       await SecureStore.deleteItemAsync('auth_user_data');
 
       await SecureStore.setItemAsync('session_secrets', JSON.stringify(sessionSecrets));
       console.log('✅ Session secrets saved');
 
+      // Use saved values from SecureStore (more reliable than state)
+      const finalUsername = savedUsername || username || null;
+      const finalProfileImage = savedProfileImage || profileImage || null;
+
       const userData = {
         grid_user_id: gridData.grid_user_id,
         email: savedEmail,
+        username: finalUsername,
+        profileImage: finalProfileImage,
         grid_address: gridData.address,
         policies: gridData.policies,
         authentication: gridData.authentication,
@@ -148,22 +226,55 @@ export const useRegister = (onSuccess?: (userData: any) => void) => {
 
       console.log('✅ Auth data saved');
 
-      // WALLET CREATION: Créer un wallet Solana classique
+      // WALLET MANAGEMENT: Check backend first for existing wallet
+      let solanaWalletAddress: string | null = null;
+
+      // Set current user email for user-specific wallet storage
+      solanaWalletService.setCurrentUserEmail(savedEmail);
+
       try {
-        console.log('🔑 Creating Solana wallet...');
+        // First, check if user already exists in backend
+        console.log('🔍 Checking if user already has a wallet...');
+        const checkResponse = await fetch(`${API_BASE_URL}/api/users/profile?email=${encodeURIComponent(savedEmail)}`, {
+          headers: {
+            'ngrok-skip-browser-warning': 'true',
+          },
+        });
 
-        const solanaWallet = await solanaWalletService.createWallet();
+        if (checkResponse.ok) {
+          const checkData = await checkResponse.json();
+          if (checkData.success && checkData.user?.solanaWallet) {
+            // User already has a wallet, reuse it
+            solanaWalletAddress = checkData.user.solanaWallet;
+            console.log('✅ Found existing wallet:', solanaWalletAddress);
 
-        console.log('✅ Solana wallet created successfully!');
-        console.log('   Public Key:', solanaWallet.publicKey);
+            // Load the existing wallet from secure storage
+            const existingKeypair = await solanaWalletService.getKeypair();
+            if (existingKeypair && existingKeypair.publicKey.toBase58() === solanaWalletAddress) {
+              console.log('✅ Wallet keypair already in secure storage');
+            } else {
+              console.warn('⚠️ Wallet mismatch - user may need to recover wallet');
+            }
+          }
+        }
 
-        // Sauvegarder l'adresse Solana
-        await authStorage.saveSolanaAddress(solanaWallet.publicKey);
+        // If no existing wallet, create a new one
+        if (!solanaWalletAddress) {
+          console.log('🔑 Creating new Solana wallet...');
+          const solanaWallet = await solanaWalletService.createWallet();
+          solanaWalletAddress = solanaWallet.publicKey;
+          console.log('✅ New Solana wallet created:', solanaWalletAddress);
+        }
 
-        // Mettre à jour les données utilisateur avec l'adresse Solana
+        // Save wallet address to local storage
+        await authStorage.saveSolanaAddress(solanaWalletAddress);
+
+        // Update user data with Solana address
         const updatedUserData = {
           ...userData,
-          solana_address: solanaWallet.publicKey,
+          username: username || null,
+          profileImage: profileImage || null,
+          solana_address: solanaWalletAddress,
         };
 
         await authStorage.saveAuth({
@@ -175,28 +286,82 @@ export const useRegister = (onSuccess?: (userData: any) => void) => {
 
         console.log('💾 Solana address saved to user data');
       } catch (solanaError: any) {
-        // Ne pas bloquer la registration si la création du wallet Solana échoue
-        console.warn('⚠️ Failed to create Solana wallet (non-blocking):', solanaError);
+        console.warn('⚠️ Wallet management error (non-blocking):', solanaError);
       }
 
-      // STEALF INTEGRATION: Créer et lier le Private Wallet
+      // BACKEND REGISTRATION: Register/update user with wallet
+      // Use savedUsername from SecureStore (not state) to ensure persistence
+      const usernameToSave = savedUsername || username || null;
+      const profileImageToSave = savedProfileImage || profileImage || null;
+
       try {
-        console.log('🔗 Creating and linking Private Wallet with Stealf SDK...');
+        console.log('📡 Registering user to backend...');
+        console.log('   Email:', savedEmail);
+        console.log('   Username from SecureStore (savedUsername):', savedUsername);
+        console.log('   Username from state:', username);
+        console.log('   Final usernameToSave:', usernameToSave);
+        console.log('   Solana Wallet:', solanaWalletAddress);
 
-        const privateWalletResult = await stealfService.linkPrivateWallet(gridData.address);
+        const requestBody = {
+          email: savedEmail,
+          username: usernameToSave,
+          solanaWallet: solanaWalletAddress,
+          profileImage: profileImageToSave,
+          gridUserId: gridData.grid_user_id,
+          gridAddress: gridData.address,
+        };
 
-        console.log('✅ Private Wallet created successfully!');
-        console.log('   Grid Wallet:', privateWalletResult.gridWallet.toBase58());
-        console.log('   Private Wallet:', privateWalletResult.privateWallet.publicKey.toBase58());
+        console.log('📤 Request body being sent:', JSON.stringify(requestBody, null, 2));
 
-        // Sauvegarder l'adresse du Private Wallet
-        await authStorage.savePrivateWalletAddress(privateWalletResult.privateWallet.publicKey.toBase58());
+        const response = await fetch(`${API_BASE_URL}/api/users/register`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'ngrok-skip-browser-warning': 'true',
+          },
+          body: JSON.stringify(requestBody),
+        });
 
-        // La clé privée est automatiquement sauvegardée dans SecureStore par le service
-      } catch (stealfError: any) {
-        // Ne pas bloquer la registration si Stealf échoue
-        console.warn('⚠️ Failed to create Private Wallet (non-blocking):', stealfError);
-        console.warn('   User can still use Grid wallet. Private wallet can be created later.');
+        const data = await response.json();
+        console.log('📥 Backend response:', JSON.stringify(data, null, 2));
+
+        if (data.success) {
+          console.log('✅ User registered to backend successfully!');
+          console.log('   Username:', data.user.username);
+        } else {
+          console.warn('⚠️ Backend registration failed:', data.message);
+        }
+      } catch (backendError: any) {
+        console.warn('⚠️ Failed to register to backend (non-blocking):', backendError);
+      }
+
+      // PRIVATE WALLET: Définir l'email de l'utilisateur courant pour le wallet privé
+      stealfService.setCurrentUserEmail(savedEmail);
+
+      // PRIVATE WALLET: Check if already exists, create only if needed
+      try {
+        console.log('🔍 Checking for existing Private Wallet...');
+
+        // Check if private wallet already exists in SecureStore
+        const existingPrivateWallet = await stealfService.getPrivateWalletKeypair();
+
+        if (existingPrivateWallet) {
+          console.log('✅ Private Wallet already exists!');
+          console.log('   Private Wallet:', existingPrivateWallet.publicKey.toBase58());
+          await authStorage.savePrivateWalletAddress(existingPrivateWallet.publicKey.toBase58());
+        } else {
+          // No existing private wallet, create a new one
+          console.log('🔗 Creating new Private Wallet...');
+          const privateWallet = await stealfService.createPrivateWallet();
+
+          console.log('✅ Private Wallet created successfully!');
+          console.log('   Private Wallet:', privateWallet.publicKey.toBase58());
+
+          await authStorage.savePrivateWalletAddress(privateWallet.publicKey.toBase58());
+        }
+      } catch (privateWalletError: any) {
+        console.warn('⚠️ Failed to manage Private Wallet (non-blocking):', privateWalletError);
+        console.warn('   User can still use main wallet. Private wallet can be created later.');
       }
 
       setShowLogoAnimation(true);
@@ -235,7 +400,8 @@ export const useRegister = (onSuccess?: (userData: any) => void) => {
         console.log('🔄 Calling AuthContext.login()...');
         await login({
           email: userData.email || '',
-          username: userData.email?.split('@')[0] || '',
+          username: userData.username || userData.email?.split('@')[0] || '',
+          profileImage: userData.profileImage || null,
           gridAddress: userData.grid_address,
         });
         console.log('✅ AuthContext.login() completed');
@@ -252,11 +418,17 @@ export const useRegister = (onSuccess?: (userData: any) => void) => {
   return {
     email,
     setEmail,
+    username,
+    setUsername,
+    profileImage,
+    setProfileImage,
     otpCode,
     setOtpCode,
     showOtpInput,
     isLoading,
     error,
+    usernameError,
+    isCheckingUsername,
     timer,
     showLogoAnimation,
     handleSubmitEmail,

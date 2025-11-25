@@ -7,7 +7,7 @@
 export const UMBRA_CONFIG = {
   // Backend URL - update this for production
   API_URL: __DEV__
-    ? 'http://192.168.1.44:3001'  // Development (local network)
+    ? 'https://chaotic-marjorie-nondistinguished.ngrok-free.dev'  // Ngrok for Expo tunnel mode
     : 'https://api.stealf.app',    // Production
 
   // API Endpoints

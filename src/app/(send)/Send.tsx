@@ -21,29 +21,13 @@ export default function SendScreen({ onBack }: SendScreenProps) {
   const { walletAddress } = useWallet();
   const { balance } = useBalance(walletAddress);
 
-  // Calculate total USD - USDC tokens or SOL converted to USD
-  const calculateTotalUSD = () => {
+  // Calculate total SOL balance
+  const calculateTotalSOL = () => {
     if (!balance) return 0;
-
-    // Priorité 1: Chercher le token USDC dans la liste
-    const usdcToken = balance.tokens.find(
-      (token) => token.symbol === 'USDC' || token.symbol === 'usdc'
-    );
-
-    if (usdcToken && usdcToken.amount > 0) {
-      return usdcToken.amount;
-    }
-
-    // Priorité 2: Utiliser SOL et le convertir en USD (prix fictif: $140 par SOL)
-    if (balance.sol > 0) {
-      const SOL_PRICE_USD = 140; // Prix fictif pour le devnet
-      return balance.sol * SOL_PRICE_USD;
-    }
-
-    return 0;
+    return balance.sol || 0;
   };
 
-  const totalUSD = calculateTotalUSD();
+  const totalSOL = calculateTotalSOL();
 
   // Load fonts
   const [fontsLoaded] = useFonts({
@@ -106,9 +90,9 @@ export default function SendScreen({ onBack }: SendScreenProps) {
         <View style={styles.amountContainer}>
           <View style={styles.amountRow}>
             <Text style={styles.amountText}>{amount || '0'}</Text>
-            <Text style={styles.currencyText}>USD</Text>
+            <Text style={styles.currencyText}>SOL</Text>
           </View>
-          <Text style={styles.balanceText}>Your balance ${totalUSD.toFixed(2)}</Text>
+          <Text style={styles.balanceText}>Your balance {totalSOL.toFixed(2)} SOL</Text>
         </View>
 
         {/* Account Selection */}
@@ -173,7 +157,9 @@ export default function SendScreen({ onBack }: SendScreenProps) {
           </View>
 
           <View style={styles.keyboardRow}>
-            <View style={styles.key} />
+            <TouchableOpacity style={styles.key} onPress={() => handleNumberPress('.')}>
+              <Text style={styles.keyText}>.</Text>
+            </TouchableOpacity>
             <TouchableOpacity style={styles.key} onPress={() => handleNumberPress('0')}>
               <Text style={styles.keyText}>0</Text>
             </TouchableOpacity>

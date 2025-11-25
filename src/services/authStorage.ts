@@ -10,6 +10,12 @@ const KEYS = {
   PRIVATE_WALLET_ADDRESS: 'private_wallet_address',
 };
 
+// Helper to create user-specific storage key
+const getUserSpecificKey = (baseKey: string, email: string): string => {
+  const safeEmail = email.replace(/[^a-zA-Z0-9]/g, '_');
+  return `${baseKey}_${safeEmail}`;
+};
+
 export const authStorage = {
   /**
    * Save auth tokens and user data
@@ -86,41 +92,65 @@ export const authStorage = {
   },
 
   /**
-   * Get Solana wallet address
+   * Get Solana wallet address (user-specific)
    */
-  async getSolanaAddress(): Promise<string | null> {
-    return await AsyncStorage.getItem(KEYS.SOLANA_ADDRESS);
+  async getSolanaAddress(email?: string): Promise<string | null> {
+    const userEmail = email || (await this.getUserData())?.email;
+    if (!userEmail) {
+      console.warn('⚠️ getSolanaAddress: No email provided or found');
+      return null;
+    }
+    const key = getUserSpecificKey(KEYS.SOLANA_ADDRESS, userEmail);
+    return await AsyncStorage.getItem(key);
   },
 
   /**
-   * Save Solana wallet address
+   * Save Solana wallet address (user-specific)
    */
-  async saveSolanaAddress(address: string): Promise<void> {
+  async saveSolanaAddress(address: string, email?: string): Promise<void> {
     try {
-      await AsyncStorage.setItem(KEYS.SOLANA_ADDRESS, address);
-      console.log('💾 Solana address saved:', address);
+      const userEmail = email || (await this.getUserData())?.email;
+      if (!userEmail) {
+        console.error('❌ saveSolanaAddress: No email provided or found');
+        return;
+      }
+      const key = getUserSpecificKey(KEYS.SOLANA_ADDRESS, userEmail);
+      await AsyncStorage.setItem(key, address);
+      console.log('💾 Solana address saved for', userEmail, ':', address);
     } catch (error) {
       console.error('Failed to save Solana address:', error);
     }
   },
 
   /**
-   * Save Private Wallet address
+   * Save Private Wallet address (user-specific)
    */
-  async savePrivateWalletAddress(address: string): Promise<void> {
+  async savePrivateWalletAddress(address: string, email?: string): Promise<void> {
     try {
-      await AsyncStorage.setItem(KEYS.PRIVATE_WALLET_ADDRESS, address);
-      console.log('💾 Private wallet address saved:', address);
+      const userEmail = email || (await this.getUserData())?.email;
+      if (!userEmail) {
+        console.error('❌ savePrivateWalletAddress: No email provided or found');
+        return;
+      }
+      const key = getUserSpecificKey(KEYS.PRIVATE_WALLET_ADDRESS, userEmail);
+      await AsyncStorage.setItem(key, address);
+      console.log('💾 Private wallet address saved for', userEmail, ':', address);
     } catch (error) {
       console.error('Failed to save private wallet address:', error);
     }
   },
 
   /**
-   * Get Private Wallet address
+   * Get Private Wallet address (user-specific)
    */
-  async getPrivateWalletAddress(): Promise<string | null> {
-    return await AsyncStorage.getItem(KEYS.PRIVATE_WALLET_ADDRESS);
+  async getPrivateWalletAddress(email?: string): Promise<string | null> {
+    const userEmail = email || (await this.getUserData())?.email;
+    if (!userEmail) {
+      console.warn('⚠️ getPrivateWalletAddress: No email provided or found');
+      return null;
+    }
+    const key = getUserSpecificKey(KEYS.PRIVATE_WALLET_ADDRESS, userEmail);
+    return await AsyncStorage.getItem(key);
   },
 
   /**

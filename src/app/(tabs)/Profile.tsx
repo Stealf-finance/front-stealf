@@ -13,9 +13,10 @@ interface ProfileScreenProps {
   currentPage?: string;
   userEmail?: string;
   username?: string;
+  profileImage?: string | null;
 }
 
-export default function ProfileScreen({ onBack, onNavigateToPage, onLogout, currentPage, userEmail, username }: ProfileScreenProps) {
+export default function ProfileScreen({ onBack, onNavigateToPage, onLogout, currentPage, userEmail, username, profileImage }: ProfileScreenProps) {
   const [biometricAvailable, setBiometricAvailable] = useState(false);
   const [biometricEnabled, setBiometricEnabled] = useState(false);
   const [biometricType, setBiometricType] = useState<string | null>(null);
@@ -111,13 +112,22 @@ export default function ProfileScreen({ onBack, onNavigateToPage, onLogout, curr
 
         {/* Profile Header */}
         <View style={styles.profileHeader}>
+          {/* Profile Image */}
+          <View style={styles.profileImageContainer}>
+            {profileImage ? (
+              <Image source={{ uri: profileImage }} style={styles.profileImage} />
+            ) : (
+              <View style={styles.profileImagePlaceholder}>
+                <Text style={styles.profileImageInitial}>
+                  {username ? username.charAt(0).toUpperCase() : userEmail?.charAt(0).toUpperCase() || '?'}
+                </Text>
+              </View>
+            )}
+          </View>
           {/* User Info */}
           <View style={styles.userInfo}>
             <Text style={styles.userType}>Personal</Text>
-            <Text style={styles.userEmail}>{userEmail || 'No email provided'}</Text>
-            {username && (
-              <Text style={styles.username}>{username}</Text>
-            )}
+            <Text style={styles.displayName}>@{username || userEmail?.split('@')[0] || 'user'}</Text>
           </View>
         </View>
 
@@ -223,30 +233,49 @@ const styles = StyleSheet.create({
     width: 40,
   },
   profileHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
     paddingHorizontal: 24,
     paddingTop: 10,
-    paddingBottom: 10,
+    paddingBottom: 20,
+    gap: 16,
+  },
+  profileImageContainer: {
+    width: 70,
+    height: 70,
+  },
+  profileImage: {
+    width: 70,
+    height: 70,
+    borderRadius: 35,
+  },
+  profileImagePlaceholder: {
+    width: 70,
+    height: 70,
+    borderRadius: 35,
+    backgroundColor: 'rgba(240, 235, 220, 0.95)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  profileImageInitial: {
+    color: '#000',
+    fontSize: 28,
+    fontFamily: 'Sansation-Bold',
   },
   userInfo: {
     alignItems: 'flex-start',
+    flex: 1,
   },
   userType: {
-    color: 'rgba(255, 255, 255, 0.7)',
-    fontSize: 16,
+    color: 'rgba(255, 255, 255, 0.5)',
+    fontSize: 14,
     fontFamily: 'Sansation-Regular',
-    marginBottom: 8,
-  },
-  userEmail: {
-    color: 'white',
-    fontSize: 18,
-    fontWeight: 'bold',
-    fontFamily: 'Sansation-Bold',
     marginBottom: 4,
   },
-  username: {
-    color: 'rgba(255, 255, 255, 0.7)',
-    fontSize: 16,
-    fontFamily: 'Sansation-Regular',
+  displayName: {
+    color: 'white',
+    fontSize: 22,
+    fontFamily: 'Sansation-Bold',
   },
   profileContent: {
     flex: 1,

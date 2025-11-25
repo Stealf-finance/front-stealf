@@ -1,5 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { authStorage } from '../services/authStorage';
+import stealfService from '../services/stealfService';
+import solanaWalletService from '../services/solanaWalletService';
 import type { UserData } from '../types';
 
 interface AuthContextType {
@@ -31,14 +33,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setUserData({
           email: data?.email,
           username: data?.username,
+          profileImage: data?.profileImage,
           gridAddress: data?.grid_address,
         });
+        // Set current user email for private wallet and solana wallet
+        if (data?.email) {
+          stealfService.setCurrentUserEmail(data.email);
+          solanaWalletService.setCurrentUserEmail(data.email);
+        }
       } else {
         await authStorage.clearAuth();
+        stealfService.reset();
+        solanaWalletService.reset();
       }
     } catch (error) {
       console.error('Error checking auth:', error);
       await authStorage.clearAuth();
+      stealfService.reset();
+      solanaWalletService.reset();
     } finally {
       setLoading(false);
     }
@@ -51,6 +63,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const logout = async () => {
     await authStorage.clearAuth();
+    stealfService.reset(); // Reset private wallet user email
+    solanaWalletService.reset(); // Reset solana wallet user email
     setUserData(null);
     setIsAuthenticated(false);
   };

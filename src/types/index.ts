@@ -15,6 +15,7 @@ export interface UserData {
   grid_user_id?: string;
   email?: string;
   username?: string;
+  profileImage?: string | null;
   grid_address?: string;
   gridAddress?: string;
   policies?: any;

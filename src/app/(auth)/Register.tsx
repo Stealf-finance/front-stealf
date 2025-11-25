@@ -12,6 +12,8 @@ import {
   Platform,
 } from 'react-native';
 import { useFonts } from 'expo-font';
+import * as ImagePicker from 'expo-image-picker';
+import { Ionicons } from '@expo/vector-icons';
 import AppBackground from '../../components/common/AppBackground';
 import LoginSuccessAnimation from '../../components/auth/LoginSuccessAnimation';
 import { useRegister } from '../../hooks/auth/useRegister';
@@ -26,6 +28,10 @@ export default function RegisterScreen({ onBack, onSuccess, onSwitchToLogin }: R
   const {
     email,
     setEmail,
+    username,
+    setUsername,
+    profileImage,
+    setProfileImage,
     otpCode,
     setOtpCode,
     showOtpInput,
@@ -38,6 +44,19 @@ export default function RegisterScreen({ onBack, onSuccess, onSwitchToLogin }: R
     handleResendCode,
     handleAnimationComplete,
   } = useRegister(onSuccess);
+
+  const pickImage = async () => {
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      allowsEditing: true,
+      aspect: [1, 1],
+      quality: 0.8,
+    });
+
+    if (!result.canceled && result.assets[0]) {
+      setProfileImage(result.assets[0].uri);
+    }
+  };
 
   const [fontsLoaded] = useFonts({
     'Sansation-Regular': require('../../assets/font/Sansation/Sansation-Regular.ttf'),
@@ -83,6 +102,38 @@ export default function RegisterScreen({ onBack, onSuccess, onSwitchToLogin }: R
             <View style={styles.formContainer}>
               {!showOtpInput ? (
                 <>
+                  {/* Profile Picture */}
+                  <View style={styles.profileImageContainer}>
+                    <TouchableOpacity onPress={pickImage} style={styles.profileImageButton}>
+                      {profileImage ? (
+                        <Image source={{ uri: profileImage }} style={styles.profileImage} />
+                      ) : (
+                        <View style={styles.profileImagePlaceholder}>
+                          <Ionicons name="person" size={40} color="rgba(255, 255, 255, 0.4)" />
+                        </View>
+                      )}
+                      <View style={styles.cameraIconContainer}>
+                        <Ionicons name="camera" size={16} color="#000" />
+                      </View>
+                    </TouchableOpacity>
+                    <Text style={styles.profileImageHint}>Add photo (optional)</Text>
+                  </View>
+
+                  {/* Username Input */}
+                  <View style={styles.inputGroup}>
+                    <Text style={styles.label}>Username</Text>
+                    <TextInput
+                      style={styles.input}
+                      placeholder="Choose a username"
+                      placeholderTextColor="rgba(255, 255, 255, 0.3)"
+                      value={username}
+                      onChangeText={setUsername}
+                      autoCapitalize="none"
+                      autoCorrect={false}
+                      editable={!isLoading}
+                    />
+                  </View>
+
                   {/* Email Input */}
                   <View style={styles.inputGroup}>
                     <Text style={styles.label}>Email</Text>
@@ -106,7 +157,7 @@ export default function RegisterScreen({ onBack, onSuccess, onSwitchToLogin }: R
                   <TouchableOpacity
                     style={[styles.button, isLoading && styles.buttonDisabled]}
                     onPress={handleSubmitEmail}
-                    disabled={isLoading || !email}
+                    disabled={isLoading || !email || !username}
                     activeOpacity={0.8}
                   >
                     {isLoading ? (
@@ -324,5 +375,44 @@ const styles = StyleSheet.create({
     color: 'rgba(240, 235, 220, 0.95)',
     fontSize: 14,
     fontFamily: 'Sansation-Bold',
+  },
+  profileImageContainer: {
+    alignItems: 'center',
+    marginBottom: 24,
+  },
+  profileImageButton: {
+    position: 'relative',
+  },
+  profileImage: {
+    width: 100,
+    height: 100,
+    borderRadius: 50,
+  },
+  profileImagePlaceholder: {
+    width: 100,
+    height: 100,
+    borderRadius: 50,
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.2)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  cameraIconContainer: {
+    position: 'absolute',
+    bottom: 0,
+    right: 0,
+    backgroundColor: 'rgba(240, 235, 220, 0.95)',
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  profileImageHint: {
+    marginTop: 8,
+    fontSize: 12,
+    color: 'rgba(255, 255, 255, 0.5)',
+    fontFamily: 'Sansation-Regular',
   },
 });

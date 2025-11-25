@@ -12,6 +12,7 @@ import {
   Platform,
   ScrollView,
   Linking,
+  Image,
 } from 'react-native';
 import * as Clipboard from 'expo-clipboard';
 import { useFonts } from 'expo-font';
@@ -33,6 +34,13 @@ export default function SendConfirmation({ amount, onBack, onSuccess }: SendConf
     setDestinationType,
     externalAddress,
     setExternalAddress,
+    usernameSearch,
+    setUsernameSearch,
+    searchedUser,
+    isSearching,
+    searchError,
+    searchUserByUsername,
+    clearUsernameSearch,
     selectedPrivacyWallet,
     setSelectedPrivacyWallet,
     showPrivacyDropdown,
@@ -187,16 +195,97 @@ export default function SendConfirmation({ amount, onBack, onSuccess }: SendConf
 
             {/* External Address Input */}
             {destinationType === 'external' && (
-              <View style={styles.addressInputContainer}>
-                <TextInput
-                  style={styles.addressInput}
-                  placeholder="Paste wallet address..."
-                  placeholderTextColor="rgba(255, 255, 255, 0.3)"
-                  value={externalAddress}
-                  onChangeText={setExternalAddress}
-                  autoCapitalize="none"
-                  autoCorrect={false}
-                />
+              <View style={styles.externalInputSection}>
+                {/* Username Search */}
+                <View style={styles.usernameSearchContainer}>
+                  <Text style={styles.inputLabel}>Search by username</Text>
+                  <View style={styles.searchRow}>
+                    <TextInput
+                      style={styles.usernameInput}
+                      placeholder="@username"
+                      placeholderTextColor="rgba(255, 255, 255, 0.3)"
+                      value={usernameSearch}
+                      onChangeText={setUsernameSearch}
+                      autoCapitalize="none"
+                      autoCorrect={false}
+                    />
+                    <TouchableOpacity
+                      style={styles.searchButton}
+                      onPress={() => searchUserByUsername(usernameSearch)}
+                      disabled={isSearching || !usernameSearch.trim()}
+                      activeOpacity={0.8}
+                    >
+                      {isSearching ? (
+                        <ActivityIndicator color="#000" size="small" />
+                      ) : (
+                        <Text style={styles.searchButtonText}>Search</Text>
+                      )}
+                    </TouchableOpacity>
+                  </View>
+
+                  {/* Search Result */}
+                  {searchedUser && (
+                    <View style={styles.searchResult}>
+                      <View style={styles.searchResultInfo}>
+                        {searchedUser.profileImage ? (
+                          <Image
+                            source={{ uri: searchedUser.profileImage }}
+                            style={styles.userAvatarImage}
+                          />
+                        ) : (
+                          <View style={styles.userAvatar}>
+                            <Text style={styles.userAvatarText}>
+                              {searchedUser.username.charAt(0).toUpperCase()}
+                            </Text>
+                          </View>
+                        )}
+                        <View>
+                          <Text style={styles.searchResultUsername}>@{searchedUser.username}</Text>
+                          <Text style={styles.searchResultWallet}>
+                            {searchedUser.walletAddress.slice(0, 8)}...{searchedUser.walletAddress.slice(-6)}
+                          </Text>
+                        </View>
+                      </View>
+                      <TouchableOpacity onPress={clearUsernameSearch}>
+                        <Text style={styles.clearButton}>✕</Text>
+                      </TouchableOpacity>
+                    </View>
+                  )}
+
+                  {/* Search Error */}
+                  {searchError && !searchedUser && (
+                    <Text style={styles.searchErrorText}>{searchError}</Text>
+                  )}
+                </View>
+
+                {/* Divider */}
+                <View style={styles.orDivider}>
+                  <View style={styles.dividerLine} />
+                  <Text style={styles.orText}>or</Text>
+                  <View style={styles.dividerLine} />
+                </View>
+
+                {/* Wallet Address Input */}
+                <View style={styles.walletAddressSection}>
+                  <Text style={styles.inputLabel}>Paste wallet address</Text>
+                  <View style={styles.addressInputContainer}>
+                    <TextInput
+                      style={styles.addressInput}
+                      placeholder="Solana wallet address..."
+                      placeholderTextColor="rgba(255, 255, 255, 0.3)"
+                      value={externalAddress}
+                      onChangeText={(text) => {
+                        setExternalAddress(text);
+                        // Clear username search if manually entering address
+                        if (searchedUser) {
+                          clearUsernameSearch();
+                        }
+                      }}
+                      autoCapitalize="none"
+                      autoCorrect={false}
+                    />
+                  </View>
+                </View>
               </View>
             )}
           </View>
@@ -438,11 +527,13 @@ const styles = StyleSheet.create({
     fontFamily: 'Sansation-Bold',
   },
   addressInputContainer: {
-    marginTop: 16,
     backgroundColor: 'rgba(255, 255, 255, 0.05)',
     borderRadius: 16,
     borderWidth: 1,
     borderColor: 'rgba(255, 255, 255, 0.1)',
+  },
+  walletAddressSection: {
+    marginTop: 0,
   },
   addressInput: {
     paddingVertical: 16,
@@ -572,5 +663,117 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontFamily: 'Sansation-Regular',
     lineHeight: 18,
+  },
+  // Username search styles
+  externalInputSection: {
+    marginTop: 16,
+  },
+  usernameSearchContainer: {
+    marginBottom: 16,
+  },
+  inputLabel: {
+    color: 'rgba(255, 255, 255, 0.6)',
+    fontSize: 13,
+    fontFamily: 'Sansation-Regular',
+    marginBottom: 8,
+  },
+  searchRow: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  usernameInput: {
+    flex: 1,
+    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.1)',
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+    color: 'white',
+    fontSize: 14,
+    fontFamily: 'Sansation-Regular',
+  },
+  searchButton: {
+    backgroundColor: 'rgba(240, 235, 220, 0.95)',
+    paddingHorizontal: 20,
+    borderRadius: 16,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  searchButtonText: {
+    color: '#000',
+    fontSize: 14,
+    fontFamily: 'Sansation-Bold',
+  },
+  searchResult: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: 'rgba(100, 255, 100, 0.1)',
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: 'rgba(100, 255, 100, 0.3)',
+    padding: 12,
+    marginTop: 12,
+  },
+  searchResultInfo: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  userAvatar: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: 'rgba(240, 235, 220, 0.95)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  userAvatarImage: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+  },
+  userAvatarText: {
+    color: '#000',
+    fontSize: 18,
+    fontFamily: 'Sansation-Bold',
+  },
+  searchResultUsername: {
+    color: 'white',
+    fontSize: 15,
+    fontFamily: 'Sansation-Bold',
+  },
+  searchResultWallet: {
+    color: 'rgba(255, 255, 255, 0.5)',
+    fontSize: 12,
+    fontFamily: 'Sansation-Regular',
+  },
+  clearButton: {
+    color: 'rgba(255, 255, 255, 0.5)',
+    fontSize: 18,
+    padding: 8,
+  },
+  searchErrorText: {
+    color: '#ff6b6b',
+    fontSize: 13,
+    fontFamily: 'Sansation-Regular',
+    marginTop: 8,
+  },
+  orDivider: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginVertical: 16,
+  },
+  dividerLine: {
+    flex: 1,
+    height: 1,
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+  },
+  orText: {
+    color: 'rgba(255, 255, 255, 0.4)',
+    fontSize: 13,
+    fontFamily: 'Sansation-Regular',
+    marginHorizontal: 16,
   },
 });

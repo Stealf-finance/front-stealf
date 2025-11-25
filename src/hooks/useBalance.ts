@@ -1,11 +1,22 @@
 import { useState, useEffect, useCallback } from 'react';
 import type { Balance } from '../types';
-import { getGridClient } from '../config/grid';
 import { Connection, PublicKey, LAMPORTS_PER_SOL } from '@solana/web3.js';
 
 // Cache global pour éviter les rechargements inutiles
 const balanceCache: { [key: string]: { data: Balance; timestamp: number } } = {};
 const CACHE_DURATION = 30000; // 30 secondes
+
+// Export function to invalidate cache (call after transactions)
+export function invalidateBalanceCache(walletAddress?: string) {
+  if (walletAddress) {
+    delete balanceCache[walletAddress];
+    console.log('🗑️ Balance cache invalidated for:', walletAddress);
+  } else {
+    // Clear all cache
+    Object.keys(balanceCache).forEach(key => delete balanceCache[key]);
+    console.log('🗑️ All balance cache invalidated');
+  }
+}
 
 export function useBalance(walletAddress: string | null) {
   // Vérifier le cache initial
@@ -24,19 +35,13 @@ export function useBalance(walletAddress: string | null) {
 
     // Vérifier le cache d'abord
     const cached = balanceCache[walletAddress];
-    // Ignorer le cache si la balance est à 0 (possible qu'on ait reçu des fonds depuis)
     const cacheIsValid = cached && Date.now() - cached.timestamp < CACHE_DURATION;
-    const hasBalance = cached && cached.data.sol > 0;
 
-    if (cacheIsValid && hasBalance) {
-      console.log('💾 Using cached balance');
+    if (cacheIsValid) {
+      console.log('💾 Using cached balance:', cached.data.sol, 'SOL');
       setBalance(cached.data);
       setLoading(false);
       return;
-    }
-
-    if (cacheIsValid && !hasBalance) {
-      console.log('⚠️ Cache has 0 balance, refetching...');
     }
 
     try {

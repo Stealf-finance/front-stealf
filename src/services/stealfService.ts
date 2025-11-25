@@ -1,148 +1,86 @@
-import { WalletLinkClient } from '@stealf/wallet-link-sdk';
-import { PublicKey, Keypair } from '@solana/web3.js';
+import { Keypair } from '@solana/web3.js';
 import * as SecureStore from 'expo-secure-store';
-import gridClient from '../config/grid';
+import { authStorage } from './authStorage';
 
 /**
- * Service pour gérer le Stealf SDK (Private Wallet + MPC)
+ * Service pour gérer le Private Wallet (wallet Solana séparé)
  *
  * Ce service permet de :
- * 1. Créer et lier un Private Wallet à un Grid Smart Account
- * 2. Récupérer les wallets liés lors du login
- * 3. Gérer le stockage sécurisé des clés privées
+ * 1. Créer un Private Wallet (simple Keypair Solana)
+ * 2. Stocker et récupérer la clé privée de manière sécurisée
+ * 3. Gérer le Private Wallet indépendamment du wallet public
+ *
+ * IMPORTANT: Chaque utilisateur a son propre wallet privé, lié à son email
  */
 class StealfService {
-  private client: WalletLinkClient | null = null;
+  // Cache de l'email courant pour éviter les appels répétés
+  private currentUserEmail: string | null = null;
 
   /**
-   * Initialise le client Stealf avec un wrapper Anchor Wallet
-   * qui utilise Grid SDK pour les signatures
+   * Définit l'email de l'utilisateur courant (appelé au login/register)
    */
-  private async initializeClient(gridWalletAddress: string) {
-    if (this.client) {
-      return this.client;
+  setCurrentUserEmail(email: string): void {
+    this.currentUserEmail = email;
+    console.log('📧 StealfService: Current user email set to', email);
+  }
+
+  /**
+   * Récupère l'email de l'utilisateur courant
+   */
+  private async getCurrentUserEmail(): Promise<string | null> {
+    if (this.currentUserEmail) {
+      return this.currentUserEmail;
     }
 
-    // Créer un wrapper Anchor Wallet depuis Grid SDK
-    // Grid SDK gère déjà les signatures via sessionSecrets
-    const wallet = {
-      publicKey: new PublicKey(gridWalletAddress),
-      signTransaction: async (tx: any) => {
-        // Utiliser Grid SDK pour signer
-        // Note: Grid SDK a une méthode sign() qui retourne la transaction signée
-        const signedTx = await gridClient.sign(tx);
-        return signedTx;
-      },
-      signAllTransactions: async (txs: any[]) => {
-        // Signer plusieurs transactions
-        return Promise.all(txs.map(tx => gridClient.sign(tx)));
+    // Fallback: récupérer depuis authStorage
+    const userData = await authStorage.getUserData();
+    if (userData?.email) {
+      this.currentUserEmail = userData.email;
+      return userData.email;
+    }
+
+    return null;
+  }
+
+  /**
+   * Génère la clé SecureStore pour un utilisateur spécifique
+   */
+  private getSecureStoreKey(email: string): string {
+    // Créer une clé unique par utilisateur
+    // On encode l'email pour éviter les caractères spéciaux
+    const safeEmail = email.replace(/[^a-zA-Z0-9]/g, '_');
+    return `privateWallet_${safeEmail}`;
+  }
+
+  /**
+   * Crée un nouveau Private Wallet (simple Keypair Solana)
+   * Appelé lors du SIGNUP ou à la demande
+   *
+   * @returns Le Keypair du Private Wallet créé
+   */
+  async createPrivateWallet(): Promise<Keypair> {
+    try {
+      console.log('🔗 Creating Private Wallet...');
+
+      const email = await this.getCurrentUserEmail();
+      if (!email) {
+        throw new Error('No user email found - cannot create private wallet');
       }
-    };
 
-    // Initialiser le client Stealf
-    this.client = new WalletLinkClient(wallet as any, {
-      environment: 'devnet', // TODO: Changer en 'mainnet' pour la production
-    });
+      // Créer un nouveau Keypair Solana
+      const privateWallet = Keypair.generate();
 
-    return this.client;
-  }
+      console.log('✅ Private Wallet created successfully!');
+      console.log(`   Private Wallet: ${privateWallet.publicKey.toBase58()}`);
+      console.log(`   For user: ${email}`);
 
-  /**
-   * Crée et lie un nouveau Private Wallet au Grid Smart Account
-   * Appelé lors du SIGNUP (création de compte)
-   *
-   * @param gridWalletAddress - Adresse du Grid Smart Account
-   * @returns Les informations du Private Wallet créé
-   */
-  async linkPrivateWallet(gridWalletAddress: string): Promise<{
-    signature: string;
-    gridWallet: PublicKey;
-    privateWallet: Keypair;
-  }> {
-    try {
-      console.log('🔗 Linking Private Wallet to Grid Account...');
+      // Sauvegarder la clé privée de manière sécurisée (liée à l'utilisateur)
+      await this.savePrivateWalletSecretKey(privateWallet.secretKey, email);
 
-      const client = await this.initializeClient(gridWalletAddress);
-      const gridWallet = new PublicKey(gridWalletAddress);
-
-      // Créer et lier le Private Wallet
-      const result = await client.linkSmartAccountWithPrivateWallet({
-        gridWallet,
-        onProgress: (status) => {
-          console.log(`📊 Progress: ${status}`);
-        },
-        onComputationQueued: (sig) => {
-          console.log(`✅ MPC Computation queued: ${sig}`);
-        }
-      });
-
-      console.log('✅ Private Wallet linked successfully!');
-      console.log(`   Grid Wallet: ${result.gridWallet.toBase58()}`);
-      console.log(`   Private Wallet: ${result.privateWallet.publicKey.toBase58()}`);
-
-      // IMPORTANT : Sauvegarder la clé privée de manière sécurisée
-      await this.savePrivateWalletSecretKey(result.privateWallet.secretKey);
-
-      return result;
+      return privateWallet;
     } catch (error) {
-      console.error('❌ Error linking Private Wallet:', error);
+      console.error('❌ Error creating Private Wallet:', error);
       throw error;
-    }
-  }
-
-  /**
-   * Récupère les wallets liés depuis le MPC
-   * Appelé lors du LOGIN (utilisateur existant)
-   *
-   * @param gridWalletAddress - Adresse du Grid Smart Account
-   * @returns Les adresses publiques des wallets liés
-   */
-  async retrieveLinkedWallets(gridWalletAddress: string): Promise<{
-    gridWallet: PublicKey;
-    privateWallet: PublicKey;
-  }> {
-    try {
-      console.log('🔍 Retrieving linked wallets...');
-
-      const client = await this.initializeClient(gridWalletAddress);
-
-      // Récupérer les wallets liés via MPC re-encryption
-      const wallets = await client.retrieveLinkedWallets({
-        onProgress: (status) => {
-          console.log(`📊 Progress: ${status}`);
-        },
-        onComputationQueued: (sig) => {
-          console.log(`✅ MPC Computation queued: ${sig}`);
-        }
-      });
-
-      console.log('✅ Wallets retrieved successfully!');
-      console.log(`   Grid Wallet: ${wallets.gridWallet.toBase58()}`);
-      console.log(`   Private Wallet: ${wallets.privateWallet.toBase58()}`);
-
-      return wallets;
-    } catch (error) {
-      console.error('❌ Error retrieving wallets:', error);
-      throw error;
-    }
-  }
-
-  /**
-   * Vérifie si l'utilisateur a déjà des wallets liés
-   *
-   * @param gridWalletAddress - Adresse du Grid Smart Account
-   * @returns true si des wallets sont liés, false sinon
-   */
-  async hasLinkedWallets(gridWalletAddress: string): Promise<boolean> {
-    try {
-      const client = await this.initializeClient(gridWalletAddress);
-      const hasWallets = await client.hasLinkedWallets();
-
-      console.log(`🔍 Has linked wallets: ${hasWallets}`);
-      return hasWallets;
-    } catch (error) {
-      console.error('❌ Error checking linked wallets:', error);
-      return false;
     }
   }
 
@@ -150,18 +88,20 @@ class StealfService {
    * Sauvegarde la clé secrète du Private Wallet de manière sécurisée
    *
    * @param secretKey - Clé secrète du Private Wallet (Uint8Array)
+   * @param email - Email de l'utilisateur
    */
-  private async savePrivateWalletSecretKey(secretKey: Uint8Array): Promise<void> {
+  private async savePrivateWalletSecretKey(secretKey: Uint8Array, email: string): Promise<void> {
     try {
       // Convertir Uint8Array en Array pour le stockage JSON
       const secretKeyArray = Array.from(secretKey);
+      const storeKey = this.getSecureStoreKey(email);
 
       await SecureStore.setItemAsync(
-        'privateWalletSecretKey',
+        storeKey,
         JSON.stringify(secretKeyArray)
       );
 
-      console.log('🔒 Private wallet secret key saved securely');
+      console.log(`🔒 Private wallet secret key saved securely for ${email}`);
     } catch (error) {
       console.error('❌ Error saving secret key:', error);
       throw error;
@@ -175,12 +115,21 @@ class StealfService {
    */
   async getPrivateWalletSecretKey(): Promise<Uint8Array | null> {
     try {
-      const secretKeyJson = await SecureStore.getItemAsync('privateWalletSecretKey');
-
-      if (!secretKeyJson) {
+      const email = await this.getCurrentUserEmail();
+      if (!email) {
+        console.log('⚠️ No user email found - cannot retrieve private wallet');
         return null;
       }
 
+      const storeKey = this.getSecureStoreKey(email);
+      const secretKeyJson = await SecureStore.getItemAsync(storeKey);
+
+      if (!secretKeyJson) {
+        console.log(`ℹ️ No private wallet found for ${email}`);
+        return null;
+      }
+
+      console.log(`✅ Found private wallet for ${email}`);
       const secretKeyArray = JSON.parse(secretKeyJson);
       return new Uint8Array(secretKeyArray);
     } catch (error) {
@@ -210,16 +159,28 @@ class StealfService {
   }
 
   /**
-   * Supprime les données du Private Wallet lors de la déconnexion
+   * Supprime les données du Private Wallet de l'utilisateur courant
    */
   async clearPrivateWalletData(): Promise<void> {
     try {
-      await SecureStore.deleteItemAsync('privateWalletSecretKey');
-      this.client = null;
-      console.log('🗑️ Private wallet data cleared');
+      const email = await this.getCurrentUserEmail();
+      if (email) {
+        const storeKey = this.getSecureStoreKey(email);
+        await SecureStore.deleteItemAsync(storeKey);
+        console.log(`🗑️ Private wallet data cleared for ${email}`);
+      }
+      this.currentUserEmail = null;
     } catch (error) {
       console.error('❌ Error clearing wallet data:', error);
     }
+  }
+
+  /**
+   * Reset l'état du service (appelé au logout)
+   */
+  reset(): void {
+    this.currentUserEmail = null;
+    console.log('🔄 StealfService reset');
   }
 }
 

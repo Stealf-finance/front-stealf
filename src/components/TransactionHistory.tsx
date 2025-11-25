@@ -161,10 +161,25 @@ export default function TransactionHistory({ limit = 10, style, isDemo = false }
           const status: 'confirmed' | 'pending' | 'failed' =
             tx.meta?.err ? 'failed' : 'confirmed';
 
-          // Find transfers involving our wallet
-          const preBalance = tx.meta?.preBalances?.[0] || 0;
-          const postBalance = tx.meta?.postBalances?.[0] || 0;
-          const balanceChange = postBalance - preBalance;
+          // Find the index of our wallet in the transaction accounts
+          const accountKeys = tx.transaction.message.accountKeys;
+          const walletIndex = accountKeys.findIndex(
+            key => key.pubkey.toBase58() === walletAddress
+          );
+
+          // Get balance change for our wallet (find correct index, not just 0)
+          let balanceChange = 0;
+          if (walletIndex >= 0 && tx.meta?.preBalances && tx.meta?.postBalances) {
+            const preBalance = tx.meta.preBalances[walletIndex];
+            const postBalance = tx.meta.postBalances[walletIndex];
+            balanceChange = postBalance - preBalance;
+            console.log(`[TX ${signature.slice(0, 8)}] walletIndex: ${walletIndex}, preBalance: ${preBalance}, postBalance: ${postBalance}, change: ${balanceChange}`);
+          } else {
+            console.log(`[TX ${signature.slice(0, 8)}] Wallet not found in accounts, using index 0`);
+            const preBalance = tx.meta?.preBalances?.[0] || 0;
+            const postBalance = tx.meta?.postBalances?.[0] || 0;
+            balanceChange = postBalance - preBalance;
+          }
 
           // Determine type (send or receive) based on balance change
           const type: 'send' | 'receive' = balanceChange < 0 ? 'send' : 'receive';
@@ -174,9 +189,9 @@ export default function TransactionHistory({ limit = 10, style, isDemo = false }
 
           // Try to find the other party's address
           let otherAddress: string | undefined;
-          if (tx.transaction.message.accountKeys.length > 1) {
+          if (accountKeys.length > 1) {
             // Get first non-wallet address
-            otherAddress = tx.transaction.message.accountKeys
+            otherAddress = accountKeys
               .find(key => key.pubkey.toBase58() !== walletAddress)?.pubkey.toBase58();
           }
 
@@ -308,7 +323,7 @@ export default function TransactionHistory({ limit = 10, style, isDemo = false }
                   tx.type === 'send' ? styles.amountSent : styles.amountReceived
                 ]}>
                   {tx.type === 'send' ? '-' : '+'}
-                  {tx.amount.toFixed(4)} {tx.token}
+                  {tx.amount.toFixed(2)} {tx.token}
                 </Text>
               </View>
 

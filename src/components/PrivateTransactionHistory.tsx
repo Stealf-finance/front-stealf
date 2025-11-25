@@ -119,10 +119,25 @@ export default function PrivateTransactionHistory({ limit = 10, style }: Private
           const blockTime = tx.blockTime || 0;
           const timestamp = blockTime * 1000;
 
-          // Find transfers involving our wallet
-          const preBalance = tx.meta?.preBalances?.[0] || 0;
-          const postBalance = tx.meta?.postBalances?.[0] || 0;
-          const balanceChange = postBalance - preBalance;
+          // Find the index of our private wallet in the transaction accounts
+          const accountKeys = tx.transaction.message.accountKeys;
+          const walletIndex = accountKeys.findIndex(
+            key => key.pubkey.toBase58() === privateWalletAddress
+          );
+
+          // Get balance change for our wallet (not index 0 which might be the pool)
+          let balanceChange = 0;
+          if (walletIndex >= 0 && tx.meta?.preBalances && tx.meta?.postBalances) {
+            const preBalance = tx.meta.preBalances[walletIndex];
+            const postBalance = tx.meta.postBalances[walletIndex];
+            balanceChange = postBalance - preBalance;
+            console.log(`[TX ${signature.slice(0, 8)}] walletIndex: ${walletIndex}, preBalance: ${preBalance}, postBalance: ${postBalance}, change: ${balanceChange}`);
+          } else {
+            console.log(`[TX ${signature.slice(0, 8)}] Wallet not found in accounts, using index 0`);
+            const preBalance = tx.meta?.preBalances?.[0] || 0;
+            const postBalance = tx.meta?.postBalances?.[0] || 0;
+            balanceChange = postBalance - preBalance;
+          }
 
           // Determine type (send or receive) based on balance change
           const type: 'send' | 'receive' = balanceChange < 0 ? 'send' : 'receive';
@@ -132,8 +147,8 @@ export default function PrivateTransactionHistory({ limit = 10, style }: Private
 
           // Try to find the other party's address
           let otherAddress: string | undefined;
-          if (tx.transaction.message.accountKeys.length > 1) {
-            otherAddress = tx.transaction.message.accountKeys
+          if (accountKeys.length > 1) {
+            otherAddress = accountKeys
               .find(key => key.pubkey.toBase58() !== privateWalletAddress)?.pubkey.toBase58();
           }
 
@@ -206,15 +221,13 @@ export default function PrivateTransactionHistory({ limit = 10, style }: Private
   };
 
   const formatAmount = (amountLamports: number) => {
-    return (amountLamports / 1e9).toFixed(4);
+    return (amountLamports / 1e9).toFixed(2);
   };
 
   const formatAddress = (address: string) => {
     if (!address) return 'Unknown';
-    // For private transactions, we mask the address to show it's a stealth address
     if (address === 'Private') return 'Private Address';
-    // Show stealth address indicator
-    return `🔒 ${address.substring(0, 4)}...${address.substring(address.length - 4)}`;
+    return `${address.substring(0, 4)}...${address.substring(address.length - 4)}`;
   };
 
   if (loading && transactions.length === 0) {
@@ -272,9 +285,7 @@ export default function PrivateTransactionHistory({ limit = 10, style }: Private
           <View style={styles.transactionDetails}>
             <View style={styles.transactionHeader}>
               <Text style={styles.transactionType}>
-                {tx.type === 'send' ? '🔒 Private Send' : '🔒 Private Receive'}
-                {tx.type === 'send' && tx.to ? ` → ${formatAddress(tx.to)}` : ''}
-                {tx.type === 'receive' && tx.from ? ` ← ${formatAddress(tx.from)}` : ''}
+                {tx.type === 'send' ? 'Private Send' : 'Private Receive'}
               </Text>
               <Text style={[
                 styles.transactionAmount,

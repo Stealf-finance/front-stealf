@@ -5,6 +5,10 @@ import { authStorage } from '../../services/authStorage';
 import { getGridClient } from '../../config/grid';
 import solanaWalletService from '../../services/solanaWalletService';
 import stealfService from '../../services/stealfService';
+import { UMBRA_CONFIG } from '../../config/umbra';
+
+// API base URL from config
+const API_BASE_URL = UMBRA_CONFIG.API_URL;
 
 export const useLogin = (onSuccess?: (userData: any, accessToken: string) => void) => {
   const { login } = useAuth();
@@ -138,9 +142,39 @@ export const useLogin = (onSuccess?: (userData: any, accessToken: string) => voi
       await SecureStore.setItemAsync('session_secrets', JSON.stringify(sessionSecrets));
       console.log('✅ Session secrets saved');
 
+      // Fetch user profile from backend to get username/profileImage
+      let backendUserData: { username?: string; profileImage?: string | null } = {};
+      try {
+        console.log('📡 Fetching user profile from backend...');
+        const response = await fetch(`${API_BASE_URL}/api/users/profile?email=${encodeURIComponent(savedEmail)}`, {
+          headers: {
+            'ngrok-skip-browser-warning': 'true',
+          },
+        });
+
+        // If search by email fails, the user might not have a username yet
+        // That's okay, we'll just use email
+        if (!response.ok) {
+          console.log('ℹ️ User profile not found in backend');
+        } else {
+          const data = await response.json();
+          if (data.success && data.user) {
+            backendUserData = {
+              username: data.user.username,
+              profileImage: data.user.profileImage,
+            };
+            console.log('✅ User profile loaded:', backendUserData.username);
+          }
+        }
+      } catch (backendError) {
+        console.warn('⚠️ Failed to fetch user profile (non-blocking):', backendError);
+      }
+
       const userData = {
         grid_user_id: gridData.grid_user_id,
         email: savedEmail,
+        username: backendUserData.username || null,
+        profileImage: backendUserData.profileImage || null,
         grid_address: gridData.address,
         policies: gridData.policies,
         authentication: gridData.authentication,
@@ -155,51 +189,66 @@ export const useLogin = (onSuccess?: (userData: any, accessToken: string) => voi
 
       console.log('✅ Auth data saved');
 
-      // WALLET LOADING: Charger le wallet Solana existant
+      // Set current user email for user-specific wallet storage
+      solanaWalletService.setCurrentUserEmail(savedEmail);
+
+      // WALLET LOADING: Charger le wallet Solana existant ou utiliser le wallet Grid
       try {
         console.log('🔑 Loading Solana wallet...');
 
-        const solanaKeypair = await solanaWalletService.loadWallet();
+        // Load wallet with callback to update address after migration
+        const solanaKeypair = await solanaWalletService.loadWallet(async (address) => {
+          console.log('📝 Migration callback: updating Solana address to', address);
+          await authStorage.saveSolanaAddress(address, savedEmail);
+        });
 
         if (solanaKeypair) {
           const solanaAddress = solanaKeypair.publicKey.toBase58();
           console.log('✅ Solana wallet loaded successfully!');
           console.log('   Public Key:', solanaAddress);
 
-          // Sauvegarder l'adresse Solana
-          await authStorage.saveSolanaAddress(solanaAddress);
+          // Sauvegarder l'adresse Solana (always update to ensure consistency)
+          await authStorage.saveSolanaAddress(solanaAddress, savedEmail);
         } else {
-          console.log('ℹ️ No Solana wallet found for this account');
+          console.log('ℹ️ No Solana wallet found in storage');
+
+          // Essayer de récupérer l'adresse du wallet depuis Grid (Privy wallet)
+          const gridWalletAddress = gridData.authentication?.[0]?.session?.Privy?.session?.wallets?.[0]?.address;
+
+          if (gridWalletAddress) {
+            console.log('✅ Using Grid wallet address:', gridWalletAddress);
+            await authStorage.saveSolanaAddress(gridWalletAddress);
+          } else {
+            console.log('ℹ️ No Solana wallet found for this account');
+          }
         }
       } catch (solanaError: any) {
         // Ne pas bloquer le login si le chargement du wallet Solana échoue
         console.warn('⚠️ Failed to load Solana wallet (non-blocking):', solanaError);
       }
 
-      // STEALF INTEGRATION: Récupérer le Private Wallet lié
+      // PRIVATE WALLET: Définir l'email de l'utilisateur courant pour le wallet privé
+      stealfService.setCurrentUserEmail(savedEmail);
+
+      // PRIVATE WALLET: Vérifier si un Private Wallet existe
       try {
-        console.log('🔍 Checking for linked Private Wallet...');
+        console.log('🔍 Checking for Private Wallet...');
 
-        const hasLinkedWallets = await stealfService.hasLinkedWallets(gridData.address);
+        const privateWalletKeypair = await stealfService.getPrivateWalletKeypair();
 
-        if (hasLinkedWallets) {
-          console.log('🔗 Retrieving linked Private Wallet with Stealf SDK...');
-
-          const wallets = await stealfService.retrieveLinkedWallets(gridData.address);
-
-          console.log('✅ Private Wallet retrieved successfully!');
-          console.log('   Grid Wallet:', wallets.gridWallet.toBase58());
-          console.log('   Private Wallet:', wallets.privateWallet.toBase58());
+        if (privateWalletKeypair) {
+          console.log('✅ Private Wallet found!');
+          console.log('   Private Wallet:', privateWalletKeypair.publicKey.toBase58());
 
           // Sauvegarder l'adresse du Private Wallet
-          await authStorage.savePrivateWalletAddress(wallets.privateWallet.toBase58());
+          await authStorage.savePrivateWalletAddress(privateWalletKeypair.publicKey.toBase58());
         } else {
-          console.log('ℹ️ No linked Private Wallet found for this account');
+          console.log('ℹ️ No Private Wallet found for this account');
         }
-      } catch (stealfError: any) {
-        // Ne pas bloquer le login si Stealf échoue
-        console.warn('⚠️ Failed to retrieve Private Wallet (non-blocking):', stealfError);
-        console.warn('   User can still use Grid wallet.');
+      } catch (privateWalletError: any) {
+        // Ne pas bloquer le login si la vérification échoue
+        console.warn('⚠️ Failed to retrieve Private Wallet (non-blocking):', privateWalletError);
+        console.warn('   User can still use main wallet.');
       }
 
       setShowLogoAnimation(true);
@@ -238,7 +287,8 @@ export const useLogin = (onSuccess?: (userData: any, accessToken: string) => voi
         console.log('🔄 Calling AuthContext.login()...');
         await login({
           email: userData.email || '',
-          username: userData.email?.split('@')[0] || '',
+          username: userData.username || userData.email?.split('@')[0] || '',
+          profileImage: userData.profileImage || null,
           gridAddress: userData.grid_address,
         });
         console.log('✅ AuthContext.login() completed');
