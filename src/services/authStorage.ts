@@ -32,8 +32,7 @@ export const authStorage = {
       // Extract solana_address from user data
       const solanaAddress = data.user.solana_address || '';
 
-      console.log('💾 Saving Solana address to storage:', solanaAddress);
-      console.log('💾 Full user data:', JSON.stringify(data.user, null, 2));
+      console.log('💾 Saving auth data to storage');
 
       await AsyncStorage.multiSet([
         [KEYS.ACCESS_TOKEN, data.access_token],

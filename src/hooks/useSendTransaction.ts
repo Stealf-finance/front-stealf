@@ -153,7 +153,6 @@ export const useSendTransaction = (onSuccess: () => void) => {
             const newPrivateWallet = await stealfService.createPrivateWallet();
 
             console.log('✅ Private Wallet created successfully!');
-            console.log('   Private Wallet:', newPrivateWallet.publicKey.toBase58());
 
             // Save the private wallet address
             await authStorage.savePrivateWalletAddress(newPrivateWallet.publicKey.toBase58());

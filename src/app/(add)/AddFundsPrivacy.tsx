@@ -10,7 +10,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useFonts } from 'expo-font';
 import QRCode from 'react-native-qrcode-svg';
 import * as Clipboard from 'expo-clipboard';
-import * as SecureStore from 'expo-secure-store';
+import { authStorage } from '../../services/authStorage';
 import type { AddFundsScreenProps } from '../../types';
 
 export default function AddFundsScreen({ onBack }: AddFundsScreenProps) {
@@ -31,7 +31,16 @@ export default function AddFundsScreen({ onBack }: AddFundsScreenProps) {
 
   const loadPrivateWalletAddress = async () => {
     try {
-      const address = await SecureStore.getItemAsync('private_wallet_address');
+      // Get user email first to ensure we use the correct storage key
+      const userData = await authStorage.getUserData();
+      const email = userData?.email;
+
+      if (!email) {
+        console.log('⚠️ No user email found');
+        return;
+      }
+
+      const address = await authStorage.getPrivateWalletAddress(email);
       if (address) {
         setWalletAddress(address);
         console.log('✅ Private wallet address loaded:', address);
@@ -102,7 +111,7 @@ export default function AddFundsScreen({ onBack }: AddFundsScreenProps) {
           {/* Wallet Address Section */}
           <View style={styles.addressSection}>
             <Text style={styles.infoText}>
-              USDC only - Solana Network
+              SOL - Solana Network
             </Text>
             <TouchableOpacity
               style={styles.addressButton}

@@ -47,7 +47,7 @@ export default function SendModal({
                   <View style={styles.optionTextContainer}>
                     <Text style={styles.optionTitle}>Stablecoin</Text>
                     <Text style={styles.optionDescription}>
-                      Send USDC to any address
+                      Send SOL to any address
                     </Text>
                   </View>
                   <Text style={styles.arrow}>›</Text>

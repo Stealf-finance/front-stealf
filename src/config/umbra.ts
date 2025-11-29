@@ -6,9 +6,7 @@
 // Backend API Configuration
 export const UMBRA_CONFIG = {
   // Backend URL - update this for production
-  API_URL: __DEV__
-    ? 'https://chaotic-marjorie-nondistinguished.ngrok-free.dev'  // Ngrok for Expo tunnel mode
-    : 'https://api.stealf.app',    // Production
+  API_URL: 'http://18.207.238.14:3001',  // AWS EC2 backend (beta)
 
   // API Endpoints
   ENDPOINTS: {
@@ -40,7 +38,7 @@ export const MINTS = {
 // Blockchain Configuration
 export const SOLANA_CONFIG = {
   NETWORK: 'devnet' as 'devnet' | 'mainnet-beta',
-  RPC_URL: 'https://api.devnet.solana.com',
+  RPC_URL: 'https://devnet.helius-rpc.com/?api-key=5dc6dad8-4143-4033-806e-84e98900d43c',
   EXPLORER_URL: 'https://explorer.solana.com',
   PROGRAM_ID: 'A5GtBtbNA3teSioCX2H3pqHncEqMPsnHxzzXYPFCzTA4',
 };

@@ -173,7 +173,7 @@ export const useRegister = (onSuccess?: (userData: any) => void) => {
         sessionSecrets: sessionSecrets,
       });
 
-      console.log('✅ OTP verification response:', JSON.stringify(verifyResult, null, 2));
+      console.log('✅ OTP verification successful');
 
       // Vérifier si l'opération a réussi
       if (!verifyResult.success) {
@@ -186,8 +186,6 @@ export const useRegister = (onSuccess?: (userData: any) => void) => {
       if (!gridData) {
         throw new Error('No data returned from authentication');
       }
-
-      console.log('🔍 Grid data:', JSON.stringify(gridData, null, 2));
 
       // Grid SDK utilise les session secrets, pas de JWT token
       const dummyToken = `grid_session_${Date.now()}`;
@@ -226,44 +224,65 @@ export const useRegister = (onSuccess?: (userData: any) => void) => {
 
       console.log('✅ Auth data saved');
 
-      // WALLET MANAGEMENT: Check backend first for existing wallet
+      // IMPORTANT: Register user to backend FIRST before creating wallets
+      // This ensures the user exists in MongoDB when wallets try to save
+      const usernameToSave = savedUsername || username || null;
+      const profileImageToSave = savedProfileImage || profileImage || null;
+
+      try {
+        console.log('📡 Registering user to backend FIRST...');
+        console.log('   Email:', savedEmail);
+        console.log('   Username:', usernameToSave);
+
+        const registerBody = {
+          email: savedEmail,
+          username: usernameToSave,
+          profileImage: profileImageToSave,
+          gridUserId: gridData.grid_user_id,
+          gridAddress: gridData.address,
+        };
+
+        const registerResponse = await fetch(`${API_BASE_URL}/api/users/register`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'ngrok-skip-browser-warning': 'true',
+          },
+          body: JSON.stringify(registerBody),
+        });
+
+        const registerData = await registerResponse.json();
+
+        if (registerData.success) {
+          console.log('✅ User registered to backend successfully!');
+        } else {
+          console.warn('⚠️ Backend registration failed:', registerData.message);
+        }
+      } catch (backendError: any) {
+        console.warn('⚠️ Failed to register to backend:', backendError);
+      }
+
+      // NOW create wallets - user exists in MongoDB
       let solanaWalletAddress: string | null = null;
 
       // Set current user email for user-specific wallet storage
       solanaWalletService.setCurrentUserEmail(savedEmail);
+      stealfService.setCurrentUserEmail(savedEmail);
 
+      // PUBLIC WALLET: Create and save to server
       try {
-        // First, check if user already exists in backend
-        console.log('🔍 Checking if user already has a wallet...');
-        const checkResponse = await fetch(`${API_BASE_URL}/api/users/profile?email=${encodeURIComponent(savedEmail)}`, {
-          headers: {
-            'ngrok-skip-browser-warning': 'true',
-          },
-        });
+        console.log('🔑 Creating new Solana wallet...');
+        const solanaWallet = await solanaWalletService.createWallet();
+        solanaWalletAddress = solanaWallet.publicKey;
+        console.log('✅ New Solana wallet created:', solanaWalletAddress);
 
-        if (checkResponse.ok) {
-          const checkData = await checkResponse.json();
-          if (checkData.success && checkData.user?.solanaWallet) {
-            // User already has a wallet, reuse it
-            solanaWalletAddress = checkData.user.solanaWallet;
-            console.log('✅ Found existing wallet:', solanaWalletAddress);
-
-            // Load the existing wallet from secure storage
-            const existingKeypair = await solanaWalletService.getKeypair();
-            if (existingKeypair && existingKeypair.publicKey.toBase58() === solanaWalletAddress) {
-              console.log('✅ Wallet keypair already in secure storage');
-            } else {
-              console.warn('⚠️ Wallet mismatch - user may need to recover wallet');
-            }
-          }
-        }
-
-        // If no existing wallet, create a new one
-        if (!solanaWalletAddress) {
-          console.log('🔑 Creating new Solana wallet...');
-          const solanaWallet = await solanaWalletService.createWallet();
-          solanaWalletAddress = solanaWallet.publicKey;
-          console.log('✅ New Solana wallet created:', solanaWalletAddress);
+        // Request airdrop for new users (devnet only)
+        try {
+          console.log('🪂 Requesting airdrop for new user...');
+          await solanaWalletService.requestAirdrop(2); // 2 SOL
+          console.log('✅ Airdrop of 2 SOL received!');
+        } catch (airdropError: any) {
+          console.warn('⚠️ Airdrop failed (non-blocking):', airdropError.message);
         }
 
         // Save wallet address to local storage
@@ -272,8 +291,8 @@ export const useRegister = (onSuccess?: (userData: any) => void) => {
         // Update user data with Solana address
         const updatedUserData = {
           ...userData,
-          username: username || null,
-          profileImage: profileImage || null,
+          username: usernameToSave,
+          profileImage: profileImageToSave,
           solana_address: solanaWalletAddress,
         };
 
@@ -286,82 +305,19 @@ export const useRegister = (onSuccess?: (userData: any) => void) => {
 
         console.log('💾 Solana address saved to user data');
       } catch (solanaError: any) {
-        console.warn('⚠️ Wallet management error (non-blocking):', solanaError);
+        console.warn('⚠️ Wallet creation error (non-blocking):', solanaError);
       }
 
-      // BACKEND REGISTRATION: Register/update user with wallet
-      // Use savedUsername from SecureStore (not state) to ensure persistence
-      const usernameToSave = savedUsername || username || null;
-      const profileImageToSave = savedProfileImage || profileImage || null;
-
+      // PRIVATE WALLET: Create and save to server
       try {
-        console.log('📡 Registering user to backend...');
-        console.log('   Email:', savedEmail);
-        console.log('   Username from SecureStore (savedUsername):', savedUsername);
-        console.log('   Username from state:', username);
-        console.log('   Final usernameToSave:', usernameToSave);
-        console.log('   Solana Wallet:', solanaWalletAddress);
+        console.log('🔗 Creating new Private Wallet...');
+        const privateWallet = await stealfService.createPrivateWallet();
 
-        const requestBody = {
-          email: savedEmail,
-          username: usernameToSave,
-          solanaWallet: solanaWalletAddress,
-          profileImage: profileImageToSave,
-          gridUserId: gridData.grid_user_id,
-          gridAddress: gridData.address,
-        };
+        console.log('✅ Private Wallet created successfully!');
 
-        console.log('📤 Request body being sent:', JSON.stringify(requestBody, null, 2));
-
-        const response = await fetch(`${API_BASE_URL}/api/users/register`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'ngrok-skip-browser-warning': 'true',
-          },
-          body: JSON.stringify(requestBody),
-        });
-
-        const data = await response.json();
-        console.log('📥 Backend response:', JSON.stringify(data, null, 2));
-
-        if (data.success) {
-          console.log('✅ User registered to backend successfully!');
-          console.log('   Username:', data.user.username);
-        } else {
-          console.warn('⚠️ Backend registration failed:', data.message);
-        }
-      } catch (backendError: any) {
-        console.warn('⚠️ Failed to register to backend (non-blocking):', backendError);
-      }
-
-      // PRIVATE WALLET: Définir l'email de l'utilisateur courant pour le wallet privé
-      stealfService.setCurrentUserEmail(savedEmail);
-
-      // PRIVATE WALLET: Check if already exists, create only if needed
-      try {
-        console.log('🔍 Checking for existing Private Wallet...');
-
-        // Check if private wallet already exists in SecureStore
-        const existingPrivateWallet = await stealfService.getPrivateWalletKeypair();
-
-        if (existingPrivateWallet) {
-          console.log('✅ Private Wallet already exists!');
-          console.log('   Private Wallet:', existingPrivateWallet.publicKey.toBase58());
-          await authStorage.savePrivateWalletAddress(existingPrivateWallet.publicKey.toBase58());
-        } else {
-          // No existing private wallet, create a new one
-          console.log('🔗 Creating new Private Wallet...');
-          const privateWallet = await stealfService.createPrivateWallet();
-
-          console.log('✅ Private Wallet created successfully!');
-          console.log('   Private Wallet:', privateWallet.publicKey.toBase58());
-
-          await authStorage.savePrivateWalletAddress(privateWallet.publicKey.toBase58());
-        }
+        await authStorage.savePrivateWalletAddress(privateWallet.publicKey.toBase58());
       } catch (privateWalletError: any) {
-        console.warn('⚠️ Failed to manage Private Wallet (non-blocking):', privateWalletError);
-        console.warn('   User can still use main wallet. Private wallet can be created later.');
+        console.warn('⚠️ Failed to create Private Wallet (non-blocking):', privateWalletError);
       }
 
       setShowLogoAnimation(true);

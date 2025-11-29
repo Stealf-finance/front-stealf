@@ -1,16 +1,17 @@
 import { Keypair } from '@solana/web3.js';
 import * as SecureStore from 'expo-secure-store';
 import { authStorage } from './authStorage';
+import { UMBRA_CONFIG } from '../config/umbra';
 
 /**
  * Service pour gérer le Private Wallet (wallet Solana séparé)
  *
  * Ce service permet de :
  * 1. Créer un Private Wallet (simple Keypair Solana)
- * 2. Stocker et récupérer la clé privée de manière sécurisée
+ * 2. Stocker et récupérer la clé privée sur le serveur (chiffrée)
  * 3. Gérer le Private Wallet indépendamment du wallet public
  *
- * IMPORTANT: Chaque utilisateur a son propre wallet privé, lié à son email
+ * IMPORTANT: Le wallet privé est stocké côté serveur pour être accessible sur tous les devices
  */
 class StealfService {
   // Cache de l'email courant pour éviter les appels répétés
@@ -43,13 +44,33 @@ class StealfService {
   }
 
   /**
-   * Génère la clé SecureStore pour un utilisateur spécifique
+   * Génère la clé SecureStore locale pour un utilisateur spécifique (cache local)
+   * IMPORTANT: Returns null if no email provided to prevent using wrong key
    */
-  private getSecureStoreKey(email: string): string {
-    // Créer une clé unique par utilisateur
-    // On encode l'email pour éviter les caractères spéciaux
+  private getSecureStoreKey(email: string | null): string | null {
+    if (!email) {
+      console.warn('⚠️ StealfService: No email provided for secure key');
+      return null;
+    }
     const safeEmail = email.replace(/[^a-zA-Z0-9]/g, '_');
     return `privateWallet_${safeEmail}`;
+  }
+
+  /**
+   * Chiffre la clé secrète (simple base64 pour beta - à améliorer en prod)
+   */
+  private encryptSecretKey(secretKey: Uint8Array): string {
+    // Pour la beta, on utilise base64. En prod, utiliser une vraie encryption
+    const secretKeyArray = Array.from(secretKey);
+    return Buffer.from(JSON.stringify(secretKeyArray)).toString('base64');
+  }
+
+  /**
+   * Déchiffre la clé secrète
+   */
+  private decryptSecretKey(encrypted: string): Uint8Array {
+    const secretKeyArray = JSON.parse(Buffer.from(encrypted, 'base64').toString('utf8'));
+    return new Uint8Array(secretKeyArray);
   }
 
   /**
@@ -71,11 +92,12 @@ class StealfService {
       const privateWallet = Keypair.generate();
 
       console.log('✅ Private Wallet created successfully!');
-      console.log(`   Private Wallet: ${privateWallet.publicKey.toBase58()}`);
-      console.log(`   For user: ${email}`);
 
-      // Sauvegarder la clé privée de manière sécurisée (liée à l'utilisateur)
-      await this.savePrivateWalletSecretKey(privateWallet.secretKey, email);
+      // Sauvegarder sur le serveur
+      await this.savePrivateWalletToServer(privateWallet, email);
+
+      // Sauvegarder aussi en local (cache)
+      await this.savePrivateWalletLocally(privateWallet.secretKey, email);
 
       return privateWallet;
     } catch (error) {
@@ -85,31 +107,95 @@ class StealfService {
   }
 
   /**
-   * Sauvegarde la clé secrète du Private Wallet de manière sécurisée
-   *
-   * @param secretKey - Clé secrète du Private Wallet (Uint8Array)
-   * @param email - Email de l'utilisateur
+   * Sauvegarde le Private Wallet sur le serveur
    */
-  private async savePrivateWalletSecretKey(secretKey: Uint8Array, email: string): Promise<void> {
+  private async savePrivateWalletToServer(wallet: Keypair, email: string): Promise<void> {
     try {
-      // Convertir Uint8Array en Array pour le stockage JSON
-      const secretKeyArray = Array.from(secretKey);
-      const storeKey = this.getSecureStoreKey(email);
+      const encryptedKey = this.encryptSecretKey(wallet.secretKey);
 
+      const response = await fetch(`${UMBRA_CONFIG.API_URL}/api/users/private-wallet`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          email,
+          privateWalletAddress: wallet.publicKey.toBase58(),
+          encryptedPrivateWalletKey: encryptedKey,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!data.success) {
+        console.warn('⚠️ Failed to save private wallet to server:', data.message);
+      } else {
+        console.log('☁️ Private wallet saved to server');
+      }
+    } catch (error) {
+      console.error('❌ Error saving to server:', error);
+      // Ne pas bloquer si le serveur échoue
+    }
+  }
+
+  /**
+   * Sauvegarde la clé secrète localement (cache)
+   */
+  private async savePrivateWalletLocally(secretKey: Uint8Array, email: string): Promise<void> {
+    try {
+      const storeKey = this.getSecureStoreKey(email);
+      if (!storeKey) {
+        console.warn('⚠️ Cannot save private wallet locally: no email');
+        return;
+      }
+
+      const secretKeyArray = Array.from(secretKey);
       await SecureStore.setItemAsync(
         storeKey,
         JSON.stringify(secretKeyArray)
       );
 
-      console.log(`🔒 Private wallet secret key saved securely for ${email}`);
+      console.log(`🔒 Private wallet cached locally for ${email}`);
     } catch (error) {
-      console.error('❌ Error saving secret key:', error);
-      throw error;
+      console.error('❌ Error saving locally:', error);
     }
   }
 
   /**
-   * Récupère la clé secrète du Private Wallet depuis le stockage sécurisé
+   * Récupère le Private Wallet depuis le serveur
+   */
+  private async getPrivateWalletFromServer(email: string): Promise<Uint8Array | null> {
+    try {
+      const response = await fetch(
+        `${UMBRA_CONFIG.API_URL}/api/users/private-wallet?email=${encodeURIComponent(email)}`,
+        {
+          headers: {
+            'Content-Type': 'application/json',
+          },
+        }
+      );
+
+      const data = await response.json();
+
+      if (data.success && data.hasPrivateWallet && data.encryptedPrivateWalletKey) {
+        console.log('☁️ Private wallet retrieved from server');
+        const secretKey = this.decryptSecretKey(data.encryptedPrivateWalletKey);
+
+        // Sauvegarder en local pour cache
+        await this.savePrivateWalletLocally(secretKey, email);
+
+        return secretKey;
+      }
+
+      return null;
+    } catch (error) {
+      console.error('❌ Error fetching from server:', error);
+      return null;
+    }
+  }
+
+  /**
+   * Récupère la clé secrète du Private Wallet (local puis serveur)
    *
    * @returns La clé secrète sous forme de Uint8Array, ou null si non trouvée
    */
@@ -121,17 +207,28 @@ class StealfService {
         return null;
       }
 
+      // 1. Essayer le cache local d'abord
       const storeKey = this.getSecureStoreKey(email);
-      const secretKeyJson = await SecureStore.getItemAsync(storeKey);
+      if (storeKey) {
+        const secretKeyJson = await SecureStore.getItemAsync(storeKey);
 
-      if (!secretKeyJson) {
-        console.log(`ℹ️ No private wallet found for ${email}`);
-        return null;
+        if (secretKeyJson) {
+          console.log(`✅ Found private wallet in local cache for ${email}`);
+          const secretKeyArray = JSON.parse(secretKeyJson);
+          return new Uint8Array(secretKeyArray);
+        }
       }
 
-      console.log(`✅ Found private wallet for ${email}`);
-      const secretKeyArray = JSON.parse(secretKeyJson);
-      return new Uint8Array(secretKeyArray);
+      // 2. Sinon, récupérer depuis le serveur
+      console.log(`🔍 Fetching private wallet from server for ${email}...`);
+      const serverKey = await this.getPrivateWalletFromServer(email);
+
+      if (serverKey) {
+        return serverKey;
+      }
+
+      console.log(`ℹ️ No private wallet found for ${email}`);
+      return null;
     } catch (error) {
       console.error('❌ Error retrieving secret key:', error);
       return null;
@@ -159,15 +256,17 @@ class StealfService {
   }
 
   /**
-   * Supprime les données du Private Wallet de l'utilisateur courant
+   * Supprime les données du Private Wallet de l'utilisateur courant (local seulement)
    */
   async clearPrivateWalletData(): Promise<void> {
     try {
       const email = await this.getCurrentUserEmail();
       if (email) {
         const storeKey = this.getSecureStoreKey(email);
-        await SecureStore.deleteItemAsync(storeKey);
-        console.log(`🗑️ Private wallet data cleared for ${email}`);
+        if (storeKey) {
+          await SecureStore.deleteItemAsync(storeKey);
+          console.log(`🗑️ Private wallet local cache cleared for ${email}`);
+        }
       }
       this.currentUserEmail = null;
     } catch (error) {

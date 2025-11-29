@@ -1,11 +1,10 @@
 import { Keypair, Connection, PublicKey, Transaction, SystemProgram, LAMPORTS_PER_SOL } from '@solana/web3.js';
 import * as SecureStore from 'expo-secure-store';
-import { SOLANA_CONFIG } from '../config/umbra';
+import { SOLANA_CONFIG, UMBRA_CONFIG } from '../config/umbra';
 
 /**
  * Service pour gérer un wallet Solana classique
- * Remplace Grid SDK pour avoir accès direct à la clé privée
- * IMPORTANT: Each user has their own wallet stored with email-specific keys
+ * Les wallets sont stockés sur le serveur (MongoDB) et cachés localement
  */
 class SolanaWalletService {
   private connection: Connection;
@@ -25,15 +24,32 @@ class SolanaWalletService {
   }
 
   /**
-   * Get the SecureStore key for the current user
+   * Get the SecureStore key for the current user (local cache)
+   * IMPORTANT: Returns null if no email is set to prevent using wrong key
    */
-  private getSecureStoreKey(): string {
+  private getSecureStoreKey(): string | null {
     if (!this.currentUserEmail) {
-      console.warn('⚠️ SolanaWalletService: No user email set, using global key');
-      return 'solanaWalletSecretKey';
+      console.warn('⚠️ SolanaWalletService: No user email set, cannot get secure key');
+      return null;
     }
     const safeEmail = this.currentUserEmail.replace(/[^a-zA-Z0-9]/g, '_');
     return `solanaWallet_${safeEmail}`;
+  }
+
+  /**
+   * Chiffre la clé secrète (simple base64 pour beta)
+   */
+  private encryptSecretKey(secretKey: Uint8Array): string {
+    const secretKeyArray = Array.from(secretKey);
+    return Buffer.from(JSON.stringify(secretKeyArray)).toString('base64');
+  }
+
+  /**
+   * Déchiffre la clé secrète
+   */
+  private decryptSecretKey(encrypted: string): Uint8Array {
+    const secretKeyArray = JSON.parse(Buffer.from(encrypted, 'base64').toString('utf8'));
+    return new Uint8Array(secretKeyArray);
   }
 
   /**
@@ -46,8 +62,91 @@ class SolanaWalletService {
   }
 
   /**
+   * Sauvegarde le wallet sur le serveur
+   */
+  private async saveWalletToServer(wallet: Keypair, email: string): Promise<void> {
+    try {
+      const encryptedKey = this.encryptSecretKey(wallet.secretKey);
+
+      const response = await fetch(`${UMBRA_CONFIG.API_URL}/api/users/public-wallet`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          email,
+          solanaWallet: wallet.publicKey.toBase58(),
+          encryptedPrivateKey: encryptedKey,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!data.success) {
+        console.warn('⚠️ Failed to save public wallet to server:', data.message);
+      } else {
+        console.log('☁️ Public wallet saved to server');
+      }
+    } catch (error) {
+      console.error('❌ Error saving public wallet to server:', error);
+    }
+  }
+
+  /**
+   * Récupère le wallet depuis le serveur
+   */
+  private async getWalletFromServer(email: string): Promise<Uint8Array | null> {
+    try {
+      const response = await fetch(
+        `${UMBRA_CONFIG.API_URL}/api/users/public-wallet?email=${encodeURIComponent(email)}`,
+        {
+          headers: {
+            'Content-Type': 'application/json',
+          },
+        }
+      );
+
+      const data = await response.json();
+
+      if (data.success && data.hasPublicWallet && data.encryptedPrivateKey) {
+        console.log('☁️ Public wallet retrieved from server');
+        const secretKey = this.decryptSecretKey(data.encryptedPrivateKey);
+
+        // Cache locally
+        await this.saveSecretKeyLocally(secretKey);
+
+        return secretKey;
+      }
+
+      return null;
+    } catch (error) {
+      console.error('❌ Error fetching public wallet from server:', error);
+      return null;
+    }
+  }
+
+  /**
+   * Sauvegarde la clé secrète localement (cache)
+   */
+  private async saveSecretKeyLocally(secretKey: Uint8Array): Promise<void> {
+    try {
+      const key = this.getSecureStoreKey();
+      if (!key) {
+        console.warn('⚠️ Cannot save wallet locally: no user email set');
+        return;
+      }
+
+      const secretKeyArray = Array.from(secretKey);
+      await SecureStore.setItemAsync(key, JSON.stringify(secretKeyArray));
+      console.log(`🔒 Public wallet cached locally for ${this.currentUserEmail}`);
+    } catch (error) {
+      console.error('❌ Error caching wallet locally:', error);
+    }
+  }
+
+  /**
    * Crée un nouveau wallet Solana
-   * Appelé lors du SIGNUP
+   * Appelé lors du SIGNUP - sauvegarde sur serveur
    */
   async createWallet(): Promise<{
     publicKey: string;
@@ -56,15 +155,23 @@ class SolanaWalletService {
     try {
       console.log('🔑 Creating new Solana wallet...');
 
+      const email = this.currentUserEmail;
+      if (!email) {
+        throw new Error('No user email set - cannot create wallet');
+      }
+
       const newKeypair = Keypair.generate();
-
-      // Sauvegarder la clé privée de manière sécurisée
-      await this.saveSecretKey(newKeypair.secretKey);
-
-      this.keypair = newKeypair;
 
       console.log('✅ Wallet created successfully!');
       console.log(`   Public Key: ${newKeypair.publicKey.toBase58()}`);
+
+      // Save to server
+      await this.saveWalletToServer(newKeypair, email);
+
+      // Cache locally
+      await this.saveSecretKeyLocally(newKeypair.secretKey);
+
+      this.keypair = newKeypair;
 
       return {
         publicKey: newKeypair.publicKey.toBase58(),
@@ -77,107 +184,49 @@ class SolanaWalletService {
   }
 
   /**
-   * Importe un wallet existant depuis une clé privée
-   * Optionnel pour permettre aux utilisateurs d'importer leur wallet
-   */
-  async importWallet(secretKey: Uint8Array): Promise<string> {
-    try {
-      console.log('📥 Importing wallet...');
-
-      const importedKeypair = Keypair.fromSecretKey(secretKey);
-
-      // Sauvegarder la clé privée
-      await this.saveSecretKey(secretKey);
-
-      this.keypair = importedKeypair;
-
-      console.log('✅ Wallet imported successfully!');
-      console.log(`   Public Key: ${importedKeypair.publicKey.toBase58()}`);
-
-      return importedKeypair.publicKey.toBase58();
-    } catch (error) {
-      console.error('❌ Error importing wallet:', error);
-      throw error;
-    }
-  }
-
-  /**
-   * Migrate wallet from old global key to new user-specific key
-   * This is needed for users who created wallets before the user-specific storage update
-   */
-  async migrateFromGlobalKey(): Promise<boolean> {
-    try {
-      if (!this.currentUserEmail) {
-        console.log('ℹ️ No user email set, cannot migrate');
-        return false;
-      }
-
-      const userKey = this.getSecureStoreKey();
-      const globalKey = 'solanaWalletSecretKey';
-
-      // Check if user-specific key already exists
-      const existingUserWallet = await SecureStore.getItemAsync(userKey);
-      if (existingUserWallet) {
-        console.log('✅ User already has a wallet at user-specific key');
-        return true;
-      }
-
-      // Check if there's a wallet at the old global key
-      const globalWallet = await SecureStore.getItemAsync(globalKey);
-      if (!globalWallet) {
-        console.log('ℹ️ No wallet found at global key to migrate');
-        return false;
-      }
-
-      // Migrate: copy from global to user-specific key
-      console.log('🔄 Migrating wallet from global key to user-specific key...');
-      await SecureStore.setItemAsync(userKey, globalWallet);
-
-      // Verify migration
-      const verifyMigration = await SecureStore.getItemAsync(userKey);
-      if (verifyMigration) {
-        console.log('✅ Wallet migrated successfully to:', userKey);
-        // Note: We don't delete the global key in case other users need it
-        // It will be cleaned up naturally when those users log in and migrate
-        return true;
-      }
-
-      return false;
-    } catch (error) {
-      console.error('❌ Error migrating wallet:', error);
-      return false;
-    }
-  }
-
-  /**
-   * Charge le wallet depuis le stockage sécurisé
+   * Charge le wallet (local cache puis serveur)
    * Appelé lors du LOGIN
-   * @param updateAddressCallback - Optional callback to update the public address in storage
    */
   async loadWallet(updateAddressCallback?: (address: string) => Promise<void>): Promise<Keypair | null> {
     try {
-      // First, try to migrate from global key if needed
-      const didMigrate = await this.migrateFromGlobalKey();
-
-      const secretKey = await this.getSecretKey();
-
-      if (!secretKey) {
-        console.log('ℹ️ No wallet found in storage');
+      const email = this.currentUserEmail;
+      if (!email) {
+        console.log('⚠️ No user email set - cannot load wallet');
         return null;
       }
 
-      this.keypair = Keypair.fromSecretKey(secretKey);
-      const publicKeyStr = this.keypair.publicKey.toBase58();
-      console.log('✅ Wallet loaded successfully!');
-      console.log(`   Public Key: ${publicKeyStr}`);
+      // 1. Try local cache first
+      const key = this.getSecureStoreKey();
+      if (key) {
+        const secretKeyJson = await SecureStore.getItemAsync(key);
 
-      // If we migrated and have a callback, update the public address in storage
-      if (didMigrate && updateAddressCallback) {
-        console.log('🔄 Updating public address in storage after migration...');
-        await updateAddressCallback(publicKeyStr);
+        if (secretKeyJson) {
+          console.log(`✅ Found public wallet in local cache for ${email}`);
+          const secretKeyArray = JSON.parse(secretKeyJson);
+          const secretKey = new Uint8Array(secretKeyArray);
+          this.keypair = Keypair.fromSecretKey(secretKey);
+          console.log(`   Public Key: ${this.keypair.publicKey.toBase58()}`);
+          return this.keypair;
+        }
       }
 
-      return this.keypair;
+      // 2. Fetch from server
+      console.log(`🔍 Fetching public wallet from server for ${email}...`);
+      const serverKey = await this.getWalletFromServer(email);
+
+      if (serverKey) {
+        this.keypair = Keypair.fromSecretKey(serverKey);
+        console.log(`✅ Public wallet loaded from server: ${this.keypair.publicKey.toBase58()}`);
+
+        if (updateAddressCallback) {
+          await updateAddressCallback(this.keypair.publicKey.toBase58());
+        }
+
+        return this.keypair;
+      }
+
+      console.log(`ℹ️ No public wallet found for ${email}`);
+      return null;
     } catch (error) {
       console.error('❌ Error loading wallet:', error);
       return null;
@@ -230,7 +279,6 @@ class SolanaWalletService {
 
       console.log(`💸 Sending ${amountSOL} SOL to ${toAddress}...`);
 
-      // Convert to lamports and ensure it's an integer
       const lamports = Math.floor(amountSOL * LAMPORTS_PER_SOL);
 
       const transaction = new Transaction().add(
@@ -256,7 +304,7 @@ class SolanaWalletService {
   }
 
   /**
-   * Signe une transaction (pour compatibilité avec d'autres services)
+   * Signe une transaction
    */
   async signTransaction(transaction: Transaction): Promise<Transaction> {
     try {
@@ -273,40 +321,29 @@ class SolanaWalletService {
   }
 
   /**
-   * Sauvegarde la clé privée de manière sécurisée (user-specific)
-   */
-  private async saveSecretKey(secretKey: Uint8Array): Promise<void> {
-    try {
-      const secretKeyArray = Array.from(secretKey);
-      const key = this.getSecureStoreKey();
-
-      await SecureStore.setItemAsync(
-        key,
-        JSON.stringify(secretKeyArray)
-      );
-
-      console.log('🔒 Wallet secret key saved securely for user:', this.currentUserEmail || 'global');
-    } catch (error) {
-      console.error('❌ Error saving secret key:', error);
-      throw error;
-    }
-  }
-
-  /**
-   * Récupère la clé privée depuis le stockage sécurisé (user-specific)
+   * Récupère la clé secrète (depuis cache local ou serveur)
    */
   async getSecretKey(): Promise<Uint8Array | null> {
     try {
-      const key = this.getSecureStoreKey();
-      const secretKeyJson = await SecureStore.getItemAsync(key);
-
-      if (!secretKeyJson) {
-        console.log('ℹ️ No wallet found for key:', key);
+      const email = this.currentUserEmail;
+      if (!email) {
+        console.warn('⚠️ getSecretKey: No user email set');
         return null;
       }
 
-      const secretKeyArray = JSON.parse(secretKeyJson);
-      return new Uint8Array(secretKeyArray);
+      // Try local cache
+      const key = this.getSecureStoreKey();
+      if (key) {
+        const secretKeyJson = await SecureStore.getItemAsync(key);
+
+        if (secretKeyJson) {
+          const secretKeyArray = JSON.parse(secretKeyJson);
+          return new Uint8Array(secretKeyArray);
+        }
+      }
+
+      // Try server
+      return await this.getWalletFromServer(email);
     } catch (error) {
       console.error('❌ Error retrieving secret key:', error);
       return null;
@@ -314,14 +351,16 @@ class SolanaWalletService {
   }
 
   /**
-   * Supprime les données du wallet lors de la déconnexion (user-specific)
+   * Supprime le cache local du wallet
    */
   async clearWallet(): Promise<void> {
     try {
       const key = this.getSecureStoreKey();
-      await SecureStore.deleteItemAsync(key);
+      if (key) {
+        await SecureStore.deleteItemAsync(key);
+        console.log('🗑️ Wallet local cache cleared');
+      }
       this.keypair = null;
-      console.log('🗑️ Wallet data cleared for user:', this.currentUserEmail || 'global');
     } catch (error) {
       console.error('❌ Error clearing wallet data:', error);
     }

@@ -88,16 +88,11 @@ export const useLogin = (onSuccess?: (userData: any, accessToken: string) => voi
         sessionSecrets: sessionSecrets,
       });
 
-      console.log('✅ OTP verification successful:', JSON.stringify(verifyResult, null, 2));
-      console.log('🔍 verifyResult type:', typeof verifyResult);
-      console.log('🔍 verifyResult keys:', Object.keys(verifyResult));
-      console.log('🔍 verifyResult.data exists?', 'data' in verifyResult);
+      console.log('✅ OTP verification successful');
 
       // Grid SDK retourne GridResponse<CompleteAuthResponse>, extraire les données
       // La structure peut être soit verifyResult.data, soit directement verifyResult
       const gridData = verifyResult.data || verifyResult;
-
-      console.log('🔍 gridData after extraction:', JSON.stringify(gridData, null, 2));
 
       // Vérifier si l'authentification a réussi
       if (!verifyResult.success || verifyResult.error) {
@@ -124,12 +119,9 @@ export const useLogin = (onSuccess?: (userData: any, accessToken: string) => voi
       }
 
       if (!gridData || (!gridData.grid_user_id && !gridData.address)) {
-        console.error('❌ Invalid gridData structure:', gridData);
+        console.error('❌ Invalid gridData structure');
         throw new Error('No data returned from authentication');
       }
-
-      console.log('🔍 Grid data:', JSON.stringify(gridData, null, 2));
-      console.log('🔍 Authentication structure:', JSON.stringify(gridData.authentication, null, 2));
 
       // Grid SDK utilise les session secrets, pas de JWT token
       const dummyToken = `grid_session_${Date.now()}`;
@@ -238,7 +230,6 @@ export const useLogin = (onSuccess?: (userData: any, accessToken: string) => voi
 
         if (privateWalletKeypair) {
           console.log('✅ Private Wallet found!');
-          console.log('   Private Wallet:', privateWalletKeypair.publicKey.toBase58());
 
           // Sauvegarder l'adresse du Private Wallet
           await authStorage.savePrivateWalletAddress(privateWalletKeypair.publicKey.toBase58());

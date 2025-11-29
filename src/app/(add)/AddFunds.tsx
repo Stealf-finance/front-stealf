@@ -5,15 +5,15 @@ import {
   StyleSheet,
   TouchableOpacity,
   Image,
-  ActivityIndicator,
   Alert,
+  ActivityIndicator,
 } from 'react-native';
 import { useFonts } from 'expo-font';
 import AppBackground from '../../components/common/AppBackground';
 import QRCode from 'react-native-qrcode-svg';
 import * as Clipboard from 'expo-clipboard';
 import { useWallet } from '../../hooks/useWallet';
-import { Connection, PublicKey, LAMPORTS_PER_SOL } from '@solana/web3.js';
+import { UMBRA_CONFIG } from '../../config/umbra';
 import type { AddFundsScreenProps } from '../../types';
 
 export default function AddFundsScreen({ onBack }: AddFundsScreenProps) {
@@ -33,33 +33,24 @@ export default function AddFundsScreen({ onBack }: AddFundsScreenProps) {
 
     setFaucetLoading(true);
     try {
-      console.log('🚰 Requesting airdrop for:', walletAddress);
+      const response = await fetch(`${UMBRA_CONFIG.API_URL}/api/arcium/airdrop`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'ngrok-skip-browser-warning': 'true',
+        },
+        body: JSON.stringify({ walletAddress }),
+      });
 
-      const connection = new Connection('https://api.devnet.solana.com', 'confirmed');
-      const publicKey = new PublicKey(walletAddress);
+      const data = await response.json();
 
-      // Demander 2 SOL (max autorisé par requête sur devnet)
-      const signature = await connection.requestAirdrop(publicKey, 2 * LAMPORTS_PER_SOL);
-
-      console.log('📝 Airdrop signature:', signature);
-
-      // Attendre la confirmation
-      await connection.confirmTransaction(signature, 'confirmed');
-
-      console.log('✅ Airdrop confirmed!');
-      Alert.alert('Success', '2 SOL received on your wallet!');
-    } catch (error: any) {
-      console.error('Failed to request airdrop:', error);
-
-      // Gérer les erreurs communes
-      let errorMessage = 'Failed to get SOL';
-      if (error.message?.includes('429') || error.message?.includes('rate')) {
-        errorMessage = 'Rate limit reached. Try again in a few minutes.';
-      } else if (error.message?.includes('airdrop')) {
-        errorMessage = 'Airdrop limit reached. Try again later.';
+      if (data.success) {
+        Alert.alert('Success', `2 SOL received! Balance: ${data.balance.toFixed(2)} SOL`);
+      } else {
+        Alert.alert('Error', data.error || 'Airdrop failed');
       }
-
-      Alert.alert('Error', errorMessage);
+    } catch (error: any) {
+      Alert.alert('Error', 'Failed to request airdrop');
     } finally {
       setFaucetLoading(false);
     }
@@ -119,7 +110,7 @@ export default function AddFundsScreen({ onBack }: AddFundsScreenProps) {
           {/* Wallet Address Section */}
           <View style={styles.addressSection}>
             <Text style={styles.infoText}>
-              SOL & USDC - Solana Network
+              SOL - Solana Network
             </Text>
             <TouchableOpacity
               style={styles.addressButton}
@@ -152,10 +143,7 @@ export default function AddFundsScreen({ onBack }: AddFundsScreenProps) {
               {faucetLoading ? (
                 <ActivityIndicator color="#000" size="small" />
               ) : (
-                <>
-                  <Text style={styles.faucetButtonText}>Get Devnet SOL</Text>
-                  <Text style={styles.faucetButtonIcon}>💧</Text>
-                </>
+                <Text style={styles.faucetButtonText}>Get Devnet SOL</Text>
               )}
             </TouchableOpacity>
           </View>
@@ -304,8 +292,5 @@ const styles = StyleSheet.create({
     color: '#000',
     fontSize: 16,
     fontFamily: 'Sansation-Bold',
-  },
-  faucetButtonIcon: {
-    fontSize: 18,
   },
 });

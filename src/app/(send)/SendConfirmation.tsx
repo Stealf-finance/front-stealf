@@ -90,7 +90,7 @@ export default function SendConfirmation({ amount, onBack, onSuccess }: SendConf
           {/* Amount */}
           <View style={styles.section}>
             <Text style={styles.label}>Amount</Text>
-            <Text style={styles.value}>{amount} USD</Text>
+            <Text style={styles.value}>{amount} SOL</Text>
           </View>
 
           {/* Network */}
@@ -138,58 +138,14 @@ export default function SendConfirmation({ amount, onBack, onSuccess }: SendConf
               </TouchableOpacity>
             </View>
 
-            {/* Privacy Wallet Info */}
+            {/* Privacy Wallet */}
             {destinationType === 'privacy' && (
-              <View style={styles.privacyInfoContainer}>
-                <Text style={styles.privacyInfoTitle}>🔒 Umbra Privacy Transfer</Text>
-                <Text style={styles.privacyInfoText}>
-                  Your funds will be anonymously deposited into the Umbra mixer pool.
-                </Text>
-                <Text style={styles.privacyInfoDetails}>
-                  • Transaction is anonymous{'\n'}
-                  • Amount visible on-chain{'\n'}
-                  • Estimated time: 30-60 seconds{'\n'}
-                  • Can be claimed later from Privacy Balance
-                </Text>
-              </View>
-            )}
-
-            {/* Privacy Wallet Dropdown - Commented for now (single wallet) */}
-            {false && destinationType === 'privacy' && (
               <View style={styles.dropdownContainer}>
-                <TouchableOpacity
-                  style={styles.dropdownButton}
-                  onPress={() => setShowPrivacyDropdown(!showPrivacyDropdown)}
-                  activeOpacity={0.8}
-                >
+                <View style={styles.dropdownButton}>
                   <Text style={styles.dropdownButtonText}>
-                    {privateWallets.find(w => w.id === selectedPrivacyWallet)?.name || 'Select Wallet'}
+                    Private Wallet
                   </Text>
-                  <Text style={styles.dropdownArrow}>▼</Text>
-                </TouchableOpacity>
-
-                {showPrivacyDropdown && (
-                  <View style={styles.dropdownList}>
-                    {privateWallets.map((wallet) => (
-                      <TouchableOpacity
-                        key={wallet.id}
-                        style={styles.dropdownItem}
-                        onPress={() => {
-                          setSelectedPrivacyWallet(wallet.id);
-                          setShowPrivacyDropdown(false);
-                        }}
-                        activeOpacity={0.8}
-                      >
-                        <Text style={[
-                          styles.dropdownItemText,
-                          selectedPrivacyWallet === wallet.id && styles.dropdownItemTextActive
-                        ]}>
-                          {wallet.name}
-                        </Text>
-                      </TouchableOpacity>
-                    ))}
-                  </View>
-                )}
+                </View>
               </View>
             )}
 
@@ -636,33 +592,42 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     fontFamily: 'Sansation-Bold',
   },
-  privacyInfoContainer: {
-    marginTop: 16,
-    backgroundColor: 'rgba(138, 43, 226, 0.1)',
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: 'rgba(138, 43, 226, 0.3)',
-    padding: 16,
+  dropdownButtonContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
   },
-  privacyInfoTitle: {
-    color: '#B19CD9',
-    fontSize: 16,
-    fontWeight: '600',
-    marginBottom: 8,
-    fontFamily: 'Sansation-Bold',
+  dropdownIcon: {
+    fontSize: 24,
   },
-  privacyInfoText: {
-    color: 'rgba(255, 255, 255, 0.8)',
-    fontSize: 14,
-    marginBottom: 12,
-    fontFamily: 'Sansation-Regular',
-    lineHeight: 20,
-  },
-  privacyInfoDetails: {
-    color: 'rgba(255, 255, 255, 0.6)',
+  dropdownSubtext: {
+    color: 'rgba(255, 255, 255, 0.5)',
     fontSize: 12,
     fontFamily: 'Sansation-Regular',
-    lineHeight: 18,
+    marginTop: 2,
+  },
+  dropdownDetails: {
+    marginTop: 12,
+    backgroundColor: 'rgba(255, 255, 255, 0.03)',
+    borderRadius: 12,
+    padding: 12,
+    gap: 8,
+  },
+  dropdownDetailRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  dropdownDetailIcon: {
+    color: 'rgba(100, 255, 100, 0.8)',
+    fontSize: 14,
+    width: 20,
+    textAlign: 'center',
+  },
+  dropdownDetailText: {
+    color: 'rgba(255, 255, 255, 0.7)',
+    fontSize: 13,
+    fontFamily: 'Sansation-Regular',
   },
   // Username search styles
   externalInputSection: {

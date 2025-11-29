@@ -55,7 +55,7 @@ export default function TransactionHistory({ limit = 10, style, isDemo = false }
           signature: 'demo-tx-1',
           type: 'receive',
           amount: 150.00,
-          token: 'USD',
+          token: 'SOL',
           timestamp: Date.now() - 2 * 60 * 60 * 1000, // 2h ago
           status: 'confirmed',
           from: '7xK...9pQ2',
@@ -65,7 +65,7 @@ export default function TransactionHistory({ limit = 10, style, isDemo = false }
           signature: 'demo-tx-2',
           type: 'send',
           amount: 45.50,
-          token: 'USD',
+          token: 'SOL',
           timestamp: Date.now() - 24 * 60 * 60 * 1000, // 1d ago
           status: 'confirmed',
           to: '3mF...8kL1',

@@ -48,7 +48,7 @@ export default function AddFundsModal({
                   <View style={styles.optionTextContainer}>
                     <Text style={styles.optionTitle}>Stablecoin</Text>
                     <Text style={styles.optionDescription}>
-                      Deposit USDC from another wallet
+                      Deposit SOL from another wallet
                     </Text>
                   </View>
                   <Text style={styles.arrow}>›</Text>

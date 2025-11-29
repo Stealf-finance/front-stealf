@@ -6,7 +6,7 @@ export default {
     slug: "stealf",
     version: "1.0.0",
     orientation: "portrait",
-    icon: "./src/assets/icon.png",
+    icon: "./src/assets/icon.jpg",
     userInterfaceStyle: "light",
     newArchEnabled: true,
     splash: {
@@ -18,9 +18,10 @@ export default {
       supportsTablet: true
     },
     android: {
+      package: "com.stealf.app",
       adaptiveIcon: {
-        foregroundImage: "./src/assets/adaptive-icon.png",
-        backgroundColor: "#ffffff"
+        foregroundImage: "./src/assets/adaptive-icon.jpg",
+        backgroundColor: "#000000"
       },
       edgeToEdgeEnabled: true,
       predictiveBackGestureEnabled: false
@@ -34,6 +35,9 @@ export default {
     extra: {
       EXPO_PUBLIC_GRID_API_KEY: process.env.EXPO_PUBLIC_GRID_API_KEY,
       EXPO_PUBLIC_GRID_ENV: process.env.EXPO_PUBLIC_GRID_ENV,
+      eas: {
+        projectId: "3b6fd4ec-789e-42ec-bed6-9d455e096b88"
+      }
     }
   }
 };
