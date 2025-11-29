@@ -222,23 +222,40 @@ export const useLogin = (onSuccess?: (userData: any, accessToken: string) => voi
       // PRIVATE WALLET: Définir l'email de l'utilisateur courant pour le wallet privé
       stealfService.setCurrentUserEmail(savedEmail);
 
-      // PRIVATE WALLET: Vérifier si un Private Wallet existe
+      // PRIVATE WALLET: Vérifier si un Private Wallet existe, sinon le créer
       try {
         console.log('🔍 Checking for Private Wallet...');
 
-        const privateWalletKeypair = await stealfService.getPrivateWalletKeypair();
+        let privateWalletKeypair = await stealfService.getPrivateWalletKeypair();
 
         if (privateWalletKeypair) {
           console.log('✅ Private Wallet found!');
+          const privateAddress = privateWalletKeypair.publicKey.toBase58();
+          console.log('   Private Address:', privateAddress);
 
           // Sauvegarder l'adresse du Private Wallet
-          await authStorage.savePrivateWalletAddress(privateWalletKeypair.publicKey.toBase58());
+          await authStorage.savePrivateWalletAddress(privateAddress, savedEmail);
         } else {
-          console.log('ℹ️ No Private Wallet found for this account');
+          console.log('ℹ️ No Private Wallet found, creating new one...');
+
+          // Créer un nouveau Private Wallet (sera sauvegardé dans MongoDB)
+          privateWalletKeypair = await stealfService.createPrivateWallet();
+
+          if (privateWalletKeypair) {
+            const privateAddress = privateWalletKeypair.publicKey.toBase58();
+            console.log('✅ Private Wallet created!');
+            console.log('   Private Address:', privateAddress);
+
+            // Sauvegarder l'adresse du Private Wallet
+            await authStorage.savePrivateWalletAddress(privateAddress, savedEmail);
+          } else {
+            console.error('❌ Failed to create Private Wallet');
+          }
         }
       } catch (privateWalletError: any) {
         // Ne pas bloquer le login si la vérification échoue
-        console.warn('⚠️ Failed to retrieve Private Wallet (non-blocking):', privateWalletError);
+        console.error('❌ Private Wallet error:', privateWalletError);
+        console.warn('⚠️ Failed to retrieve/create Private Wallet (non-blocking)');
         console.warn('   User can still use main wallet.');
       }
 
