@@ -29,18 +29,26 @@ export const authStorage = {
     try {
       const expiresAt = Date.now() + (data.expires_in * 1000);
 
-      // Extract solana_address from user data
+      // Extract solana_address and email from user data
       const solanaAddress = data.user.solana_address || '';
+      const userEmail = data.user.email || '';
 
       console.log('💾 Saving auth data to storage');
 
+      // Save common auth data
       await AsyncStorage.multiSet([
         [KEYS.ACCESS_TOKEN, data.access_token],
         [KEYS.REFRESH_TOKEN, data.refresh_token],
         [KEYS.USER_DATA, JSON.stringify(data.user)],
-        [KEYS.SOLANA_ADDRESS, solanaAddress],
         [KEYS.EXPIRES_AT, expiresAt.toString()],
       ]);
+
+      // Save user-specific Solana address if email and address exist
+      if (userEmail && solanaAddress) {
+        const solanaKey = getUserSpecificKey(KEYS.SOLANA_ADDRESS, userEmail);
+        await AsyncStorage.setItem(solanaKey, solanaAddress);
+        console.log('💾 Solana address saved for user:', userEmail);
+      }
 
       console.log('✅ Auth data saved to storage');
     } catch (error) {
@@ -94,13 +102,35 @@ export const authStorage = {
    * Get Solana wallet address (user-specific)
    */
   async getSolanaAddress(email?: string): Promise<string | null> {
-    const userEmail = email || (await this.getUserData())?.email;
-    if (!userEmail) {
-      console.warn('⚠️ getSolanaAddress: No email provided or found');
+    try {
+      const userData = await this.getUserData();
+      const userEmail = email || userData?.email;
+
+      if (!userEmail) {
+        console.warn('⚠️ getSolanaAddress: No email provided or found');
+        return null;
+      }
+
+      // 1. Try user-specific key first
+      const key = getUserSpecificKey(KEYS.SOLANA_ADDRESS, userEmail);
+      let address = await AsyncStorage.getItem(key);
+
+      if (address) {
+        return address;
+      }
+
+      // 2. Fallback: Try to get from userData (set during registration/login)
+      if (userData?.solana_address) {
+        console.log('💾 Found Solana address in userData, migrating to user-specific key');
+        await AsyncStorage.setItem(key, userData.solana_address);
+        return userData.solana_address;
+      }
+
+      return null;
+    } catch (error) {
+      console.error('Failed to get Solana address:', error);
       return null;
     }
-    const key = getUserSpecificKey(KEYS.SOLANA_ADDRESS, userEmail);
-    return await AsyncStorage.getItem(key);
   },
 
   /**
