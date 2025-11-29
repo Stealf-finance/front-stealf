@@ -109,17 +109,34 @@ export const useSendTransaction = (onSuccess: () => void) => {
 
       // Ensure user email is set for user-specific wallet storage
       const userData = await authStorage.getUserData();
-      if (userData?.email) {
-        solanaWalletService.setCurrentUserEmail(userData.email);
-        stealfService.setCurrentUserEmail(userData.email);
-        console.log('📧 User email set for wallet services:', userData.email);
+      console.log('📋 User data retrieved:', userData ? 'Found' : 'NULL');
+
+      if (!userData) {
+        console.error('❌ No user data found - user may not be logged in');
+        Alert.alert('Error', 'Session expired. Please log in again.');
+        setIsLoading(false);
+        return;
       }
 
+      if (!userData.email) {
+        console.error('❌ User data has no email field:', Object.keys(userData));
+        Alert.alert('Error', 'User session invalid. Please log in again.');
+        setIsLoading(false);
+        return;
+      }
+
+      solanaWalletService.setCurrentUserEmail(userData.email);
+      stealfService.setCurrentUserEmail(userData.email);
+      console.log('📧 User email set for wallet services:', userData.email);
+
       // Load the Solana wallet
+      console.log('🔑 Loading Solana wallet...');
       const solanaKeypair = await solanaWalletService.loadWallet();
       if (!solanaKeypair) {
-        console.log('❌ No Solana wallet found');
-        Alert.alert('Error', 'Solana wallet not found. Please log in again.');
+        console.error('❌ loadWallet() returned null');
+        console.error('   Email was set to:', userData.email);
+        console.error('   This means no wallet found in SecureStore or MongoDB');
+        Alert.alert('Error', 'Solana wallet not found. Please log in again to recreate your wallet.');
         setIsLoading(false);
         return;
       }
