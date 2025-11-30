@@ -1,5 +1,5 @@
 import React, { useEffect } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator, Dimensions } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { BlurView } from 'expo-blur';
 import { useFonts } from 'expo-font';
@@ -35,9 +35,6 @@ export default function BalanceCard({ onWithdraw, onTopUp, onExchange, isPrivacy
     console.log('🔍 BalanceCard - error:', error);
   }, [walletAddress, walletLoading, balance, error]);
 
-  const screenWidth = Dimensions.get('window').width;
-  const cardWidth = Math.min(screenWidth * 0.9, 400);
-  const cardHeight = 240;
 
   // Garder l'ancien montant pendant le chargement pour éviter les flashs
   const [displayBalance, setDisplayBalance] = React.useState<number>(0);
@@ -86,13 +83,13 @@ export default function BalanceCard({ onWithdraw, onTopUp, onExchange, isPrivacy
       <BlurView
         intensity={30}
         tint="dark"
-        style={[styles.blurContainer, { width: cardWidth, height: cardHeight }]}
+        style={styles.blurContainer}
       >
         <LinearGradient
           colors={['rgba(40, 40, 40, 0.4)', 'rgba(20, 20, 20, 0.4)']}
           start={{ x: 0, y: 0 }}
           end={{ x: 0, y: 1 }}
-          style={[styles.card, { width: cardWidth, height: cardHeight }]}
+          style={styles.card}
         >
           {/* Balance Section */}
           <View style={styles.balanceSection}>
@@ -149,11 +146,15 @@ export default function BalanceCard({ onWithdraw, onTopUp, onExchange, isPrivacy
 
 const styles = StyleSheet.create({
   container: {
-    alignSelf: 'center',
+    width: '100%',
+    paddingHorizontal: 20,
     marginTop: -10,
     zIndex: 2,
   },
   blurContainer: {
+    width: '100%',
+    maxWidth: 400,
+    alignSelf: 'center',
     borderRadius: 24,
     overflow: 'hidden',
     shadowColor: '#000',
@@ -166,7 +167,9 @@ const styles = StyleSheet.create({
     borderRadius: 24,
     padding: 24,
     paddingTop: 32,
+    paddingBottom: 24,
     borderWidth: 0,
+    minHeight: 240,
   },
   balanceSection: {
     alignItems: 'flex-start',
