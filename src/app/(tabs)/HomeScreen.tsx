@@ -227,12 +227,14 @@ const styles = StyleSheet.create({
   },
   cardsCarousel: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
+    gap: 8,
   },
   miniCard: {
-    width: '48.5%',
+    flex: 1,
     height: 100,
     borderRadius: 16,
+    backgroundColor: 'transparent',
+    overflow: 'hidden',
   },
   miniCardImage: {
     width: '100%',
@@ -245,7 +247,7 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     bottom: 0,
-    backgroundColor: 'rgba(0, 0, 0, 0.7)',
+    backgroundColor: 'rgba(0, 0, 0, 0.85)',
     borderRadius: 16,
     justifyContent: 'center',
     alignItems: 'center',

@@ -206,10 +206,10 @@ const styles = StyleSheet.create({
   },
   accountsCarousel: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
+    gap: 8,
   },
   accountCard: {
-    width: '48.5%',
+    flex: 1,
     height: 100,
     borderRadius: 16,
     backgroundColor: 'rgba(60, 40, 80, 0.3)',
