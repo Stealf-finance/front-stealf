@@ -36,7 +36,7 @@ export default {
       EXPO_PUBLIC_GRID_API_KEY: process.env.EXPO_PUBLIC_GRID_API_KEY,
       EXPO_PUBLIC_GRID_ENV: process.env.EXPO_PUBLIC_GRID_ENV,
       eas: {
-        projectId: "3b6fd4ec-789e-42ec-bed6-9d455e096b88"
+        projectId: "41a91304-4856-40ae-ab0d-c5777f36b749"
       }
     }
   }

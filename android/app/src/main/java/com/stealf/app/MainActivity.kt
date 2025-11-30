@@ -2,6 +2,7 @@ package com.stealf.app
 
 import android.os.Build
 import android.os.Bundle
+import android.util.Log
 
 import com.facebook.react.ReactActivity
 import com.facebook.react.ReactActivityDelegate
@@ -17,6 +18,32 @@ class MainActivity : ReactActivity() {
     // This is required for expo-splash-screen.
     setTheme(R.style.AppTheme);
     super.onCreate(null)
+
+    // DEBUG: Log network security configuration
+    try {
+      val appInfo = packageManager.getApplicationInfo(packageName, 0)
+      Log.d("NetworkConfig", "=== NETWORK CONFIGURATION DEBUG ===")
+      Log.d("NetworkConfig", "usesCleartextTraffic: ${appInfo.flags and android.content.pm.ApplicationInfo.FLAG_USES_CLEARTEXT_TRAFFIC != 0}")
+      Log.d("NetworkConfig", "Android Version: ${Build.VERSION.SDK_INT} (${Build.VERSION.RELEASE})")
+      Log.d("NetworkConfig", "Package: $packageName")
+
+      // Check if network_security_config.xml exists in resources
+      try {
+        val resId = resources.getIdentifier("network_security_config", "xml", packageName)
+        Log.d("NetworkConfig", "network_security_config.xml resource ID: $resId")
+        if (resId != 0) {
+          Log.d("NetworkConfig", "✅ network_security_config.xml FOUND in APK")
+        } else {
+          Log.e("NetworkConfig", "❌ network_security_config.xml NOT FOUND in APK")
+        }
+      } catch (e: Exception) {
+        Log.e("NetworkConfig", "Error checking network_security_config.xml: ${e.message}")
+      }
+
+      Log.d("NetworkConfig", "===================================")
+    } catch (e: Exception) {
+      Log.e("NetworkConfig", "Error logging network config: ${e.message}")
+    }
   }
 
   /**
