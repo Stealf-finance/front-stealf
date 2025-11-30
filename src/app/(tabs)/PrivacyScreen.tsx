@@ -212,9 +212,12 @@ const styles = StyleSheet.create({
   accountsCarousel: {
     flexDirection: 'row',
     gap: 12,
+    paddingRight: 20,
   },
   accountCard: {
-    width: (Dimensions.get('window').width - 64) / 2,
+    flex: 1,
+    minWidth: 140,
+    maxWidth: 180,
     height: 100,
     borderRadius: 16,
     backgroundColor: 'rgba(60, 40, 80, 0.3)',

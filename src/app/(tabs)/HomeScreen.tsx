@@ -232,9 +232,12 @@ const styles = StyleSheet.create({
   cardsCarousel: {
     flexDirection: 'row',
     gap: 12,
+    paddingRight: 20,
   },
   miniCard: {
-    width: (Dimensions.get('window').width - 64) / 2,
+    flex: 1,
+    minWidth: 140,
+    maxWidth: 180,
     height: 100,
     borderRadius: 16,
   },
