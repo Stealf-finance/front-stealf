@@ -234,7 +234,7 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   miniCard: {
-    width: Dimensions.get('window').width * 0.42,
+    width: (Dimensions.get('window').width - 64) / 2,
     height: 100,
     borderRadius: 16,
   },

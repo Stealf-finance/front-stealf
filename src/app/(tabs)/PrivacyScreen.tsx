@@ -214,7 +214,7 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   accountCard: {
-    width: Dimensions.get('window').width * 0.42,
+    width: (Dimensions.get('window').width - 64) / 2,
     height: 100,
     borderRadius: 16,
     backgroundColor: 'rgba(60, 40, 80, 0.3)',
