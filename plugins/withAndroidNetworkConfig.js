@@ -15,7 +15,7 @@ const path = require('path');
  */
 function withAndroidNetworkConfig(config) {
   // Step 1: Modify AndroidManifest.xml
-  config = withAndroidManifest(config, async (config) => {
+  config = withAndroidManifest(config, (config) => {
     const androidManifest = config.modResults;
     const mainApplication = AndroidConfig.Manifest.getMainApplicationOrThrow(androidManifest);
 
@@ -35,11 +35,14 @@ function withAndroidNetworkConfig(config) {
   // Step 2: Copy network_security_config.xml to res/xml/
   config = withDangerousMod(config, [
     'android',
-    async (config) => {
+    (config) => {
       const projectRoot = config.modRequest.projectRoot;
       const sourceXml = path.join(projectRoot, 'android-network-config.xml');
+      const platformProjectRoot = config.modRequest.platformProjectRoot;
+
+      // EAS Build may not have platformProjectRoot in the same structure
       const androidResXml = path.join(
-        config.modRequest.platformProjectRoot,
+        platformProjectRoot,
         'app',
         'src',
         'main',
@@ -48,8 +51,15 @@ function withAndroidNetworkConfig(config) {
       );
       const targetXml = path.join(androidResXml, 'network_security_config.xml');
 
+      console.log('🔧 Plugin execution:');
+      console.log('   projectRoot:', projectRoot);
+      console.log('   platformProjectRoot:', platformProjectRoot);
+      console.log('   sourceXml:', sourceXml);
+      console.log('   targetXml:', targetXml);
+
       // Create res/xml directory if it doesn't exist
       if (!fs.existsSync(androidResXml)) {
+        console.log('📁 Creating directory:', androidResXml);
         fs.mkdirSync(androidResXml, { recursive: true });
       }
 
@@ -57,8 +67,12 @@ function withAndroidNetworkConfig(config) {
       if (fs.existsSync(sourceXml)) {
         fs.copyFileSync(sourceXml, targetXml);
         console.log('✅ Copied network_security_config.xml to res/xml/');
+        console.log('   Source:', sourceXml);
+        console.log('   Target:', targetXml);
       } else {
-        console.warn('⚠️  android-network-config.xml not found at project root');
+        console.error('❌ android-network-config.xml not found at project root');
+        console.error('   Expected location:', sourceXml);
+        throw new Error('android-network-config.xml not found at project root');
       }
 
       return config;

@@ -53,6 +53,7 @@
     "text-encoding": "^0.7.0"
   },
   "devDependencies": {
+    "@expo/config-plugins": "^54.0.2",
     "@types/react": "~19.1.10",
     "babel-preset-expo": "^54.0.4",
     "patch-package": "^8.0.1",
