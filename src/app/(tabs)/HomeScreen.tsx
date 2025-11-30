@@ -1,5 +1,5 @@
 import React, { useRef, useState, useEffect } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Image, ImageBackground, Animated, PanResponder, Dimensions, Easing, ScrollView } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ImageBackground, Animated, PanResponder, Easing } from 'react-native';
 import { BalanceCard } from '../../components/features';
 import TransactionHistory from '../../components/TransactionHistory';
 import CardScreen from '../(infos)/CardScreen';
@@ -114,11 +114,7 @@ export default function HomeScreen({
         {/* Cards Section */}
         <View style={styles.cardsCarouselContainer}>
           <Text style={styles.cardsTitle}>Cards</Text>
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={styles.cardsCarousel}
-          >
+          <View style={styles.cardsCarousel}>
             {/* Stealf Card */}
             {!showCardScreen && (
               <TouchableOpacity
@@ -156,7 +152,7 @@ export default function HomeScreen({
                 </View>
               </TouchableOpacity>
             )}
-          </ScrollView>
+          </View>
         </View>
 
         {/* Recent Activity */}
@@ -232,12 +228,9 @@ const styles = StyleSheet.create({
   cardsCarousel: {
     flexDirection: 'row',
     gap: 12,
-    paddingRight: 20,
   },
   miniCard: {
-    flex: 1,
-    minWidth: 140,
-    maxWidth: 180,
+    width: '48%',
     height: 100,
     borderRadius: 16,
   },

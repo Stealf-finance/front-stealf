@@ -1,6 +1,5 @@
 import React, { useRef, useEffect } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, PanResponder, Image, Dimensions, Animated, Easing, ScrollView } from 'react-native';
-import { BlurView } from 'expo-blur';
+import { View, Text, StyleSheet, TouchableOpacity, PanResponder, Animated, Easing } from 'react-native';
 import { BalanceCard } from '../../components/features';
 import PrivateTransactionHistory from '../../components/PrivateTransactionHistory';
 import type { PageType } from '../../navigation/types';
@@ -86,11 +85,7 @@ export default function PrivacyScreen({
           {/* Private Accounts Section */}
           <View style={styles.accountsContainer}>
             <Text style={styles.accountsTitle}>Private Accounts</Text>
-            <ScrollView
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              contentContainerStyle={styles.accountsCarousel}
-            >
+            <View style={styles.accountsCarousel}>
               {/* Account 1 */}
               <TouchableOpacity
                 style={[styles.accountCard, selectedWallet === 0 && styles.accountCardActive]}
@@ -121,7 +116,7 @@ export default function PrivacyScreen({
                   <Text style={styles.addAccountIcon}>+</Text>
                 </View>
               </TouchableOpacity>
-            </ScrollView>
+            </View>
           </View>
 
           {/* Recent Activity */}
@@ -212,12 +207,9 @@ const styles = StyleSheet.create({
   accountsCarousel: {
     flexDirection: 'row',
     gap: 12,
-    paddingRight: 20,
   },
   accountCard: {
-    flex: 1,
-    minWidth: 140,
-    maxWidth: 180,
+    width: '48%',
     height: 100,
     borderRadius: 16,
     backgroundColor: 'rgba(60, 40, 80, 0.3)',
