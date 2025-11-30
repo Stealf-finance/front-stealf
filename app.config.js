@@ -30,7 +30,9 @@ export default {
       favicon: "./src/assets/favicon.png"
     },
     plugins: [
-      "expo-secure-store"
+      "expo-secure-store",
+      "./plugins/withAndroidNetworkConfig",
+      "./plugins/withMainActivityDebugLogs"
     ],
     extra: {
       EXPO_PUBLIC_GRID_API_KEY: process.env.EXPO_PUBLIC_GRID_API_KEY,
