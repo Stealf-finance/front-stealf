@@ -227,10 +227,10 @@ const styles = StyleSheet.create({
   },
   cardsCarousel: {
     flexDirection: 'row',
-    gap: 12,
+    justifyContent: 'space-between',
   },
   miniCard: {
-    width: '48%',
+    width: '48.5%',
     height: 100,
     borderRadius: 16,
   },
