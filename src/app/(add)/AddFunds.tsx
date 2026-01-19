@@ -7,13 +7,16 @@ import {
   Image,
   Alert,
   ActivityIndicator,
+  ScrollView,
 } from 'react-native';
 import { useFonts } from 'expo-font';
 import AppBackground from '../../components/common/AppBackground';
 import QRCode from 'react-native-qrcode-svg';
 import * as Clipboard from 'expo-clipboard';
 import { useWallet } from '../../hooks/useWallet';
+import { useAuth } from '../../contexts/AuthContext';
 import { UMBRA_CONFIG } from '../../config/umbra';
+import CrossChainReceiveModal from '../../components/CrossChainReceiveModal';
 import type { AddFundsScreenProps } from '../../types';
 
 export default function AddFundsScreen({ onBack }: AddFundsScreenProps) {
@@ -25,8 +28,15 @@ export default function AddFundsScreen({ onBack }: AddFundsScreenProps) {
   });
 
   const { walletAddress } = useWallet();
+  const { userData } = useAuth();
   const [copied, setCopied] = useState(false);
   const [faucetLoading, setFaucetLoading] = useState(false);
+  const [showCrossChainModal, setShowCrossChainModal] = useState(false);
+
+  const handleOpenCrossChain = () => {
+    console.log('[AddFunds] Opening CrossChain modal, walletAddress:', walletAddress);
+    setShowCrossChainModal(true);
+  };
 
   const handleFaucet = async () => {
     if (!walletAddress) return;
@@ -94,7 +104,7 @@ export default function AddFundsScreen({ onBack }: AddFundsScreenProps) {
           <View style={styles.placeholder} />
         </View>
 
-        <View style={styles.content}>
+        <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
           {/* QR Code Section */}
           <View style={styles.qrSection}>
             <Text style={styles.qrTitle}>Scan QR Code</Text>
@@ -128,6 +138,21 @@ export default function AddFundsScreen({ onBack }: AddFundsScreenProps) {
             </TouchableOpacity>
           </View>
 
+          {/* Cross-Chain Bridge Section */}
+          <View style={styles.crossChainSection}>
+            <Text style={styles.crossChainTitle}>Bridge from other chains</Text>
+            <Text style={styles.crossChainSubtitle}>
+              Receive funds from Ethereum, Arbitrum, Base
+            </Text>
+            <TouchableOpacity
+              style={styles.crossChainButton}
+              onPress={handleOpenCrossChain}
+              activeOpacity={0.8}
+            >
+              <Text style={styles.crossChainButtonText}>Cross-Chain Bridge</Text>
+            </TouchableOpacity>
+          </View>
+
           {/* Faucet Section (Devnet) */}
           <View style={styles.faucetSection}>
             <Text style={styles.faucetTitle}>Need test SOL?</Text>
@@ -147,7 +172,15 @@ export default function AddFundsScreen({ onBack }: AddFundsScreenProps) {
               )}
             </TouchableOpacity>
           </View>
-        </View>
+        </ScrollView>
+
+        {/* Cross-Chain Modal */}
+        <CrossChainReceiveModal
+          visible={showCrossChainModal}
+          onClose={() => setShowCrossChainModal(false)}
+          recipientAddress={walletAddress || ''}
+          userEmail={userData?.email}
+        />
       </AppBackground>
     </View>
   );
@@ -290,6 +323,38 @@ const styles = StyleSheet.create({
   },
   faucetButtonText: {
     color: '#000',
+    fontSize: 16,
+    fontFamily: 'Sansation-Bold',
+  },
+  crossChainSection: {
+    alignItems: 'center',
+    paddingTop: 20,
+    paddingBottom: 20,
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(255, 255, 255, 0.1)',
+  },
+  crossChainTitle: {
+    color: 'white',
+    fontSize: 18,
+    fontFamily: 'Sansation-Bold',
+    marginBottom: 8,
+  },
+  crossChainSubtitle: {
+    color: 'rgba(255, 255, 255, 0.6)',
+    fontSize: 14,
+    fontFamily: 'Sansation-Regular',
+    marginBottom: 20,
+  },
+  crossChainButton: {
+    backgroundColor: 'rgba(52, 152, 219, 0.2)',
+    paddingVertical: 16,
+    paddingHorizontal: 32,
+    borderRadius: 30,
+    borderWidth: 1,
+    borderColor: '#3498db',
+  },
+  crossChainButtonText: {
+    color: '#3498db',
     fontSize: 16,
     fontFamily: 'Sansation-Bold',
   },

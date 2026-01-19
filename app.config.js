@@ -15,7 +15,9 @@ export default {
       backgroundColor: "#ffffff"
     },
     ios: {
-      supportsTablet: true
+      bundleIdentifier: "com.stealf.app",
+      supportsTablet: true,
+      buildNumber: "1"
     },
     android: {
       package: "com.stealf.app",
@@ -38,7 +40,7 @@ export default {
       EXPO_PUBLIC_GRID_API_KEY: process.env.EXPO_PUBLIC_GRID_API_KEY,
       EXPO_PUBLIC_GRID_ENV: process.env.EXPO_PUBLIC_GRID_ENV,
       eas: {
-        projectId: "41a91304-4856-40ae-ab0d-c5777f36b749"
+        projectId: "801eeb41-1fed-4f41-a38c-c1abc4e79eaf"
       }
     }
   }

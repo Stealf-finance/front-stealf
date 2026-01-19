@@ -49,6 +49,7 @@
     "react-native-screens": "~4.16.0",
     "react-native-svg": "^15.14.0",
     "react-native-web": "^0.21.0",
+    "react-native-webview": "^13.16.0",
     "readable-stream": "^4.0.0",
     "text-encoding": "^0.7.0"
   },
