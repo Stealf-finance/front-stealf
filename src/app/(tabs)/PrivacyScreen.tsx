@@ -3,6 +3,10 @@ import { View, Text, StyleSheet, TouchableOpacity, PanResponder, Animated, Easin
 import { BalanceCard } from '../../components/features';
 import PrivateTransactionHistory from '../../components/PrivateTransactionHistory';
 import type { PageType } from '../../navigation/types';
+import WalletSwitcher from '../../components/dashboard/WalletSwitcher';
+import { useWallet, useBalance } from '../../hooks';
+import { usePrivateBalance } from '../../hooks/usePrivateBalance';
+import { WALLET_TERMINOLOGY } from '../../constants/terminology';
 
 interface PrivacyScreenProps {
   onNavigateToPage: (page: PageType) => void;
@@ -24,6 +28,14 @@ export default function PrivacyScreen({
   currentPage = 'privacy',
 }: PrivacyScreenProps) {
   const [selectedWallet, setSelectedWallet] = React.useState(0);
+
+  // Hooks for balances (needed for Switcher)
+  const { walletAddress } = useWallet();
+  const { balance } = useBalance(walletAddress);
+  const { totalBalanceSOL: privateBalanceSOL } = usePrivateBalance();
+
+  const publicBalanceStr = `${(balance?.sol || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} SOL`;
+  const privateBalanceStr = `${(privateBalanceSOL || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} SOL`;
 
   const slideUpAnim = useRef(new Animated.Value(100)).current;
 
@@ -63,84 +75,91 @@ export default function PrivacyScreen({
 
   return (
     <View style={styles.container} {...panResponder.panHandlers}>
-          {/* Header Spacer */}
-          <View style={styles.headerSpacer} />
+      {/* Header Spacer */}
+      <View style={styles.headerSpacer} />
 
-          {/* Title */}
-          <View style={styles.titleContainer}>
-            <Text style={styles.pageTitle}>Privacy</Text>
-          </View>
+      {/* Wallet Switcher */}
+      <WalletSwitcher
+        activeWallet="privacy"
+        onSwitch={(wallet) => {
+          if (wallet === 'public') {
+            onNavigateToPage('home');
+          }
+        }}
+        publicBalance={publicBalanceStr}
+        privacyBalance={privateBalanceStr}
+      />
 
-          {/* Balance Card */}
-          <View style={styles.cardsContainer}>
-            <BalanceCard
-              onWithdraw={onOpenSendPrivate}
-              onTopUp={onOpenAddFundsPrivacy}
-              onExchange={() => console.log('Exchange')}
-              isPrivacy={true}
-              privacyAccountNumber={selectedWallet + 1}
-            />
-          </View>
-
-          {/* Private Accounts Section */}
-          <View style={styles.accountsContainer}>
-            <Text style={styles.accountsTitle}>Private Accounts</Text>
-            <View style={styles.accountsCarousel}>
-              {/* Account 1 */}
-              <TouchableOpacity
-                style={[styles.accountCard, selectedWallet === 0 && styles.accountCardActive]}
-                activeOpacity={0.8}
-                onPress={() => setSelectedWallet(0)}
-              >
-                <View style={styles.accountContent}>
-                  <Text style={styles.accountNumber}>1</Text>
-                  <Text style={styles.accountLabel}>Account</Text>
-                </View>
-              </TouchableOpacity>
-
-              {/* Account 2 */}
-              <TouchableOpacity
-                style={[styles.accountCard, selectedWallet === 1 && styles.accountCardActive]}
-                activeOpacity={0.8}
-                onPress={() => setSelectedWallet(1)}
-              >
-                <View style={styles.accountContent}>
-                  <Text style={styles.accountNumber}>2</Text>
-                  <Text style={styles.accountLabel}>Account</Text>
-                </View>
-              </TouchableOpacity>
-
-              {/* Add Account Button */}
-              <TouchableOpacity style={styles.accountCard} activeOpacity={0.8}>
-                <View style={styles.addAccount}>
-                  <Text style={styles.addAccountIcon}>+</Text>
-                </View>
-              </TouchableOpacity>
-            </View>
-          </View>
-
-          {/* Recent Activity */}
-          <Animated.View
-            style={[
-              styles.activityContainer,
-              {
-                transform: [{ translateY: slideUpAnim }],
-                opacity: slideUpAnim.interpolate({
-                  inputRange: [0, 100],
-                  outputRange: [1, 0],
-                }),
-              }
-            ]}
-          >
-            <View style={styles.activityHeader}>
-              <Text style={styles.activityTitle}>Recent Activity</Text>
-              <TouchableOpacity onPress={() => onNavigateToPage('transactionHistory')}>
-                <Text style={styles.seeAllText}>See All</Text>
-              </TouchableOpacity>
-            </View>
-            <PrivateTransactionHistory limit={2} />
-          </Animated.View>
+      {/* Balance Card */}
+      <View style={styles.cardsContainer}>
+        <BalanceCard
+          onWithdraw={onOpenSendPrivate}
+          onTopUp={onOpenAddFundsPrivacy}
+          onExchange={() => console.log('Exchange')}
+          isPrivacy={true}
+          privacyAccountNumber={selectedWallet + 1}
+        />
       </View>
+
+      {/* Private Accounts Section */}
+      <View style={styles.accountsContainer}>
+        <Text style={styles.accountsTitle}>Private Accounts</Text>
+        <View style={styles.accountsCarousel}>
+          {/* Account 1 */}
+          <TouchableOpacity
+            style={[styles.accountCard, selectedWallet === 0 && styles.accountCardActive]}
+            activeOpacity={0.8}
+            onPress={() => setSelectedWallet(0)}
+          >
+            <View style={styles.accountContent}>
+              <Text style={styles.accountNumber}>1</Text>
+              <Text style={styles.accountLabel}>Account</Text>
+            </View>
+          </TouchableOpacity>
+
+          {/* Account 2 */}
+          <TouchableOpacity
+            style={[styles.accountCard, selectedWallet === 1 && styles.accountCardActive]}
+            activeOpacity={0.8}
+            onPress={() => setSelectedWallet(1)}
+          >
+            <View style={styles.accountContent}>
+              <Text style={styles.accountNumber}>2</Text>
+              <Text style={styles.accountLabel}>Account</Text>
+            </View>
+          </TouchableOpacity>
+
+          {/* Add Account Button */}
+          <TouchableOpacity style={styles.accountCard} activeOpacity={0.8}>
+            <View style={styles.addAccount}>
+              <Text style={styles.addAccountIcon}>+</Text>
+            </View>
+          </TouchableOpacity>
+        </View>
+      </View>
+
+      {/* Recent Activity */}
+      <Animated.View
+        style={[
+          styles.activityContainer,
+          {
+            transform: [{ translateY: slideUpAnim }],
+            opacity: slideUpAnim.interpolate({
+              inputRange: [0, 100],
+              outputRange: [1, 0],
+            }),
+          }
+        ]}
+      >
+        <View style={styles.activityHeader}>
+          <Text style={styles.activityTitle}>Recent Activity</Text>
+          <TouchableOpacity onPress={() => onNavigateToPage('transactionHistory')}>
+            <Text style={styles.seeAllText}>See All</Text>
+          </TouchableOpacity>
+        </View>
+        <PrivateTransactionHistory limit={2} />
+      </Animated.View>
+    </View>
   );
 }
 
@@ -151,7 +170,7 @@ const styles = StyleSheet.create({
     backgroundColor: 'transparent',
   },
   headerSpacer: {
-    height: 110,
+    height: 60, // Reduced height since Switcher is smaller
   },
   cardsContainer: {
     alignItems: 'center',
@@ -178,18 +197,6 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '500',
     color: 'rgba(255, 255, 255, 0.6)',
-  },
-  titleContainer: {
-    alignItems: 'center',
-    marginTop: 0,
-    marginBottom: 16,
-  },
-  pageTitle: {
-    fontSize: 28,
-    fontWeight: '600',
-    color: 'white',
-    letterSpacing: 0.5,
-    fontFamily: 'Sansation-Bold',
   },
   accountsContainer: {
     marginTop: 15,

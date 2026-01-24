@@ -100,7 +100,7 @@ export default function AddFundsScreen({ onBack }: AddFundsScreenProps) {
           <TouchableOpacity style={styles.backButton} onPress={onBack} activeOpacity={0.8}>
             <Text style={styles.backArrow}>←</Text>
           </TouchableOpacity>
-          <Text style={styles.headerTitle}>Add Funds</Text>
+          <Text style={styles.headerTitle}>Add to Public Wallet</Text>
           <View style={styles.placeholder} />
         </View>
 
@@ -119,9 +119,6 @@ export default function AddFundsScreen({ onBack }: AddFundsScreenProps) {
 
           {/* Wallet Address Section */}
           <View style={styles.addressSection}>
-            <Text style={styles.infoText}>
-              SOL - Solana Network
-            </Text>
             <TouchableOpacity
               style={styles.addressButton}
               onPress={handleCopy}
@@ -154,24 +151,26 @@ export default function AddFundsScreen({ onBack }: AddFundsScreenProps) {
           </View>
 
           {/* Faucet Section (Devnet) */}
-          <View style={styles.faucetSection}>
-            <Text style={styles.faucetTitle}>Need test SOL?</Text>
-            <Text style={styles.faucetSubtitle}>
-              Get free devnet SOL for testing
-            </Text>
-            <TouchableOpacity
-              style={styles.faucetButton}
-              onPress={handleFaucet}
-              activeOpacity={0.8}
-              disabled={faucetLoading || !walletAddress}
-            >
-              {faucetLoading ? (
-                <ActivityIndicator color="#000" size="small" />
-              ) : (
-                <Text style={styles.faucetButtonText}>Get Devnet SOL</Text>
-              )}
-            </TouchableOpacity>
-          </View>
+          {__DEV__ && (
+            <View style={styles.faucetSection}>
+              <Text style={styles.faucetTitle}>Need test SOL?</Text>
+              <Text style={styles.faucetSubtitle}>
+                Get free devnet SOL for testing
+              </Text>
+              <TouchableOpacity
+                style={styles.faucetButton}
+                onPress={handleFaucet}
+                activeOpacity={0.8}
+                disabled={faucetLoading || !walletAddress}
+              >
+                {faucetLoading ? (
+                  <ActivityIndicator color="#000" size="small" />
+                ) : (
+                  <Text style={styles.faucetButtonText}>Get Devnet SOL</Text>
+                )}
+              </TouchableOpacity>
+            </View>
+          )}
         </ScrollView>
 
         {/* Cross-Chain Modal */}

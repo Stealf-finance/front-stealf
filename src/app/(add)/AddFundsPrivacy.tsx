@@ -91,7 +91,10 @@ export default function AddFundsScreen({ onBack }: AddFundsScreenProps) {
           <TouchableOpacity style={styles.backButton} onPress={onBack} activeOpacity={0.8}>
             <Text style={styles.backArrow}>←</Text>
           </TouchableOpacity>
-          <Text style={styles.headerTitle}>Add Funds</Text>
+          <View style={{ alignItems: 'center' }}>
+            <Text style={styles.headerTitle}>Add to Privacy Wallet</Text>
+            <Text style={styles.headerSubtitle}>⚠️ Shielded address</Text>
+          </View>
           <View style={styles.placeholder} />
         </View>
 
@@ -99,12 +102,15 @@ export default function AddFundsScreen({ onBack }: AddFundsScreenProps) {
           {/* QR Code Section */}
           <View style={styles.qrSection}>
             <Text style={styles.qrTitle}>Scan QR Code</Text>
-            <View style={styles.qrContainer}>
+            <View style={[styles.qrContainer, styles.qrContainerPrivacy]}>
               {qrCode || (
                 <View style={styles.qrPlaceholder}>
                   <Text style={styles.qrPlaceholderText}>Loading...</Text>
                 </View>
               )}
+              <View style={styles.lockBadge}>
+                <Text style={styles.lockIcon}>🔒</Text>
+              </View>
             </View>
           </View>
 
@@ -242,5 +248,34 @@ const styles = StyleSheet.create({
     height: 24,
     tintColor: 'rgba(255, 255, 255, 0.7)',
     marginLeft: 12,
+  },
+  headerSubtitle: {
+    fontSize: 12,
+    color: '#FFD60A', // Warning color
+    fontFamily: 'Sansation-Regular',
+    marginTop: 2,
+  },
+  qrContainerPrivacy: {
+    borderWidth: 2,
+    borderColor: '#8B5CF6', // Privacy accent
+    borderRadius: 16,
+    padding: 10,
+    position: 'relative',
+  },
+  lockBadge: {
+    position: 'absolute',
+    bottom: -10,
+    right: -10,
+    backgroundColor: '#8B5CF6',
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 2,
+    borderColor: '#050008',
+  },
+  lockIcon: {
+    fontSize: 16,
   },
 });

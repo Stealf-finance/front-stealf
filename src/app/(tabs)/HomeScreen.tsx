@@ -6,6 +6,10 @@ import CardScreen from '../(infos)/CardScreen';
 import AddFundsModal from '../../components/AddFundsModal';
 import SendModal from '../../components/SendModal';
 import type { PageType } from '../../navigation/types';
+import WalletSwitcher from '../../components/dashboard/WalletSwitcher';
+import { useWallet, useBalance } from '../../hooks';
+import { usePrivateBalance } from '../../hooks/usePrivateBalance';
+import { WALLET_TERMINOLOGY } from '../../constants/terminology';
 
 interface HomeScreenProps {
   onNavigateToPage: (page: PageType) => void;
@@ -33,6 +37,14 @@ export default function HomeScreen({
   const [showCardScreen, setShowCardScreen] = useState(false);
   const [showAddFundsModal, setShowAddFundsModal] = useState(false);
   const [showSendModal, setShowSendModal] = useState(false);
+
+  // Hooks for balances
+  const { walletAddress } = useWallet();
+  const { balance } = useBalance(walletAddress);
+  const { totalBalanceSOL: privateBalanceSOL } = usePrivateBalance();
+
+  const publicBalanceStr = `${(balance?.sol || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} SOL`;
+  const privateBalanceStr = `${(privateBalanceSOL || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} SOL`;
 
   const slideUpAnim = useRef(new Animated.Value(100)).current;
 
@@ -93,106 +105,113 @@ export default function HomeScreen({
 
   return (
     <View style={styles.container} {...panResponder.panHandlers}>
-        {/* Header Spacer */}
-        <View style={styles.headerSpacer} />
+      {/* Header Spacer */}
+      <View style={styles.headerSpacer} />
 
-        {/* Title */}
-        <View style={styles.titleContainer}>
-          <Text style={styles.pageTitle}>Cash</Text>
-        </View>
+      {/* Wallet Switcher */}
+      <WalletSwitcher
+        activeWallet="public"
+        onSwitch={(wallet) => {
+          if (wallet === 'privacy') {
+            onNavigateToPage('privacy');
+          }
+        }}
+        publicBalance={publicBalanceStr}
+        privacyBalance={privateBalanceStr}
+      />
 
-        {/* Cards Container */}
-        <View style={styles.cardsContainer}>
-          {/* Balance Card */}
-          <BalanceCard
-            onWithdraw={handleSendPress}
-            onTopUp={handleAddFundsPress}
-            onExchange={onOpenInfo}
-          />
-        </View>
+      {/* Cards Container */}
+      <View style={styles.cardsContainer}>
+        {/* Balance Card */}
+        <BalanceCard
+          onWithdraw={handleSendPress}
+          onTopUp={handleAddFundsPress}
+          onExchange={onOpenInfo}
+        />
+      </View>
 
-        {/* Cards Section */}
-        <View style={styles.cardsCarouselContainer}>
-          <Text style={styles.cardsTitle}>Cards</Text>
-          <View style={styles.cardsCarousel}>
-            {/* Stealf Card */}
-            {!showCardScreen && (
-              <TouchableOpacity
-                style={styles.miniCard}
-                activeOpacity={0.6}
-                disabled
-              >
-                <ImageBackground
-                  source={require('../../assets/stealf-card.png')}
-                  style={styles.miniCardImage}
-                  resizeMode="cover"
-                  imageStyle={{ borderRadius: 16 }}
-                />
-                <View style={styles.comingSoonOverlay}>
-                  <Text style={styles.comingSoonText}>Coming Soon</Text>
-                </View>
-              </TouchableOpacity>
-            )}
-
-            {/* gMPC Card */}
-            {!showCardScreen && (
-              <TouchableOpacity
-                style={styles.miniCard}
-                activeOpacity={0.6}
-                disabled
-              >
-                <ImageBackground
-                  source={require('../../assets/gMPC-card.png')}
-                  style={styles.miniCardImage}
-                  resizeMode="cover"
-                  imageStyle={{ borderRadius: 16 }}
-                />
-                <View style={styles.comingSoonOverlay}>
-                  <Text style={styles.comingSoonText}>Coming Soon</Text>
-                </View>
-              </TouchableOpacity>
-            )}
-          </View>
-        </View>
-
-        {/* Recent Activity */}
-        <Animated.View
-          style={[
-            styles.activityContainer,
-            {
-              transform: [{ translateY: slideUpAnim }],
-              opacity: slideUpAnim.interpolate({
-                inputRange: [0, 100],
-                outputRange: [1, 0],
-              }),
-            }
-          ]}
-        >
-          <View style={styles.activityHeader}>
-            <Text style={styles.activityTitle}>Recent Activity</Text>
-            <TouchableOpacity onPress={() => onNavigateToPage('transactionHistory')}>
-              <Text style={styles.seeAllText}>See All</Text>
+      {/* Cards Section */}
+      <View style={styles.cardsCarouselContainer}>
+        <Text style={styles.cardsTitle}>Cards</Text>
+        <View style={styles.cardsCarousel}>
+          {/* Stealf Card */}
+          {!showCardScreen && (
+            <TouchableOpacity
+              style={styles.miniCard}
+              activeOpacity={0.6}
+              disabled
+            >
+              <ImageBackground
+                source={require('../../assets/stealf-card.png')}
+                style={styles.miniCardImage}
+                resizeMode="cover"
+                imageStyle={{ borderRadius: 16 }}
+              />
+              <View style={styles.comingSoonOverlay}>
+                <Text style={styles.comingSoonText}>Coming Soon</Text>
+              </View>
             </TouchableOpacity>
-          </View>
-          <TransactionHistory limit={2} />
-        </Animated.View>
+          )}
 
-        {/* Card Detail Screen */}
-        {showCardScreen && <CardScreen onClose={handleCloseCard} />}
+          {/* gMPC Card */}
+          {!showCardScreen && (
+            <TouchableOpacity
+              style={styles.miniCard}
+              activeOpacity={0.6}
+              disabled
+            >
+              <ImageBackground
+                source={require('../../assets/gMPC-card.png')}
+                style={styles.miniCardImage}
+                resizeMode="cover"
+                imageStyle={{ borderRadius: 16 }}
+              />
+              <View style={styles.comingSoonOverlay}>
+                <Text style={styles.comingSoonText}>Coming Soon</Text>
+              </View>
+            </TouchableOpacity>
+          )}
+        </View>
+      </View>
 
-        {/* Add Funds Modal */}
-        <AddFundsModal
-          visible={showAddFundsModal}
-          onClose={() => setShowAddFundsModal(false)}
-          onSelectStablecoin={handleSelectStablecoin}
-        />
+      {/* Recent Activity */}
+      <Animated.View
+        style={[
+          styles.activityContainer,
+          {
+            transform: [{ translateY: slideUpAnim }],
+            opacity: slideUpAnim.interpolate({
+              inputRange: [0, 100],
+              outputRange: [1, 0],
+            }),
+          }
+        ]}
+      >
+        <View style={styles.activityHeader}>
+          <Text style={styles.activityTitle}>Recent Activity</Text>
+          <TouchableOpacity onPress={() => onNavigateToPage('transactionHistory')}>
+            <Text style={styles.seeAllText}>See All</Text>
+          </TouchableOpacity>
+        </View>
+        <TransactionHistory limit={2} />
+      </Animated.View>
 
-        {/* Send Modal */}
-        <SendModal
-          visible={showSendModal}
-          onClose={() => setShowSendModal(false)}
-          onSelectStablecoin={handleSelectStablecoinSend}
-        />
+      {/* Card Detail Screen */}
+      {showCardScreen && <CardScreen onClose={handleCloseCard} />}
+
+      {/* Add Funds Modal */}
+      <AddFundsModal
+        visible={showAddFundsModal}
+        onClose={() => setShowAddFundsModal(false)}
+        onSelectStablecoin={handleSelectStablecoin}
+      />
+
+      {/* Send Modal */}
+      <SendModal
+        visible={showSendModal}
+        onClose={() => setShowSendModal(false)}
+        onSelectStablecoin={handleSelectStablecoinSend}
+      />
     </View>
   );
 }
@@ -204,7 +223,7 @@ const styles = StyleSheet.create({
     backgroundColor: 'transparent',
   },
   headerSpacer: {
-    height: 110,
+    height: 60, // Reduced height since Switcher is smaller than large title + spacing
   },
   cardsContainer: {
     alignItems: 'center',
@@ -292,16 +311,5 @@ const styles = StyleSheet.create({
     fontWeight: '500',
     color: 'rgba(255, 255, 255, 0.6)',
   },
-  titleContainer: {
-    alignItems: 'center',
-    marginTop: 0,
-    marginBottom: 16,
-  },
-  pageTitle: {
-    fontSize: 28,
-    fontWeight: '600',
-    color: 'white',
-    letterSpacing: 0.5,
-    fontFamily: 'Sansation-Bold',
-  },
+  // Removed titleContainer and pageTitle as they are replaced by WalletSwitcher
 });

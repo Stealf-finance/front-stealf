@@ -37,7 +37,7 @@ export default function SendModal({
 
             {/* Options */}
             <View style={styles.optionsContainer}>
-              {/* Stablecoin Option */}
+              {/* Crypto Option */}
               <TouchableOpacity
                 style={styles.optionButton}
                 onPress={onSelectStablecoin}
@@ -45,9 +45,34 @@ export default function SendModal({
               >
                 <View style={styles.optionContent}>
                   <View style={styles.optionTextContainer}>
-                    <Text style={styles.optionTitle}>Stablecoin</Text>
+                    <Text style={styles.optionTitle}>Crypto</Text>
                     <Text style={styles.optionDescription}>
-                      Send SOL to any address
+                      Send USDC or SOL to any address
+                    </Text>
+                  </View>
+                  <Text style={styles.arrow}>›</Text>
+                </View>
+              </TouchableOpacity>
+
+              {/* Privacy Wallet Option */}
+              <TouchableOpacity
+                style={[styles.optionButton, styles.highlightedOption]}
+                onPress={() => {
+                  // TODO: Handle privacy transfer navigation
+                  onClose();
+                }}
+                activeOpacity={0.7}
+              >
+                <View style={styles.optionContent}>
+                  <View style={styles.optionTextContainer}>
+                    <View style={styles.titleRow}>
+                      <Text style={styles.optionTitle}>To Privacy Wallet</Text>
+                      <View style={styles.badge}>
+                        <Text style={styles.badgeText}>🔒 Private</Text>
+                      </View>
+                    </View>
+                    <Text style={styles.optionDescription}>
+                      Instant & anonymous transfer
                     </Text>
                   </View>
                   <Text style={styles.arrow}>›</Text>
@@ -178,5 +203,27 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
     color: 'rgba(255, 255, 255, 0.7)',
+  },
+  highlightedOption: {
+    borderColor: '#E85D75', // COLORS.accent
+    borderWidth: 2,
+    backgroundColor: 'rgba(232, 93, 117, 0.08)',
+  },
+  titleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 2,
+    gap: 8,
+  },
+  badge: {
+    backgroundColor: 'rgba(232, 93, 117, 0.2)',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 4,
+  },
+  badgeText: {
+    color: '#E85D75',
+    fontSize: 10,
+    fontWeight: 'bold',
   },
 });
