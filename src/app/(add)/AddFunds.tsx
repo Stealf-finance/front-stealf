@@ -10,8 +10,8 @@ import { useFonts } from 'expo-font';
 import AppBackground from '../../components/common/AppBackground';
 import QRCode from 'react-native-qrcode-svg';
 import * as Clipboard from 'expo-clipboard';
-import { useWallet } from '../../hooks/useWallet';
 import type { AddFundsScreenProps } from '../../types';
+import { useAuth } from '../../contexts/AuthContext';
 
 export default function AddFundsScreen({ onBack }: AddFundsScreenProps) {
   const [fontsLoaded] = useFonts({
@@ -21,7 +21,8 @@ export default function AddFundsScreen({ onBack }: AddFundsScreenProps) {
     'Sansation-Italic': require('../../assets/font/Sansation/Sansation-Italic.ttf'),
   });
 
-  const { walletAddress } = useWallet();
+  const { userData } = useAuth();
+  const walletAddress = userData?.cash_wallet;
   const [copied, setCopied] = useState(false);
 
   const handleCopy = async () => {

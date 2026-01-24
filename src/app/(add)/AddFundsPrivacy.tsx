@@ -10,8 +10,8 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useFonts } from 'expo-font';
 import QRCode from 'react-native-qrcode-svg';
 import * as Clipboard from 'expo-clipboard';
-import * as SecureStore from 'expo-secure-store';
 import type { AddFundsScreenProps } from '../../types';
+import { useAuth } from '../../contexts/AuthContext';
 
 export default function AddFundsScreen({ onBack }: AddFundsScreenProps) {
   const [fontsLoaded] = useFonts({
@@ -21,27 +21,9 @@ export default function AddFundsScreen({ onBack }: AddFundsScreenProps) {
     'Sansation-Italic': require('../../assets/font/Sansation/Sansation-Italic.ttf'),
   });
 
-  const [walletAddress, setWalletAddress] = useState<string | null>(null);
+  const { userData } = useAuth();
+  const walletAddress = userData?.stealf_wallet;
   const [copied, setCopied] = useState(false);
-
-  // Load private wallet address from SecureStore
-  useEffect(() => {
-    loadPrivateWalletAddress();
-  }, []);
-
-  const loadPrivateWalletAddress = async () => {
-    try {
-      const address = await SecureStore.getItemAsync('private_wallet_address');
-      if (address) {
-        setWalletAddress(address);
-        console.log('✅ Private wallet address loaded:', address);
-      } else {
-        console.log('⚠️ No private wallet address found');
-      }
-    } catch (error) {
-      console.error('❌ Error loading private wallet address:', error);
-    }
-  };
 
   const handleCopy = async () => {
     if (walletAddress) {

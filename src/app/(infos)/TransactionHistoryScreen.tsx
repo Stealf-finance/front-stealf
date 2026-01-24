@@ -1,13 +1,13 @@
 import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
 import TransactionHistory from '../../components/TransactionHistory';
 
 interface TransactionHistoryScreenProps {
   onClose: () => void;
+  walletType?: 'cash' | 'privacy';
 }
 
-export default function TransactionHistoryScreen({ onClose }: TransactionHistoryScreenProps) {
+export default function TransactionHistoryScreen({ onClose, walletType = 'cash' }: TransactionHistoryScreenProps) {
   return (
     <View style={styles.container}>
       <View style={styles.header}>
@@ -19,7 +19,7 @@ export default function TransactionHistoryScreen({ onClose }: TransactionHistory
       </View>
 
       <View style={styles.content}>
-        <TransactionHistory limit={50} />
+        <TransactionHistory limit={50} walletType={walletType} />
       </View>
     </View>
   );

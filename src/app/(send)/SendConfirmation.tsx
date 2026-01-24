@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useRef } from 'react';
 import {
   View,
   Text,
@@ -12,11 +12,17 @@ import {
   Platform,
   ScrollView,
   Linking,
+  Alert,
 } from 'react-native';
 import * as Clipboard from 'expo-clipboard';
 import { useFonts } from 'expo-font';
 import AppBackground from '../../components/common/AppBackground';
-import { useSendTransaction } from '../../hooks/useSendTransaction';
+import { useSendTransaction } from '../../hooks/useSendSimpleTransaction';
+import { useAuth } from '../../contexts/AuthContext';
+import { useAuthenticatedApi } from '../../services/apiClient';
+import { createGetSolPriceUSD } from '../../services/fetchWalletInfos';
+
+type DestinationType = 'privacy' | 'external';
 
 interface SendConfirmationProps {
   amount: string;
@@ -25,24 +31,88 @@ interface SendConfirmationProps {
 }
 
 export default function SendConfirmation({ amount, onBack, onSuccess }: SendConfirmationProps) {
-  const {
-    isLoading,
-    showSuccessModal,
-    transactionSignature,
-    destinationType,
-    setDestinationType,
-    externalAddress,
-    setExternalAddress,
-    selectedPrivacyWallet,
-    setSelectedPrivacyWallet,
-    showPrivacyDropdown,
-    setShowPrivacyDropdown,
-    successAnimation,
-    checkmarkScale,
-    privateWallets,
-    handleConfirm,
-    closeSuccessModal,
-  } = useSendTransaction(onSuccess);
+  const { userData } = useAuth();
+  const { sendTransaction, loading } = useSendTransaction();
+  const api = useAuthenticatedApi();
+
+  const [destinationType, setDestinationType] = useState<DestinationType>('external');
+  const [externalAddress, setExternalAddress] = useState('');
+  const [showSuccessModal, setShowSuccessModal] = useState(false);
+  const [transactionSignature, setTransactionSignature] = useState<string | null>(null);
+
+  const successAnimation = useRef(new Animated.Value(0)).current;
+  const checkmarkScale = useRef(new Animated.Value(0)).current;
+
+  const handleConfirm = async () => {
+    if (destinationType === 'external' && !externalAddress) {
+      Alert.alert('Error', 'Please enter a destination address');
+      return;
+    }
+
+    if (!userData?.cash_wallet) {
+      Alert.alert('Error', 'No wallet found');
+      return;
+    }
+
+    try {
+      const toAddress = destinationType === 'privacy'
+        ? userData.stealf_wallet || ''
+        : externalAddress;
+
+      if (!toAddress) {
+        throw new Error('Invalid destination address');
+      }
+
+      const getSolPrice = createGetSolPriceUSD(api);
+      const priceData = await getSolPrice();
+      const solPrice = priceData?.price_usd || priceData?.price || 0;
+
+      if (solPrice === 0) {
+        throw new Error('Unable to fetch SOL price. Please try again.');
+      }
+
+      const amountSOL = parseFloat(amount) / solPrice;
+
+      const signature = await sendTransaction(
+        userData.cash_wallet,
+        toAddress,
+        amountSOL
+      );
+
+      setTransactionSignature(signature);
+      setShowSuccessModal(true);
+      Animated.sequence([
+        Animated.timing(successAnimation, {
+          toValue: 1,
+          duration: 300,
+          useNativeDriver: true,
+        }),
+        Animated.spring(checkmarkScale, {
+          toValue: 1,
+          friction: 4,
+          tension: 40,
+          useNativeDriver: true,
+        }),
+      ]).start();
+
+    } catch (err: any) {
+      console.error('Transaction error:', err);
+      Alert.alert(
+        'Transaction Failed',
+        err.message || 'An error occurred while sending the transaction'
+      );
+    }
+  };
+
+  const closeSuccessModal = () => {
+    setShowSuccessModal(false);
+    successAnimation.setValue(0);
+    checkmarkScale.setValue(0);
+    setTransactionSignature(null);
+    onSuccess();
+  };
+
+  const isLoading = loading;
 
   const [fontsLoaded] = useFonts({
     'Sansation-Regular': require('../../assets/font/Sansation/Sansation-Regular.ttf'),
@@ -109,7 +179,7 @@ export default function SendConfirmation({ amount, onBack, onSuccess }: SendConf
                   styles.toggleText,
                   destinationType === 'privacy' && styles.toggleTextActive
                 ]}>
-                  My Privacy Wallet
+                  My Stealf Wallet
                 </Text>
               </TouchableOpacity>
 
@@ -130,58 +200,12 @@ export default function SendConfirmation({ amount, onBack, onSuccess }: SendConf
               </TouchableOpacity>
             </View>
 
-            {/* Privacy Wallet Info */}
+            {/* Stealf Wallet Address Display */}
             {destinationType === 'privacy' && (
-              <View style={styles.privacyInfoContainer}>
-                <Text style={styles.privacyInfoTitle}>🔒 Umbra Privacy Transfer</Text>
-                <Text style={styles.privacyInfoText}>
-                  Your funds will be anonymously deposited into the Umbra mixer pool.
+              <View style={styles.addressDisplayContainer}>
+                <Text style={styles.addressDisplayText}>
+                  {userData?.stealf_wallet ? `${userData.stealf_wallet.substring(0, 20)}...` : 'No wallet found'}
                 </Text>
-                <Text style={styles.privacyInfoDetails}>
-                  • Transaction is anonymous{'\n'}
-                  • Amount visible on-chain{'\n'}
-                  • Estimated time: 30-60 seconds{'\n'}
-                  • Can be claimed later from Privacy Balance
-                </Text>
-              </View>
-            )}
-
-            {/* Privacy Wallet Dropdown - Commented for now (single wallet) */}
-            {false && destinationType === 'privacy' && (
-              <View style={styles.dropdownContainer}>
-                <TouchableOpacity
-                  style={styles.dropdownButton}
-                  onPress={() => setShowPrivacyDropdown(!showPrivacyDropdown)}
-                  activeOpacity={0.8}
-                >
-                  <Text style={styles.dropdownButtonText}>
-                    {privateWallets.find(w => w.id === selectedPrivacyWallet)?.name || 'Select Wallet'}
-                  </Text>
-                  <Text style={styles.dropdownArrow}>▼</Text>
-                </TouchableOpacity>
-
-                {showPrivacyDropdown && (
-                  <View style={styles.dropdownList}>
-                    {privateWallets.map((wallet) => (
-                      <TouchableOpacity
-                        key={wallet.id}
-                        style={styles.dropdownItem}
-                        onPress={() => {
-                          setSelectedPrivacyWallet(wallet.id);
-                          setShowPrivacyDropdown(false);
-                        }}
-                        activeOpacity={0.8}
-                      >
-                        <Text style={[
-                          styles.dropdownItemText,
-                          selectedPrivacyWallet === wallet.id && styles.dropdownItemTextActive
-                        ]}>
-                          {wallet.name}
-                        </Text>
-                      </TouchableOpacity>
-                    ))}
-                  </View>
-                )}
               </View>
             )}
 
@@ -205,7 +229,7 @@ export default function SendConfirmation({ amount, onBack, onSuccess }: SendConf
           <View style={styles.buttonContainer}>
             <TouchableOpacity
               style={styles.confirmButton}
-              onPress={() => handleConfirm(amount)}
+              onPress={handleConfirm}
               disabled={isLoading}
               activeOpacity={0.8}
             >
@@ -284,12 +308,9 @@ export default function SendConfirmation({ amount, onBack, onSuccess }: SendConf
 
                 <TouchableOpacity
                   style={styles.viewExplorerButton}
-                  onPress={() => {
-                    Linking.openURL(`https://explorer.solana.com/tx/${transactionSignature}?cluster=devnet`);
-                  }}
+
                   activeOpacity={0.8}
                 >
-                  <Text style={styles.viewExplorerText}>View on Explorer</Text>
                 </TouchableOpacity>
 
                 <TouchableOpacity
@@ -391,13 +412,8 @@ const styles = StyleSheet.create({
     color: 'white',
     fontFamily: 'Sansation-Bold',
   },
-  dropdownContainer: {
+  addressDisplayContainer: {
     marginTop: 16,
-  },
-  dropdownButton: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
     backgroundColor: 'rgba(255, 255, 255, 0.05)',
     borderRadius: 16,
     borderWidth: 1,
@@ -405,37 +421,10 @@ const styles = StyleSheet.create({
     paddingVertical: 16,
     paddingHorizontal: 16,
   },
-  dropdownButtonText: {
-    color: 'white',
-    fontSize: 16,
-    fontFamily: 'Sansation-Regular',
-  },
-  dropdownArrow: {
-    color: 'rgba(255, 255, 255, 0.5)',
-    fontSize: 12,
-  },
-  dropdownList: {
-    marginTop: 8,
-    backgroundColor: 'rgba(255, 255, 255, 0.05)',
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.1)',
-    overflow: 'hidden',
-  },
-  dropdownItem: {
-    paddingVertical: 14,
-    paddingHorizontal: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: 'rgba(255, 255, 255, 0.05)',
-  },
-  dropdownItemText: {
+  addressDisplayText: {
     color: 'rgba(255, 255, 255, 0.7)',
-    fontSize: 15,
+    fontSize: 14,
     fontFamily: 'Sansation-Regular',
-  },
-  dropdownItemTextActive: {
-    color: 'white',
-    fontFamily: 'Sansation-Bold',
   },
   addressInputContainer: {
     marginTop: 16,
@@ -544,33 +533,5 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: 'bold',
     fontFamily: 'Sansation-Bold',
-  },
-  privacyInfoContainer: {
-    marginTop: 16,
-    backgroundColor: 'rgba(138, 43, 226, 0.1)',
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: 'rgba(138, 43, 226, 0.3)',
-    padding: 16,
-  },
-  privacyInfoTitle: {
-    color: '#B19CD9',
-    fontSize: 16,
-    fontWeight: '600',
-    marginBottom: 8,
-    fontFamily: 'Sansation-Bold',
-  },
-  privacyInfoText: {
-    color: 'rgba(255, 255, 255, 0.8)',
-    fontSize: 14,
-    marginBottom: 12,
-    fontFamily: 'Sansation-Regular',
-    lineHeight: 20,
-  },
-  privacyInfoDetails: {
-    color: 'rgba(255, 255, 255, 0.6)',
-    fontSize: 12,
-    fontFamily: 'Sansation-Regular',
-    lineHeight: 18,
   },
 });

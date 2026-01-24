@@ -31,6 +31,7 @@ export default function HomeScreen({
   currentPage = 'home',
 }: HomeScreenProps) {
   const [showCardScreen, setShowCardScreen] = useState(false);
+  const [selectedCard, setSelectedCard] = useState<'stealf' | 'gmpc'>('stealf');
   const [showAddFundsModal, setShowAddFundsModal] = useState(false);
   const [showSendModal, setShowSendModal] = useState(false);
 
@@ -62,8 +63,9 @@ export default function HomeScreen({
     },
   });
 
-  const handleCardPress = () => {
+  const handleCardPress = (cardType: 'stealf' | 'gmpc') => {
     if (showCardScreen) return; // Empêcher double clic
+    setSelectedCard(cardType);
     setShowCardScreen(true);
     onCardScreenChange?.(true);
   };
@@ -124,7 +126,7 @@ export default function HomeScreen({
               <TouchableOpacity
                 style={styles.miniCard}
                 activeOpacity={0.6}
-                disabled
+                onPress={() => handleCardPress('stealf')}
               >
                 <ImageBackground
                   source={require('../../assets/stealf-card.png')}
@@ -132,9 +134,6 @@ export default function HomeScreen({
                   resizeMode="cover"
                   imageStyle={{ borderRadius: 16 }}
                 />
-                <View style={styles.comingSoonOverlay}>
-                  <Text style={styles.comingSoonText}>Coming Soon</Text>
-                </View>
               </TouchableOpacity>
             )}
 
@@ -143,7 +142,7 @@ export default function HomeScreen({
               <TouchableOpacity
                 style={styles.miniCard}
                 activeOpacity={0.6}
-                disabled
+                onPress={() => handleCardPress('gmpc')}
               >
                 <ImageBackground
                   source={require('../../assets/gMPC-card.png')}
@@ -151,9 +150,6 @@ export default function HomeScreen({
                   resizeMode="cover"
                   imageStyle={{ borderRadius: 16 }}
                 />
-                <View style={styles.comingSoonOverlay}>
-                  <Text style={styles.comingSoonText}>Coming Soon</Text>
-                </View>
               </TouchableOpacity>
             )}
           </ScrollView>
@@ -182,7 +178,7 @@ export default function HomeScreen({
         </Animated.View>
 
         {/* Card Detail Screen */}
-        {showCardScreen && <CardScreen onClose={handleCloseCard} />}
+        {showCardScreen && <CardScreen onClose={handleCloseCard} cardType={selectedCard} />}
 
         {/* Add Funds Modal */}
         <AddFundsModal

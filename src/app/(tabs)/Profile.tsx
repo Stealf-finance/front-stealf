@@ -1,10 +1,7 @@
-import React, { useState, useEffect } from 'react';
-import { StyleSheet, View, Text, TouchableOpacity, ScrollView, Image, PanResponder, Switch, Linking } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import React from 'react';
+import { StyleSheet, View, Text, TouchableOpacity, ScrollView, Image, PanResponder, Linking } from 'react-native';
 import AppBackground from '../../components/common/AppBackground';
-import { storageService } from '../../services';
-import { isBiometricAvailable, isBiometricEnabled, enableBiometric, disableBiometric, getBiometricType } from '../../services/biometricService';
-import { authStorage } from '../../services/authStorage';
+import { useAuth } from '../../contexts/AuthContext';
 
 interface ProfileScreenProps {
   onBack?: () => void;
@@ -16,60 +13,20 @@ interface ProfileScreenProps {
 }
 
 export default function ProfileScreen({ onBack, onNavigateToPage, onLogout, currentPage, userEmail, username }: ProfileScreenProps) {
-  const [biometricAvailable, setBiometricAvailable] = useState(false);
-  const [biometricEnabled, setBiometricEnabled] = useState(false);
-  const [biometricType, setBiometricType] = useState<string | null>(null);
-  const [isTogglingBiometric, setIsTogglingBiometric] = useState(false);
-
-  useEffect(() => {
-    checkBiometricStatus();
-  }, []);
-
-  const checkBiometricStatus = async () => {
-    const available = await isBiometricAvailable();
-    const enabled = await isBiometricEnabled();
-    const type = await getBiometricType();
-
-    setBiometricAvailable(available);
-    setBiometricEnabled(enabled);
-    setBiometricType(type);
-  };
-
-  const handleToggleBiometric = async (value: boolean) => {
-    setIsTogglingBiometric(true);
-
-    try {
-      if (value) {
-        const token = await authStorage.getAccessToken();
-        if (token) {
-          const success = await enableBiometric(token);
-          if (success) {
-            setBiometricEnabled(true);
-            console.log('✅ Biometric enabled successfully');
-          } else {
-            console.log('❌ Failed to enable biometric');
-          }
-        }
-      } else {
-        await disableBiometric();
-        setBiometricEnabled(false);
-        console.log('✅ Biometric disabled');
-      }
-    } catch (error) {
-      console.error('Error toggling biometric:', error);
-    } finally {
-      setIsTogglingBiometric(false);
-    }
-  };
+  const { setUserData } = useAuth();
 
   const handleLogout = async () => {
     try {
-      await storageService.clearAll();
-      console.log('✅ All user data cleared from storage');
-      onLogout();
+      setUserData(null);
+      console.log('✅ User logged out');
+      if (onLogout) {
+        onLogout();
+      }
     } catch (error) {
-      console.error('❌ Error clearing user data:', error);
-      onLogout();
+      console.error('❌ Error logging out:', error);
+      if (onLogout) {
+        onLogout();
+      }
     }
   };
 
@@ -130,28 +87,6 @@ export default function ProfileScreen({ onBack, onNavigateToPage, onLogout, curr
 
           {/* Bottom Actions */}
           <View style={styles.bottomActions}>
-            {/* Biometric Toggle */}
-            {biometricAvailable && (
-              <View style={styles.profileActionButton}>
-                <View style={styles.profileActionIcon}>
-                  <Ionicons name="scan" size={20} color="white" />
-                </View>
-                <View style={styles.profileActionInfo}>
-                  <Text style={styles.profileActionTitle}>{biometricType}</Text>
-                  <Text style={styles.profileActionSubtitle}>
-                    {biometricEnabled ? 'Active' : 'Disabled'}
-                  </Text>
-                </View>
-                <Switch
-                  value={biometricEnabled}
-                  onValueChange={handleToggleBiometric}
-                  disabled={isTogglingBiometric}
-                  trackColor={{ false: 'rgba(255, 255, 255, 0.2)', true: 'rgba(255, 255, 255, 0.4)' }}
-                  thumbColor={biometricEnabled ? '#ffffff' : '#f4f3f4'}
-                />
-              </View>
-            )}
-
             <TouchableOpacity style={styles.profileActionButton} activeOpacity={0.8} onPress={handleOpenTelegramBot}>
               <View style={styles.profileActionIcon}>
                 <Text style={styles.profileActionIconText}>?</Text>

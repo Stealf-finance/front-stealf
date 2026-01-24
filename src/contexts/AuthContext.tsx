@@ -1,62 +1,89 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import { useTurnkey } from '@turnkey/react-native-wallet-kit';
 import { authStorage } from '../services/authStorage';
-import type { UserData } from '../types';
+import { socketService } from '../services/socketService';
+
+interface UserData {
+  email?: string;
+  username?: string;
+  cash_wallet?: string;
+  stealf_wallet?: string;
+  subOrgId?: string;
+}
 
 interface AuthContextType {
   isAuthenticated: boolean;
   userData: UserData | null;
-  login: (data: UserData) => Promise<void>;
-  logout: () => Promise<void>;
   loading: boolean;
+  logout: () => Promise<void>;
+  setUserData: (data: UserData | null) => void;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [userData, setUserData] = useState<UserData | null>(null);
+  const { user, session, logout: turnkeyLogout } = useTurnkey();
+  const [userDataState, setUserDataState] = useState<UserData | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    checkAuth();
-  }, []);
-
-  const checkAuth = async () => {
-    try {
-      const isLoggedIn = await authStorage.isLoggedIn();
-
-      if (isLoggedIn) {
-        const data = await authStorage.getUserData();
-        setIsAuthenticated(true);
-        setUserData({
-          email: data?.email,
-          username: data?.username,
-          gridAddress: data?.grid_address,
+    const loadAuth = async () => {
+      if (session && user) {
+        const storedData = await authStorage.getUserData();
+        
+        setUserDataState({
+          email: user.userEmail,
+          username: storedData?.username || '',
+          cash_wallet: storedData?.cash_wallet || '',
+          stealf_wallet: storedData?.stealf_wallet || '',
+          subOrgId: user.userId,
         });
+
+        if (session.token){
+          socketService.connect(session.token);
+        }
       } else {
-        await authStorage.clearAuth();
+        setUserDataState(null);
+        socketService.disconnect();
       }
-    } catch (error) {
-      console.error('Error checking auth:', error);
-      await authStorage.clearAuth();
-    } finally {
       setLoading(false);
+    };
+    
+    loadAuth();
+  }, [session, user]);
+
+  const saveUserData = async (data: UserData | null) => {
+    setUserDataState(data);
+    if (data === null) {
+      await authStorage.clearUserData();
+    } else {
+      await authStorage.setUserData(data);
     }
   };
 
-  const login = async (data: UserData) => {
-    setUserData(data);
-    setIsAuthenticated(true);
+  const logout = async () => {
+    try {
+      await turnkeyLogout();
+      await authStorage.clearUserData();
+      setUserDataState(null);
+      socketService.disconnect();
+    } catch (error) {
+      console.error('Logout error:', error);
+    }
   };
 
-  const logout = async () => {
-    await authStorage.clearAuth();
-    setUserData(null);
-    setIsAuthenticated(false);
-  };
+  const isAuthenticated = !!session && !!user;
 
   return (
-    <AuthContext.Provider value={{ isAuthenticated, userData, login, logout, loading }}>
+    <AuthContext.Provider
+      value={{
+        isAuthenticated,
+        userData: userDataState,
+        loading,
+        logout,
+        setUserData: saveUserData,
+      }}
+    >
       {children}
     </AuthContext.Provider>
   );

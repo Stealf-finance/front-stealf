@@ -1,49 +1,34 @@
-import React, { useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Dimensions, Image, ActivityIndicator } from 'react-native';
+import React from 'react';
+import { View, Text, StyleSheet, TouchableOpacity, Dimensions, ActivityIndicator } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { BlurView } from 'expo-blur';
-import { useFonts } from 'expo-font';
-import { usePrivateBalance } from '../../hooks/usePrivateBalance';
 import { useAuth } from '../../contexts/AuthContext';
+import { useWalletInfos } from '../../hooks/useWalletInfos';
 
 interface PrivacyBalanceCardProps {
-  walletId?: number;
-  onWithdraw?: () => void;
   onTopUp?: () => void;
+  onWithdraw?: () => void;
   onExchange?: () => void;
 }
 
-export default function PrivacyBalanceCard({ walletId, onWithdraw, onTopUp, onExchange }: PrivacyBalanceCardProps) {
-  const [isBalanceVisible, setIsBalanceVisible] = useState(false);
+export default function BalanceCardPrivacy({
+  onTopUp,
+  onWithdraw,
+  onExchange
+}: PrivacyBalanceCardProps) {
+
   const { userData } = useAuth();
 
-  // Load fonts
-  const [fontsLoaded] = useFonts({
-    'Sansation-Regular': require('../../assets/font/Sansation/Sansation-Regular.ttf'),
-  });
-
-  // Fetch private balance from on-chain
-  const {
-    totalBalance,
-    totalBalanceSOL,
-    loading,
-    error,
-    deposits,
-  } = usePrivateBalance();
+  const { balance, isLoadingBalance, balanceError } = useWalletInfos(
+    userData?.stealf_wallet || ''
+  );
 
   const screenWidth = Dimensions.get('window').width;
   const cardWidth = Math.min(screenWidth * 0.9, 400);
   const cardHeight = 240;
 
-  console.log('PrivacyBalanceCard render:', {
-    isBalanceVisible,
-    totalBalance,
-    totalBalanceSOL,
-    loading,
-    error,
-    deposits: deposits.length,
-  });
-
+  const totalUSD = balance || 0;
+  
   return (
     <View style={styles.container}>
       {/* Main Card - Purple Theme */}
@@ -60,44 +45,22 @@ export default function PrivacyBalanceCard({ walletId, onWithdraw, onTopUp, onEx
         >
           {/* Balance Section */}
           <View style={styles.balanceSection}>
-          <View style={styles.balanceHeader}>
             <Text style={styles.balanceLabel}>Privacy Balance</Text>
-            <TouchableOpacity
-              onPress={() => {
-                console.log('Eye button pressed, current state:', isBalanceVisible);
-                setIsBalanceVisible(!isBalanceVisible);
-              }}
-              style={styles.eyeButton}
-              activeOpacity={0.6}
-            >
-              <Image
-                source={isBalanceVisible ? require('../../assets/eyeon.png') : require('../../assets/eyeoff.png')}
-                style={styles.eyeIcon}
-                resizeMode="contain"
-              />
-            </TouchableOpacity>
+            <View style={{ flexDirection: 'row', alignItems: 'baseline', paddingLeft: 0 }}>
+              <Text style={styles.dollarSign}>$</Text>
+              {isLoadingBalance ? (
+                <ActivityIndicator size="small" color="#ffffff" style={{ marginLeft: 8 }} />
+              ) : balanceError ? (
+                <Text style={[styles.balanceAmount, { fontSize: 24 }]}>
+                  Error
+                </Text>
+              ) : (
+                <Text style={styles.balanceAmount}>
+                  {totalUSD.toFixed(2)}
+                </Text>
+              )}
+            </View>
           </View>
-          <View style={{ flexDirection: 'row', alignItems: 'baseline', paddingLeft: 0 }}>
-            <Text style={styles.dollarSign}>$</Text>
-            {loading ? (
-              <ActivityIndicator size="small" color="#ffffff" style={{ marginLeft: 8 }} />
-            ) : error ? (
-              <Text style={[styles.balanceAmount, { fontSize: 24 }]}>
-                Error
-              </Text>
-            ) : (
-              <Text style={styles.balanceAmount}>
-                {isBalanceVisible ? totalBalance.toFixed(2) : 'X.XX'}
-              </Text>
-            )}
-          </View>
-          {/* Show SOL amount when visible */}
-          {isBalanceVisible && !loading && !error && (
-            <Text style={styles.solAmount}>
-              {totalBalanceSOL.toFixed(4)} SOL • {deposits.length} deposit{deposits.length !== 1 ? 's' : ''}
-            </Text>
-          )}
-        </View>
 
         {/* Action Buttons - Apple Card Style */}
         <View style={styles.actionsRow}>
@@ -167,32 +130,13 @@ const styles = StyleSheet.create({
     marginBottom: 16,
     paddingLeft: 8,
   },
-  balanceHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    width: '100%',
-    marginBottom: -4,
-  },
   balanceLabel: {
     color: 'rgba(255, 255, 255, 0.6)',
     fontSize: 13,
     fontWeight: '500',
-    marginBottom: 0,
+    marginBottom: 4,
     letterSpacing: 1,
     fontFamily: 'Sansation-Regular',
-  },
-  eyeButton: {
-    padding: 8,
-    minWidth: 32,
-    minHeight: 32,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  eyeIcon: {
-    width: 24,
-    height: 24,
-    tintColor: 'rgba(255, 255, 255, 0.8)',
   },
   dollarSign: {
     color: '#ffffff',
@@ -293,12 +237,5 @@ const styles = StyleSheet.create({
   },
   cardWithNotch: {
     borderTopLeftRadius: 0,
-  },
-  solAmount: {
-    color: 'rgba(255, 255, 255, 0.5)',
-    fontSize: 12,
-    fontWeight: '400',
-    marginTop: 4,
-    fontFamily: 'Sansation-Regular',
   },
 });

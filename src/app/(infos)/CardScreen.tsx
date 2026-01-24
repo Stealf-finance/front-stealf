@@ -4,9 +4,10 @@ import AppBackground from '../../components/common/AppBackground';
 
 interface CardScreenProps {
   onClose: () => void;
+  cardType: 'stealf' | 'gmpc';
 }
 
-export default function CardScreen({ onClose }: CardScreenProps) {
+export default function CardScreen({ onClose, cardType }: CardScreenProps) {
   const fadeAnim = useRef(new Animated.Value(1)).current;
   const slideAnim = useRef(new Animated.Value(0)).current;
 
@@ -47,29 +48,20 @@ export default function CardScreen({ onClose }: CardScreenProps) {
 
       {/* Titre de la carte */}
       <View style={styles.cardTitleContainer}>
-        <Text style={styles.cardName}>Basic *8903</Text>
-        <Text style={styles.cardType}>Virtual Card</Text>
+        <Text style={styles.cardName}>
+          {cardType === 'stealf' ? 'Basic *8903' : 'gMPC Card'}
+        </Text>
+        <Text style={styles.cardType}>
+          {cardType === 'stealf' ? 'Virtual Card' : 'Secure Card'}
+        </Text>
       </View>
 
       {/* Carte à la même position que sur HomeScreen */}
       <View style={styles.cardContainer}>
         <ImageBackground
-          source={require('../../assets/stealf-card.png')}
-          style={styles.cardImage}
-          resizeMode="cover"
-          imageStyle={{ borderRadius: 20 }}
-        />
-      </View>
-
-      {/* Deuxième carte gMPC */}
-      <View style={styles.secondCardTitleContainer}>
-        <Text style={styles.cardName}>gMPC Card</Text>
-        <Text style={styles.cardType}>Secure Card</Text>
-      </View>
-
-      <View style={styles.secondCardContainer}>
-        <ImageBackground
-          source={require('../../assets/gMPC-card.png')}
+          source={cardType === 'stealf'
+            ? require('../../assets/stealf-card.png')
+            : require('../../assets/gMPC-card.png')}
           style={styles.cardImage}
           resizeMode="cover"
           imageStyle={{ borderRadius: 20 }}

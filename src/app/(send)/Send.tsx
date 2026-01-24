@@ -10,42 +10,19 @@ import {
 import { useFonts } from 'expo-font';
 import AppBackground from '../../components/common/AppBackground';
 import type { SendScreenProps } from '../../types';
-import { useBalance, useWallet } from '../../hooks';
 import SendConfirmation from './SendConfirmation';
+import { useAuth } from '../../contexts/AuthContext';
+import { useWalletInfos } from '../../hooks/useWalletInfos';
 
 export default function SendScreen({ onBack }: SendScreenProps) {
   const [amount, setAmount] = useState('');
   const [showConfirmation, setShowConfirmation] = useState(false);
 
-  // Get wallet and balance
-  const { walletAddress } = useWallet();
-  const { balance } = useBalance(walletAddress);
+  const { userData } = useAuth();
+  const { balance } = useWalletInfos(userData?.cash_wallet || '');
 
-  // Calculate total USD - USDC tokens or SOL converted to USD
-  const calculateTotalUSD = () => {
-    if (!balance) return 0;
+  const totalUSD = balance || 0;
 
-    // Priorité 1: Chercher le token USDC dans la liste
-    const usdcToken = balance.tokens.find(
-      (token) => token.symbol === 'USDC' || token.symbol === 'usdc'
-    );
-
-    if (usdcToken && usdcToken.amount > 0) {
-      return usdcToken.amount;
-    }
-
-    // Priorité 2: Utiliser SOL et le convertir en USD (prix fictif: $140 par SOL)
-    if (balance.sol > 0) {
-      const SOL_PRICE_USD = 140; // Prix fictif pour le devnet
-      return balance.sol * SOL_PRICE_USD;
-    }
-
-    return 0;
-  };
-
-  const totalUSD = calculateTotalUSD();
-
-  // Load fonts
   const [fontsLoaded] = useFonts({
     'Sansation-Regular': require('../../assets/font/Sansation/Sansation-Regular.ttf'),
     'Sansation-Bold': require('../../assets/font/Sansation/Sansation-Bold.ttf'),

@@ -18,12 +18,12 @@ import * as Clipboard from 'expo-clipboard';
 import { StatusBar } from 'expo-status-bar';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useFonts } from 'expo-font';
-import { authStorage } from '../../services/authStorage';
-import solanaWalletService from '../../services/solanaWalletService';
-import stealfService from '../../services/stealfService';
-import { arciumApi, isArciumError } from '../../services/arciumApiClient';
-import bs58 from 'bs58';
-import type { PrivacyPoolTransferResponse, ArciumApiError } from '../../services/arciumApiClient';
+import { useSendTransaction } from '../../hooks/useSendSimpleTransaction';
+import { useAuth } from '../../contexts/AuthContext';
+import { useAuthenticatedApi } from '../../services/apiClient';
+import { createGetSolPriceUSD } from '../../services/fetchWalletInfos';
+
+type DestinationType = 'cash' | 'external';
 
 interface SendConfirmationProps {
   amount: string;
@@ -32,22 +32,89 @@ interface SendConfirmationProps {
 }
 
 export default function SendConfirmation({ amount, onBack, onSuccess }: SendConfirmationProps) {
-  const [isLoading, setIsLoading] = useState(false);
-  const [showSuccessModal, setShowSuccessModal] = useState(false);
-  const [transactionSignature, setTransactionSignature] = useState('');
-  const [destinationType, setDestinationType] = useState<'privacy' | 'external'>('privacy');
+  const { userData } = useAuth();
+  const { sendTransaction, loading } = useSendTransaction();
+  const api = useAuthenticatedApi();
+
+  const [destinationType, setDestinationType] = useState<DestinationType>('external');
   const [externalAddress, setExternalAddress] = useState('');
-  const [selectedPrivacyWallet, setSelectedPrivacyWallet] = useState('privacy_1');
-  const [showPrivacyDropdown, setShowPrivacyDropdown] = useState(false);
+  const [showSuccessModal, setShowSuccessModal] = useState(false);
+  const [transactionSignature, setTransactionSignature] = useState<string | null>(null);
+
   const successAnimation = useRef(new Animated.Value(0)).current;
   const checkmarkScale = useRef(new Animated.Value(0)).current;
 
-  // Liste des wallets privés (à remplacer par des vraies données plus tard)
-  const privateWallets = [
-    { id: 'privacy_1', name: 'MAIN' },
-  ];
+  const handleConfirm = async () => {
+    if (destinationType === 'external' && !externalAddress) {
+      Alert.alert('Error', 'Please enter a destination address');
+      return;
+    }
 
-  // Load fonts
+    if (!userData?.stealf_wallet) {
+      Alert.alert('Error', 'No privacy wallet found');
+      return;
+    }
+
+    try {
+      const toAddress = destinationType === 'cash'
+        ? userData.cash_wallet || ''
+        : externalAddress;
+
+      if (!toAddress) {
+        throw new Error('Invalid destination address');
+      }
+
+      const getSolPrice = createGetSolPriceUSD(api);
+      const priceData = await getSolPrice();
+      const solPrice = priceData?.price_usd || priceData?.price || 0;
+
+      if (solPrice === 0) {
+        throw new Error('Unable to fetch SOL price. Please try again.');
+      }
+
+      const amountSOL = parseFloat(amount) / solPrice;
+
+      const signature = await sendTransaction(
+        userData.stealf_wallet,
+        toAddress,
+        amountSOL
+      );
+
+      setTransactionSignature(signature);
+      setShowSuccessModal(true);
+      Animated.sequence([
+        Animated.timing(successAnimation, {
+          toValue: 1,
+          duration: 300,
+          useNativeDriver: true,
+        }),
+        Animated.spring(checkmarkScale, {
+          toValue: 1,
+          friction: 4,
+          tension: 40,
+          useNativeDriver: true,
+        }),
+      ]).start();
+
+    } catch (err: any) {
+      console.error('[SendPrivateConfirmation] Transaction error:', err);
+      Alert.alert(
+        'Transaction Failed',
+        err.message || 'An error occurred while sending the transaction'
+      );
+    }
+  };
+
+  const closeSuccessModal = () => {
+    setShowSuccessModal(false);
+    successAnimation.setValue(0);
+    checkmarkScale.setValue(0);
+    setTransactionSignature(null);
+    onSuccess();
+  };
+
+  const isLoading = loading;
+
   const [fontsLoaded] = useFonts({
     'Sansation-Regular': require('../../assets/font/Sansation/Sansation-Regular.ttf'),
     'Sansation-Bold': require('../../assets/font/Sansation/Sansation-Bold.ttf'),
@@ -57,107 +124,6 @@ export default function SendConfirmation({ amount, onBack, onSuccess }: SendConf
   if (!fontsLoaded) {
     return null;
   }
-
-  const closeSuccessModal = () => {
-    Animated.timing(successAnimation, {
-      toValue: 0,
-      duration: 200,
-      useNativeDriver: true,
-    }).start(() => {
-      setShowSuccessModal(false);
-      checkmarkScale.setValue(0);
-      onSuccess();
-    });
-  };
-
-  const handleConfirm = async () => {
-    if (destinationType === 'external' && !externalAddress.trim()) {
-      Alert.alert('Error', 'Please enter a wallet address');
-      return;
-    }
-
-    setIsLoading(true);
-    try {
-      console.log('🔒 Starting PRIVATE transfer from Privacy Wallet...');
-
-      // Get the private wallet's keypair (sender)
-      const privateWalletKeypair = await stealfService.getPrivateWalletKeypair();
-      if (!privateWalletKeypair) {
-        throw new Error('Private wallet not found');
-      }
-
-      const privateWalletAddress = privateWalletKeypair.publicKey.toBase58();
-      const privateKeyBase58 = bs58.encode(privateWalletKeypair.secretKey);
-      console.log(`📤 From Private Wallet: ${privateWalletAddress.slice(0, 8)}...`);
-
-      // Determine recipient address
-      let recipientAddress: string;
-      if (destinationType === 'privacy') {
-        // Send to public wallet
-        const solanaKeypair = await solanaWalletService.loadWallet();
-        if (!solanaKeypair) {
-          throw new Error('Public wallet not found');
-        }
-        recipientAddress = solanaKeypair.publicKey.toBase58();
-        console.log(`📥 To Public Wallet: ${recipientAddress.slice(0, 8)}...`);
-      } else {
-        // Send to external address
-        recipientAddress = externalAddress.trim();
-        console.log(`📥 To External Address: ${recipientAddress.slice(0, 8)}...`);
-      }
-
-      // Convert USD to SOL
-      const SOL_PRICE_USD = 140;
-      const amountInSOL = parseFloat(amount) / SOL_PRICE_USD;
-      console.log(`💰 Amount: ${amountInSOL.toFixed(4)} SOL`);
-
-      // Execute private transfer via Privacy Pool
-      console.log('🔒 Creating PRIVATE transfer via Privacy Pool...');
-      const poolResult = await arciumApi.encryptedTransfer({
-        fromPrivateKey: privateKeyBase58,
-        toAddress: recipientAddress,
-        amount: amountInSOL,
-      });
-
-      if (isArciumError(poolResult)) {
-        const error = poolResult as ArciumApiError;
-        console.error('❌ Privacy pool transfer failed:', error.message);
-        throw new Error(`Private transfer failed: ${error.message}`);
-      }
-
-      const result = poolResult as PrivacyPoolTransferResponse;
-      console.log('✅ PRIVATE TRANSFER COMPLETE!');
-      console.log(`   Deposit TX: ${result.transactions.deposit.signature}`);
-      console.log(`   Withdraw TX: ${result.transactions.withdraw.signature}`);
-      console.log('🔒 No direct on-chain link between sender and recipient!');
-
-      // Show success
-      setTransactionSignature(result.transactions.withdraw.signature);
-      setShowSuccessModal(true);
-
-      Animated.parallel([
-        Animated.timing(successAnimation, {
-          toValue: 1,
-          duration: 300,
-          useNativeDriver: true,
-        }),
-        Animated.spring(checkmarkScale, {
-          toValue: 1,
-          friction: 6,
-          tension: 80,
-          useNativeDriver: true,
-        }),
-      ]).start();
-
-    } catch (error: any) {
-      console.error('❌ Transfer error:', error);
-      Alert.alert('Error', error.message || 'Failed to transfer');
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const solPrice = 100; // TODO: Get real SOL price
 
   return (
     <View style={styles.container}>
@@ -212,16 +178,16 @@ export default function SendConfirmation({ amount, onBack, onSuccess }: SendConf
               <TouchableOpacity
                 style={[
                   styles.toggleOption,
-                  destinationType === 'privacy' && styles.toggleOptionActive
+                  destinationType === 'cash' && styles.toggleOptionActive
                 ]}
-                onPress={() => setDestinationType('privacy')}
+                onPress={() => setDestinationType('cash')}
                 activeOpacity={0.8}
               >
                 <Text style={[
                   styles.toggleText,
-                  destinationType === 'privacy' && styles.toggleTextActive
+                  destinationType === 'cash' && styles.toggleTextActive
                 ]}>
-                  My Public Wallet
+                  My Cash Wallet
                 </Text>
               </TouchableOpacity>
 
@@ -242,42 +208,12 @@ export default function SendConfirmation({ amount, onBack, onSuccess }: SendConf
               </TouchableOpacity>
             </View>
 
-            {/* Privacy Wallet Dropdown */}
-            {destinationType === 'privacy' && (
-              <View style={styles.dropdownContainer}>
-                <TouchableOpacity
-                  style={styles.dropdownButton}
-                  onPress={() => setShowPrivacyDropdown(!showPrivacyDropdown)}
-                  activeOpacity={0.8}
-                >
-                  <Text style={styles.dropdownButtonText}>
-                    {privateWallets.find(w => w.id === selectedPrivacyWallet)?.name || 'Select Wallet'}
-                  </Text>
-                  <Text style={styles.dropdownArrow}>▼</Text>
-                </TouchableOpacity>
-
-                {showPrivacyDropdown && (
-                  <View style={styles.dropdownList}>
-                    {privateWallets.map((wallet) => (
-                      <TouchableOpacity
-                        key={wallet.id}
-                        style={styles.dropdownItem}
-                        onPress={() => {
-                          setSelectedPrivacyWallet(wallet.id);
-                          setShowPrivacyDropdown(false);
-                        }}
-                        activeOpacity={0.8}
-                      >
-                        <Text style={[
-                          styles.dropdownItemText,
-                          selectedPrivacyWallet === wallet.id && styles.dropdownItemTextActive
-                        ]}>
-                          {wallet.name}
-                        </Text>
-                      </TouchableOpacity>
-                    ))}
-                  </View>
-                )}
+            {/* Cash Wallet Address Display */}
+            {destinationType === 'cash' && (
+              <View style={styles.addressDisplayContainer}>
+                <Text style={styles.addressDisplayText}>
+                  {userData?.cash_wallet ? `${userData.cash_wallet.substring(0, 20)}...` : 'No wallet found'}
+                </Text>
               </View>
             )}
 
@@ -490,13 +426,8 @@ const styles = StyleSheet.create({
     color: 'white',
     fontFamily: 'Sansation-Bold',
   },
-  dropdownContainer: {
+  addressDisplayContainer: {
     marginTop: 16,
-  },
-  dropdownButton: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
     backgroundColor: 'rgba(255, 255, 255, 0.05)',
     borderRadius: 16,
     borderWidth: 1,
@@ -504,37 +435,10 @@ const styles = StyleSheet.create({
     paddingVertical: 16,
     paddingHorizontal: 16,
   },
-  dropdownButtonText: {
-    color: 'white',
-    fontSize: 16,
-    fontFamily: 'Sansation-Regular',
-  },
-  dropdownArrow: {
-    color: 'rgba(255, 255, 255, 0.5)',
-    fontSize: 12,
-  },
-  dropdownList: {
-    marginTop: 8,
-    backgroundColor: 'rgba(255, 255, 255, 0.05)',
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.1)',
-    overflow: 'hidden',
-  },
-  dropdownItem: {
-    paddingVertical: 14,
-    paddingHorizontal: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: 'rgba(255, 255, 255, 0.05)',
-  },
-  dropdownItemText: {
+  addressDisplayText: {
     color: 'rgba(255, 255, 255, 0.7)',
-    fontSize: 15,
+    fontSize: 14,
     fontFamily: 'Sansation-Regular',
-  },
-  dropdownItemTextActive: {
-    color: 'white',
-    fontFamily: 'Sansation-Bold',
   },
   addressInputContainer: {
     marginTop: 16,

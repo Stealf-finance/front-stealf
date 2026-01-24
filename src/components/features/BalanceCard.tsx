@@ -1,91 +1,62 @@
-import React, { useEffect } from 'react';
+import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator, Dimensions } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { BlurView } from 'expo-blur';
-import { useFonts } from 'expo-font';
-import { useWallet, useBalance } from '../../hooks';
-import { usePrivateBalance } from '../../hooks/usePrivateBalance';
+import { useAuth } from '../../contexts/AuthContext';
+import { useWalletInfos } from '../../hooks/useWalletInfos';
+import { useQueryClient } from '@tanstack/react-query';
 
 interface BalanceCardProps {
-  onWithdraw?: () => void;
-  onTopUp?: () => void;
-  onExchange?: () => void;
-  isPrivacy?: boolean;
-  privacyAccountNumber?: number;
-  isDemo?: boolean;
+  onTopUp: () => void;
+  onWithdraw: () => void;
+  onExchange: () => void;
 }
 
-export default function BalanceCard({ onWithdraw, onTopUp, onExchange, isPrivacy = false, privacyAccountNumber = 1, isDemo = false }: BalanceCardProps) {
-  const { walletAddress, loading: walletLoading } = useWallet();
-  const { balance, loading, error } = useBalance(walletAddress);
+export default function BalanceCard({
+  onTopUp,
+  onWithdraw,
+  onExchange
+}: BalanceCardProps) {
 
-  // Use private balance hook when isPrivacy is true
-  const { totalBalance: privateBalanceUSD, loading: privateLoading, error: privateError } = usePrivateBalance();
+  const { userData } = useAuth();
+  const queryClient = useQueryClient();
 
-  // Load fonts
-  const [fontsLoaded] = useFonts({
-    'Sansation-Regular': require('../../assets/font/Sansation/Sansation-Regular.ttf'),
-  });
-
-  // Debug logs
-  useEffect(() => {
-    console.log('🔍 BalanceCard - walletAddress:', walletAddress);
-    console.log('🔍 BalanceCard - walletLoading:', walletLoading);
-    console.log('🔍 BalanceCard - balance:', balance);
-    console.log('🔍 BalanceCard - error:', error);
-  }, [walletAddress, walletLoading, balance, error]);
+  const { balance, isLoadingBalance, balanceError } = useWalletInfos(
+    userData?.cash_wallet || ''
+  );
 
   const screenWidth = Dimensions.get('window').width;
   const cardWidth = Math.min(screenWidth * 0.9, 400);
   const cardHeight = 240;
 
-  // Garder l'ancien montant pendant le chargement pour éviter les flashs
-  const [displayBalance, setDisplayBalance] = React.useState<number>(0);
+  const totalUSD = balance || 0;
 
-  // MODIFIED: Afficher la balance SOL convertie en USD (prix SOL fictif: ~$140)
-  const getBalanceInUSD = () => {
-    // Si c'est le mode demo, retourner un montant hardcodé
-    if (isDemo) {
-      return 278.00;
-    }
-
-    // Si c'est la page Privacy, utiliser la vraie balance on-chain du wallet privé
-    if (isPrivacy) {
-      return privateBalanceUSD || 0;
-    }
-
-    if (!balance) return 0;
-
-    // Priorité 1: Essayer de trouver USDC
-    const usdcToken = balance.tokens.find(
-      (token) => token.symbol === 'USDC' || token.symbol === 'usdc'
-    );
-
-    if (usdcToken && usdcToken.amount > 0) {
-      return usdcToken.amount;
-    }
-
-    // Priorité 2: Utiliser SOL et le convertir en USD (prix fictif: $140 par SOL)
-    if (balance.sol > 0) {
-      const SOL_PRICE_USD = 140; // Prix fictif pour le devnet
-      return balance.sol * SOL_PRICE_USD;
-    }
-
-    return 0;
+  const handleRefresh = async () => {
+    await queryClient.invalidateQueries({
+      queryKey: ['wallet-balance', userData?.cash_wallet],
+    });
   };
 
-  React.useEffect(() => {
-    if (isDemo) {
-      setDisplayBalance(278.00);
-    } else if (isPrivacy) {
-      // Pour le wallet privé, utiliser privateBalanceUSD
-      setDisplayBalance(privateBalanceUSD || 0);
-    } else if (balance) {
-      setDisplayBalance(getBalanceInUSD());
-    }
-  }, [balance, isDemo, isPrivacy, privateBalanceUSD]);
+  if (isLoadingBalance && !balance) {
+    return (
+      <View style={[styles.container, { width: cardWidth, height: cardHeight, justifyContent: 'center', alignItems: 'center' }]}>
+        <ActivityIndicator size="large" color="#ffffff" />
+      </View>
+    );
+  }
 
-  const totalUSD = displayBalance || 0;
+  if (balanceError) {
+    return (
+      <View style={[styles.container, { width: cardWidth, height: cardHeight, justifyContent: 'center', alignItems: 'center' }]}>
+        <Text style={{ color: '#ff6b6b', fontFamily: 'Sansation-Regular' }}>
+          Error: {balanceError.message || 'Failed to load balance'}
+        </Text>
+        <TouchableOpacity onPress={handleRefresh} style={{ marginTop: 10 }}>
+          <Text style={{ color: '#ffffff', fontFamily: 'Sansation-Bold' }}>Retry</Text>
+        </TouchableOpacity>
+      </View>
+    );
+  }
 
   return (
     <View style={styles.container}>
@@ -103,7 +74,6 @@ export default function BalanceCard({ onWithdraw, onTopUp, onExchange, isPrivacy
           {/* Balance Section */}
           <View style={styles.balanceSection}>
           <Text style={styles.balanceLabel}>
-            {isPrivacy ? `Privacy Balance ${privacyAccountNumber}` : 'Total Balance'}
           </Text>
           <View style={{ flexDirection: 'row', alignItems: 'baseline' }}>
             <Text style={styles.dollarSign}>$</Text>

@@ -1,10 +1,9 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef } from 'react';
 import { View, StyleSheet, Animated } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { LinearGradient } from 'expo-linear-gradient';
 import MinimalNavBar from '../components/MinimalNavBar';
-import LoginScreen from '../app/(auth)/Login';
-import RegisterScreen from '../app/(auth)/Register';
+import AuthScreen from '../app/(auth)/SignUpScreen';
 import HomeScreen from '../app/(tabs)/HomeScreen';
 import PrivacyScreen from '../app/(tabs)/PrivacyScreen';
 import TransactionHistoryScreen from '../app/(infos)/TransactionHistoryScreen';
@@ -15,7 +14,7 @@ import AddFundsPrivacyScreen from '../app/(add)/AddFundsPrivacy';
 import ProfileScreen from '../app/(tabs)/Profile';
 import InfoScreen from '../app/(infos)/InfoScreen';
 import { useAuth } from '../contexts/AuthContext';
-import { animatePageTransition, animateScreenTransition, animateSlideIn, animateSlideOut } from '../utils/animations';
+import { animateScreenTransition } from '../utils/animations';
 import type { PageType } from './types';
 import { Image } from 'react-native';
 
@@ -25,19 +24,22 @@ export default function AppNavigator() {
   const [currentScreen, setCurrentScreen] = useState<'main' | 'send' | 'sendPrivate' | 'addFunds' | 'addFundsPrivacy' | 'info'>('main');
   const [showProfile, setShowProfile] = useState(false);
   const [isCardScreenOpen, setIsCardScreenOpen] = useState(false);
-  const [authScreen, setAuthScreen] = useState<'login' | 'register'>('login');
+  const [previousPage, setPreviousPage] = useState<PageType>('home');
 
   // Animations
   const slideAnim = useRef(new Animated.Value(0)).current;
   const screenFadeAnim = useRef(new Animated.Value(1)).current;
   const screenSlideAnim = useRef(new Animated.Value(0)).current;
-  const profileFadeAnim = useRef(new Animated.Value(0)).current;
-  const profileSlideAnim = useRef(new Animated.Value(100)).current;
 
   const handleNavigateToPage = (page: PageType) => {
     // Si le profil est ouvert, le fermer d'abord
     if (showProfile) {
       handleCloseProfile();
+    }
+
+    // Track previous page when navigating to transactionHistory
+    if (page === 'transactionHistory') {
+      setPreviousPage(currentPage);
     }
 
     // Determine slide direction
@@ -102,16 +104,9 @@ export default function AppNavigator() {
     );
   }
 
+  // Show SignUpScreen if user is not authenticated
   if (!isAuthenticated) {
-    return authScreen === 'login' ? (
-      <LoginScreen
-        onSwitchToRegister={() => setAuthScreen('register')}
-      />
-    ) : (
-      <RegisterScreen
-        onSwitchToLogin={() => setAuthScreen('login')}
-      />
-    );
+    return <AuthScreen />;
   }
 
   return (
@@ -144,6 +139,22 @@ export default function AppNavigator() {
         >
           <LinearGradient
             colors={['#050008', '#0d0616', '#15092a']}
+            locations={[0, 0.5, 1]}
+            start={{ x: 0, y: 1 }}
+            end={{ x: 0, y: 0 }}
+            style={styles.background}
+          />
+        </Animated.View>
+        <Animated.View
+          style={[
+            styles.background,
+            {
+              opacity: currentPage === 'transactionHistory' ? 1 : 0,
+            }
+          ]}
+        >
+          <LinearGradient
+            colors={['#000000', '#0a0a0a', '#1a1a1a']}
             locations={[0, 0.5, 1]}
             start={{ x: 0, y: 1 }}
             end={{ x: 0, y: 0 }}
@@ -263,7 +274,8 @@ export default function AppNavigator() {
                 ]}
               >
                 <TransactionHistoryScreen
-                  onClose={() => handleNavigateToPage('home')}
+                  onClose={() => handleNavigateToPage(previousPage)}
+                  walletType={previousPage === 'privacy' ? 'privacy' : 'cash'}
                 />
               </Animated.View>
             )}

@@ -1,15 +1,18 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Switch, ScrollView, Dimensions } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Alert, ActivityIndicator } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import * as Clipboard from 'expo-clipboard';
 import AppBackground from '../../components/common/AppBackground';
+import { useExportWallet } from '../../hooks/useExportWallet';
 
 interface InfoScreenProps {
   onBack: () => void;
 }
 
 export default function InfoScreen({ onBack }: InfoScreenProps) {
-  const [spendLimitEnabled, setSpendLimitEnabled] = useState(false);
-  const [spendLimit, setSpendLimit] = useState(500);
+  const { exportWallet, loading } = useExportWallet();
+  const [showMnemonic, setShowMnemonic] = useState(false);
+  const [mnemonic, setMnemonic] = useState<string>('');
 
   return (
     <AppBackground>
@@ -26,52 +29,91 @@ export default function InfoScreen({ onBack }: InfoScreenProps) {
         style={styles.content}
         showsVerticalScrollIndicator={false}
       >
-        {/* Spend Limit Section */}
+        {/* Export Wallet Section */}
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
-            <Ionicons name="card" size={22} color="white" />
-            <Text style={styles.sectionTitle}>Spend Limit</Text>
+            <Ionicons name="download-outline" size={22} color="white" />
+            <Text style={styles.sectionTitle}>Backup Wallet</Text>
           </View>
           <Text style={styles.sectionDescription}>
-            Set a daily spending limit to protect your funds from unauthorized transactions.
+            Export your recovery phrase to backup your wallet. Keep it safe and never share it with anyone.
           </Text>
 
-          <View style={styles.limitToggle}>
-            <View style={styles.limitToggleLeft}>
-              <Text style={styles.limitToggleTitle}>Enable Spend Limit</Text>
-              <Text style={styles.limitToggleSubtitle}>
-                {spendLimitEnabled ? `$${spendLimit}/day` : 'Disabled'}
-              </Text>
-            </View>
-            <Switch
-              value={spendLimitEnabled}
-              onValueChange={setSpendLimitEnabled}
-              trackColor={{ false: 'rgba(255, 255, 255, 0.2)', true: 'rgba(255, 255, 255, 0.4)' }}
-              thumbColor={spendLimitEnabled ? '#ffffff' : '#f4f3f4'}
-            />
+          {/* Warning Card */}
+          <View style={styles.warningCard}>
+            <Ionicons name="warning" size={20} color="#FFA500" />
+            <Text style={styles.warningText}>
+              Your recovery phrase gives full access to your wallet. Store it securely offline.
+            </Text>
           </View>
 
-          {spendLimitEnabled && (
-            <View style={styles.limitSliderContainer}>
-              <Text style={styles.limitAmountText}>${spendLimit}</Text>
-              <View style={styles.limitOptionsContainer}>
-                {[100, 250, 500, 1000, 2500].map((amount) => (
-                  <TouchableOpacity
-                    key={amount}
-                    style={[
-                      styles.limitOption,
-                      spendLimit === amount && styles.limitOptionActive
-                    ]}
-                    onPress={() => setSpendLimit(amount)}
-                  >
-                    <Text style={[
-                      styles.limitOptionText,
-                      spendLimit === amount && styles.limitOptionTextActive
-                    ]}>
-                      ${amount}
-                    </Text>
-                  </TouchableOpacity>
-                ))}
+          {/* Export Button */}
+          {!showMnemonic ? (
+            <TouchableOpacity
+              style={styles.exportButton}
+              onPress={async () => {
+                Alert.alert(
+                  'Export Recovery Phrase',
+                  'Are you sure you want to reveal your recovery phrase? Make sure no one is watching your screen.',
+                  [
+                    { text: 'Cancel', style: 'cancel' },
+                    {
+                      text: 'Continue',
+                      style: 'destructive',
+                      onPress: async () => {
+                        const result = await exportWallet();
+                        if (result.success && result.mnemonic) {
+                          setMnemonic(result.mnemonic);
+                          setShowMnemonic(true);
+                        } else {
+                          Alert.alert('Error', result.error || 'Failed to export wallet');
+                        }
+                      }
+                    }
+                  ]
+                );
+              }}
+              disabled={loading}
+            >
+              {loading ? (
+                <ActivityIndicator color="white" />
+              ) : (
+                <>
+                  <Ionicons name="eye-outline" size={20} color="white" />
+                  <Text style={styles.exportButtonText}>Reveal Recovery Phrase</Text>
+                </>
+              )}
+            </TouchableOpacity>
+          ) : (
+            <View style={styles.mnemonicContainer}>
+              {/* Mnemonic Display */}
+              <View style={styles.mnemonicBox}>
+                <Text style={styles.mnemonicText}>{mnemonic}</Text>
+              </View>
+
+              {/* Action Buttons */}
+              <View style={styles.actionButtons}>
+                <TouchableOpacity
+                  style={styles.copyButton}
+                  onPress={async () => {
+                    await Clipboard.setStringAsync(mnemonic);
+                    Alert.alert('Copied', 'Recovery phrase copied to clipboard');
+                  }}
+                >
+                  <Ionicons name="copy-outline" size={18} color="white" />
+                  <Text style={styles.copyButtonText}>Copy</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={styles.hideButton}
+                  onPress={() => {
+                    setShowMnemonic(false);
+                    setMnemonic('');
+                  }}
+                >
+                  <Ionicons name="eye-off-outline" size={18} color="white" />
+                  <Text style={styles.hideButtonText}>Hide</Text>
+                </TouchableOpacity>
               </View>
             </View>
           )}
@@ -140,72 +182,96 @@ const styles = StyleSheet.create({
     marginBottom: 20,
     fontFamily: 'Sansation-Regular',
   },
-  limitToggle: {
+  warningCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+    backgroundColor: 'rgba(255, 165, 0, 0.1)',
     borderRadius: 12,
     padding: 16,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.1)',
-    marginBottom: 15,
+    borderColor: 'rgba(255, 165, 0, 0.3)',
+    marginBottom: 20,
+    gap: 12,
   },
-  limitToggleLeft: {
+  warningText: {
     flex: 1,
+    color: 'rgba(255, 255, 255, 0.9)',
+    fontSize: 13,
+    lineHeight: 18,
+    fontFamily: 'Sansation-Regular',
   },
-  limitToggleTitle: {
+  exportButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(255, 255, 255, 0.15)',
+    borderRadius: 12,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.2)',
+    gap: 10,
+  },
+  exportButtonText: {
     color: 'white',
     fontSize: 16,
     fontWeight: '600',
-    marginBottom: 4,
     fontFamily: 'Sansation-Bold',
   },
-  limitToggleSubtitle: {
-    color: 'rgba(255, 255, 255, 0.6)',
-    fontSize: 14,
-    fontFamily: 'Sansation-Regular',
+  mnemonicContainer: {
+    gap: 15,
   },
-  limitSliderContainer: {
+  mnemonicBox: {
     backgroundColor: 'rgba(255, 255, 255, 0.05)',
     borderRadius: 12,
     padding: 20,
     borderWidth: 1,
     borderColor: 'rgba(255, 255, 255, 0.1)',
   },
-  limitAmountText: {
+  mnemonicText: {
     color: 'white',
-    fontSize: 32,
-    fontWeight: 'bold',
+    fontSize: 15,
+    lineHeight: 24,
+    fontFamily: 'Sansation-Regular',
     textAlign: 'center',
-    marginBottom: 20,
-    fontFamily: 'Sansation-Bold',
   },
-  limitOptionsContainer: {
+  actionButtons: {
     flexDirection: 'row',
-    flexWrap: 'wrap',
     gap: 10,
-    justifyContent: 'center',
   },
-  limitOption: {
-    backgroundColor: 'rgba(255, 255, 255, 0.1)',
-    borderRadius: 8,
-    paddingVertical: 10,
-    paddingHorizontal: 16,
+  copyButton: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(255, 255, 255, 0.15)',
+    borderRadius: 12,
+    padding: 14,
     borderWidth: 1,
     borderColor: 'rgba(255, 255, 255, 0.2)',
+    gap: 8,
   },
-  limitOptionActive: {
-    backgroundColor: 'rgba(255, 255, 255, 0.2)',
-    borderColor: 'rgba(255, 255, 255, 0.5)',
-  },
-  limitOptionText: {
-    color: 'rgba(255, 255, 255, 0.7)',
+  copyButtonText: {
+    color: 'white',
     fontSize: 15,
     fontWeight: '600',
     fontFamily: 'Sansation-Bold',
   },
-  limitOptionTextActive: {
+  hideButton: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+    borderRadius: 12,
+    padding: 14,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.2)',
+    gap: 8,
+  },
+  hideButtonText: {
     color: 'white',
+    fontSize: 15,
+    fontWeight: '600',
+    fontFamily: 'Sansation-Bold',
   },
 });
