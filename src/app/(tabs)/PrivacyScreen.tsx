@@ -1,8 +1,10 @@
-import React, { useRef, useEffect } from 'react';
+import React, { useRef, useEffect, useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, PanResponder, Animated, Easing } from 'react-native';
 import BalanceCardPrivacy from '../../components/features/PrivacyBalanceCard';
 import TransactionHistory from '../../components/TransactionHistory';
 import type { PageType } from '../../navigation/types';
+import { usePrivateWallet } from '../../contexts/PrivateWalletContext';
+import { ColdWalletSetupScreen, UnlockWalletScreen } from '../(coldwallet)';
 
 interface PrivacyScreenProps {
   onNavigateToPage: (page: PageType) => void;
@@ -23,10 +25,36 @@ export default function PrivacyScreen({
   username,
   currentPage = 'privacy',
 }: PrivacyScreenProps) {
+  const { state, initialize } = usePrivateWallet();
+  const [showSetup, setShowSetup] = useState(false);
+  const [showUnlock, setShowUnlock] = useState(false);
   const slideUpAnim = useRef(new Animated.Value(100)).current;
 
+  // Check wallet state when screen becomes active
   useEffect(() => {
     if (currentPage === 'privacy') {
+      initialize();
+    }
+  }, [currentPage]);
+
+  // Determine if we need to show setup or unlock screens
+  useEffect(() => {
+    if (currentPage === 'privacy') {
+      if (!state.isInitialized) {
+        setShowSetup(true);
+        setShowUnlock(false);
+      } else if (!state.isUnlocked) {
+        setShowSetup(false);
+        setShowUnlock(true);
+      } else {
+        setShowSetup(false);
+        setShowUnlock(false);
+      }
+    }
+  }, [currentPage, state.isInitialized, state.isUnlocked]);
+
+  useEffect(() => {
+    if (currentPage === 'privacy' && !showSetup && !showUnlock) {
       Animated.timing(slideUpAnim, {
         toValue: 0,
         duration: 250,
@@ -36,7 +64,44 @@ export default function PrivacyScreen({
     } else {
       slideUpAnim.setValue(100);
     }
-  }, [currentPage]);
+  }, [currentPage, showSetup, showUnlock]);
+
+  // Handle setup completion
+  const handleSetupComplete = () => {
+    setShowSetup(false);
+    initialize();
+  };
+
+  // Handle unlock success
+  const handleUnlockSuccess = () => {
+    setShowUnlock(false);
+    initialize();
+  };
+
+  // Handle cancel - go back to home
+  const handleCancel = () => {
+    onNavigateToPage('home');
+  };
+
+  // Show setup screen if wallet not initialized
+  if (showSetup && currentPage === 'privacy') {
+    return (
+      <ColdWalletSetupScreen
+        onComplete={handleSetupComplete}
+        onCancel={handleCancel}
+      />
+    );
+  }
+
+  // Show unlock screen if wallet is locked
+  if (showUnlock && currentPage === 'privacy') {
+    return (
+      <UnlockWalletScreen
+        onSuccess={handleUnlockSuccess}
+        onCancel={handleCancel}
+      />
+    );
+  }
 
   // Pan Responder pour le swipe
   const panResponder = PanResponder.create({

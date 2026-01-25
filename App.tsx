@@ -7,6 +7,7 @@ global.Buffer = Buffer;
 import React from 'react';
 import { useFonts } from 'expo-font';
 import { AuthProvider } from './src/contexts/AuthContext';
+import { PrivateWalletProvider } from './src/contexts/PrivateWalletContext';
 import AppNavigator from './src/navigation/AppNavigator';
 import { TurnkeyProvider } from '@turnkey/react-native-wallet-kit';
 import { TURNKEY_CONFIG, TURNKEY_CALLBACKS } from './src/constants/turnkey';
@@ -38,7 +39,9 @@ export default function App() {
     <QueryClientProvider client={queryClient}>
       <TurnkeyProvider config={TURNKEY_CONFIG} callbacks={TURNKEY_CALLBACKS}>
         <AuthProvider>
-          <AppNavigator />
+          <PrivateWalletProvider>
+            <AppNavigator />
+          </PrivateWalletProvider>
         </AuthProvider>
       </TurnkeyProvider>
     </QueryClientProvider>

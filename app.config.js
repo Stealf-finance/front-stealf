@@ -44,5 +44,10 @@ export default {
     plugins: [
       "expo-secure-store"
     ],
+    extra: {
+      eas: {
+        projectId: "801eeb41-1fed-4f41-a38c-c1abc4e79eaf"
+      }
+    }
   }
 };

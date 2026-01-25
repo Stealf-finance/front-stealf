@@ -19,6 +19,7 @@ import { useFonts } from 'expo-font';
 import AppBackground from '../../components/common/AppBackground';
 import { useSendTransaction } from '../../hooks/useSendSimpleTransaction';
 import { useAuth } from '../../contexts/AuthContext';
+import { usePrivateWallet } from '../../contexts/PrivateWalletContext';
 import { useAuthenticatedApi } from '../../services/apiClient';
 import { createGetSolPriceUSD } from '../../services/fetchWalletInfos';
 
@@ -32,6 +33,7 @@ interface SendConfirmationProps {
 
 export default function SendConfirmation({ amount, onBack, onSuccess }: SendConfirmationProps) {
   const { userData } = useAuth();
+  const { state: privateWalletState } = usePrivateWallet();
   const { sendTransaction, loading } = useSendTransaction();
   const api = useAuthenticatedApi();
 
@@ -56,7 +58,7 @@ export default function SendConfirmation({ amount, onBack, onSuccess }: SendConf
 
     try {
       const toAddress = destinationType === 'privacy'
-        ? userData.stealf_wallet || ''
+        ? privateWalletState.publicKey || ''
         : externalAddress;
 
       if (!toAddress) {
@@ -204,7 +206,11 @@ export default function SendConfirmation({ amount, onBack, onSuccess }: SendConf
             {destinationType === 'privacy' && (
               <View style={styles.addressDisplayContainer}>
                 <Text style={styles.addressDisplayText}>
-                  {userData?.stealf_wallet ? `${userData.stealf_wallet.substring(0, 20)}...` : 'No wallet found'}
+                  {privateWalletState.publicKey
+                    ? `${privateWalletState.publicKey.substring(0, 20)}...`
+                    : privateWalletState.isInitialized
+                      ? 'Wallet verrouillé'
+                      : 'Aucun wallet privé configuré'}
                 </Text>
               </View>
             )}
