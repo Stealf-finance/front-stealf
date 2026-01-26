@@ -8,6 +8,7 @@ interface PrivacyScreenProps {
   onNavigateToPage: (page: PageType) => void;
   onOpenSendPrivate: () => void;
   onOpenAddFundsPrivacy: () => void;
+  onOpenSwap: () => void;
   onOpenProfile: () => void;
   userEmail?: string;
   username?: string;
@@ -18,6 +19,7 @@ export default function PrivacyScreen({
   onNavigateToPage,
   onOpenSendPrivate,
   onOpenAddFundsPrivacy,
+  onOpenSwap,
   onOpenProfile,
   userEmail,
   username,
@@ -67,7 +69,7 @@ export default function PrivacyScreen({
             <BalanceCardPrivacy
               onWithdraw={onOpenSendPrivate}
               onTopUp={onOpenAddFundsPrivacy}
-              onExchange={() => console.log('Exchange')}
+              onExchange={onOpenSwap}
             />
           </View>
 

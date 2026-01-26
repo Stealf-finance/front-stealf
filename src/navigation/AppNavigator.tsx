@@ -13,6 +13,7 @@ import AddFundsScreen from '../app/(add)/AddFunds';
 import AddFundsPrivacyScreen from '../app/(add)/AddFundsPrivacy';
 import ProfileScreen from '../app/(tabs)/Profile';
 import InfoScreen from '../app/(infos)/InfoScreen';
+import SwapScreen from '../app/(swap)/SwapScreen';
 import { useAuth } from '../contexts/AuthContext';
 import { animateScreenTransition } from '../utils/animations';
 import type { PageType } from './types';
@@ -21,7 +22,7 @@ import { Image } from 'react-native';
 export default function AppNavigator() {
   const { isAuthenticated, userData, logout, loading } = useAuth();
   const [currentPage, setCurrentPage] = useState<PageType>('home');
-  const [currentScreen, setCurrentScreen] = useState<'main' | 'send' | 'sendPrivate' | 'addFunds' | 'addFundsPrivacy' | 'info'>('main');
+  const [currentScreen, setCurrentScreen] = useState<'main' | 'send' | 'sendPrivate' | 'addFunds' | 'addFundsPrivacy' | 'info' | 'swap'>('main');
   const [showProfile, setShowProfile] = useState(false);
   const [isCardScreenOpen, setIsCardScreenOpen] = useState(false);
   const [previousPage, setPreviousPage] = useState<PageType>('home');
@@ -64,7 +65,7 @@ export default function AppNavigator() {
     });
   };
 
-  const handleOpenScreen = (screen: 'send' | 'sendPrivate' | 'addFunds' | 'addFundsPrivacy' | 'info') => {
+  const handleOpenScreen = (screen: 'send' | 'sendPrivate' | 'addFunds' | 'addFundsPrivacy' | 'info' | 'swap') => {
     animateScreenTransition(screenFadeAnim, screenSlideAnim, () => setCurrentScreen(screen));
   };
 
@@ -247,6 +248,7 @@ export default function AppNavigator() {
                 onNavigateToPage={handleNavigateToPage}
                 onOpenSendPrivate={() => handleOpenScreen('sendPrivate')}
                 onOpenAddFundsPrivacy={() => handleOpenScreen('addFundsPrivacy')}
+                onOpenSwap={() => handleOpenScreen('swap')}
                 onOpenProfile={handleOpenProfile}
                 userEmail={userData?.email}
                 username={userData?.username}
@@ -287,6 +289,7 @@ export default function AppNavigator() {
         {currentScreen === 'addFunds' && <AddFundsScreen onBack={handleBackToMain} />}
         {currentScreen === 'addFundsPrivacy' && <AddFundsPrivacyScreen onBack={handleBackToMain} />}
         {currentScreen === 'info' && <InfoScreen onBack={handleBackToMain} />}
+        {currentScreen === 'swap' && <SwapScreen onBack={handleBackToMain} />}
       </Animated.View>
 
       {/* Profile Screen - Always mounted, absolute overlay */}
