@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useTurnkey } from '@turnkey/react-native-wallet-kit';
 import { Connection, Transaction, SystemProgram, PublicKey, LAMPORTS_PER_SOL } from "@solana/web3.js";
+import { getAssociatedTokenAddress, createTransferInstruction, createAssociatedTokenAccountInstruction, getAccount } from "@solana/spl-token";
 import { guardTransaction } from '../services/transactionsGuard';
 
 const RPC_ENDPOINT = process.env.EXPO_PUBLIC_SOLANA_RPC_URL || "";
@@ -14,7 +15,9 @@ export function useSendTransaction() {
     const sendTransaction = async (
         fromAddress: string,
         toAddress: string,
-        amountSOL: number,
+        amount: number,
+        tokenMint?: string | null,
+        tokenDecimals?: number,
     ) => {
         setLoading(true);
         setError(null);
@@ -23,8 +26,8 @@ export function useSendTransaction() {
             const guard = guardTransaction({
                 fromAddress,
                 toAddress,
-                amount: amountSOL.toString(),
-                amountSOL,
+                amount: amount.toString(),
+                amountSOL: amount,
             });
 
             if (!guard.valid) {
@@ -46,18 +49,53 @@ export function useSendTransaction() {
             const fromPubkey = new PublicKey(fromAddress);
             const toPubkey = new PublicKey(toAddress);
 
-            const { blockhash, lastValidBlockHeight } = await connection.getLatestBlockhash('finalized');
+            const { blockhash } = await connection.getLatestBlockhash('finalized');
 
             const transaction = new Transaction();
             transaction.recentBlockhash = blockhash;
             transaction.feePayer = fromPubkey;
-            transaction.add(
-                SystemProgram.transfer({
-                    fromPubkey,
-                    toPubkey,
-                    lamports: Math.floor(amountSOL * LAMPORTS_PER_SOL),
-                })
-            );
+
+            if (!tokenMint) {
+                // Native SOL transfer
+                transaction.add(
+                    SystemProgram.transfer({
+                        fromPubkey,
+                        toPubkey,
+                        lamports: Math.floor(amount * LAMPORTS_PER_SOL),
+                    })
+                );
+            } else {
+                // SPL Token transfer
+                const mintPubkey = new PublicKey(tokenMint);
+                const decimals = tokenDecimals ?? 9;
+                const tokenAmount = Math.floor(amount * Math.pow(10, decimals));
+
+                const sourceATA = await getAssociatedTokenAddress(mintPubkey, fromPubkey);
+                const destinationATA = await getAssociatedTokenAddress(mintPubkey, toPubkey);
+
+                // Check if destination ATA exists, create it if not
+                try {
+                    await getAccount(connection, destinationATA);
+                } catch {
+                    transaction.add(
+                        createAssociatedTokenAccountInstruction(
+                            fromPubkey,
+                            destinationATA,
+                            toPubkey,
+                            mintPubkey,
+                        )
+                    );
+                }
+
+                transaction.add(
+                    createTransferInstruction(
+                        sourceATA,
+                        destinationATA,
+                        fromPubkey,
+                        tokenAmount,
+                    )
+                );
+            }
 
             const serializedTx = transaction.serialize({
                 requireAllSignatures: false,

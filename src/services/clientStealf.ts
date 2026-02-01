@@ -27,7 +27,7 @@ export function useAuthenticatedApi() {
     }
 
     const result = await response.json();
-    
+
     return result.data || result;
   }, [session?.token]);
 
@@ -53,7 +53,7 @@ export function useAuthenticatedApi() {
     }
 
     const result = await response.json();
-    
+
     return result.data || result;
   }, [session?.token]);
 

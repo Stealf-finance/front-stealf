@@ -3,6 +3,7 @@ import { View, Text, StyleSheet, TouchableOpacity, Animated, Easing } from 'reac
 import TransactionHistory from '../../components/TransactionHistory';
 import CashBalanceCard from '../../components/features/CashBalanceCard';
 import AddFundsModal from '../../components/AddFundsModal';
+import SendModal from '../../components/SendModal';
 import type { PageType } from '../../navigation/types';
 
 interface HomeScreenProps {
@@ -28,6 +29,7 @@ export default function HomeScreen({
 }: HomeScreenProps) {
   const slideUpAnim = useRef(new Animated.Value(100)).current;
   const [showAddFundsModal, setShowAddFundsModal] = useState(false);
+  const [showSendModal, setShowSendModal] = useState(false);
 
   const handleAddFundsPress = () => {
     setShowAddFundsModal(true);
@@ -70,7 +72,7 @@ export default function HomeScreen({
         {/* Balance Card */}
         <CashBalanceCard
           onDeposit={handleAddFundsPress}
-          onSend={onOpenSend}
+          onSend={() => setShowSendModal(true)}
           onBank={onOpenInfo}
         />
 
@@ -102,6 +104,15 @@ export default function HomeScreen({
           onClose={handleCloseAddFundsModal}
           onSelectStablecoin={handleSelectStablecoin}
           onSelectPrivateCash={handleSelectPrivateCash}
+        />
+
+        <SendModal
+          visible={showSendModal}
+          onClose={() => setShowSendModal(false)}
+          onSelectSimpleTransaction={() => {
+            setShowSendModal(false);
+            onOpenSend();
+          }}
         />
     </View>
   );

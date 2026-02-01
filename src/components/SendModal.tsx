@@ -8,19 +8,17 @@ import {
   Pressable,
 } from 'react-native';
 
-interface AddFundsPrivacyModalProps {
+interface SendModalProps {
   visible: boolean;
   onClose: () => void;
-  onSelectPrivateCash: () => void;
-  onSelectSimpleDeposit: () => void;
+  onSelectSimpleTransaction: () => void;
 }
 
-export default function AddFundsPrivacyModal({
+export default function SendModal({
   visible,
   onClose,
-  onSelectPrivateCash,
-  onSelectSimpleDeposit,
-}: AddFundsPrivacyModalProps) {
+  onSelectSimpleTransaction,
+}: SendModalProps) {
   return (
     <Modal
       visible={visible}
@@ -33,37 +31,45 @@ export default function AddFundsPrivacyModal({
           <View style={styles.content}>
             {/* Header */}
             <View style={styles.header}>
-              <Text style={styles.title}>Deposit</Text>
-              <Text style={styles.subtitle}>Choose your preferred method</Text>
+              <Text style={styles.title}>Send funds</Text>
+              <Text style={styles.subtitle}>Choose your method</Text>
             </View>
 
             {/* Options */}
             <View style={styles.optionsContainer}>
-              {/* Deposit Private Cash */}
+              {/* Simple Transaction */}
               <TouchableOpacity
                 style={styles.optionButton}
-                onPress={onSelectPrivateCash}
+                onPress={onSelectSimpleTransaction}
                 activeOpacity={0.7}
               >
                 <View style={styles.optionContent}>
                   <View style={styles.optionTextContainer}>
-                    <Text style={styles.optionTitle}>Deposit private cash</Text>
+                    <Text style={styles.optionTitle}>Simple transaction</Text>
+                    <Text style={styles.optionDescription}>
+                      Send to a wallet address
+                    </Text>
                   </View>
                   <Text style={styles.arrow}>›</Text>
                 </View>
               </TouchableOpacity>
 
-              {/* Simple Deposit */}
+              {/* Bank Transfer - Coming Soon */}
               <TouchableOpacity
-                style={styles.optionButton}
-                onPress={onSelectSimpleDeposit}
-                activeOpacity={0.7}
+                style={[styles.optionButton, styles.disabledButton]}
+                disabled
+                activeOpacity={1}
               >
                 <View style={styles.optionContent}>
                   <View style={styles.optionTextContainer}>
-                    <Text style={styles.optionTitle}>Simple deposit</Text>
+                    <Text style={styles.optionTitle}>Bank transfer</Text>
+                    <Text style={styles.optionDescription}>
+                      Send to a bank account
+                    </Text>
                   </View>
-                  <Text style={styles.arrow}>›</Text>
+                  <View style={styles.comingSoonBadge}>
+                    <Text style={styles.comingSoonText}>Coming Soon</Text>
+                  </View>
                 </View>
               </TouchableOpacity>
             </View>

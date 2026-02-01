@@ -54,22 +54,6 @@ export default function AddFundsModal({
                 </View>
               </TouchableOpacity>
 
-              {/* Private Cash Option */}
-              {onSelectPrivateCash && (
-                <TouchableOpacity
-                  style={styles.optionButton}
-                  onPress={onSelectPrivateCash}
-                  activeOpacity={0.7}
-                >
-                  <View style={styles.optionContent}>
-                    <View style={styles.optionTextContainer}>
-                      <Text style={styles.optionTitle}>Deposit private cash</Text>
-                    </View>
-                    <Text style={styles.arrow}>›</Text>
-                  </View>
-                </TouchableOpacity>
-              )}
-
               {/* Bank Transfer Option - Coming Soon */}
               <TouchableOpacity
                 style={[styles.optionButton, styles.disabledButton]}
@@ -129,10 +113,12 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: 'white',
     marginBottom: 4,
+    fontFamily: 'Sansation-Regular',
   },
   subtitle: {
     fontSize: 14,
     color: 'rgba(255, 255, 255, 0.5)',
+    fontFamily: 'Sansation-Regular',
   },
   optionsContainer: {
     gap: 12,
@@ -160,10 +146,12 @@ const styles = StyleSheet.create({
     fontWeight: '500',
     color: 'white',
     marginBottom: 2,
+    fontFamily: 'Sansation-Regular',
   },
   optionDescription: {
     fontSize: 13,
     color: 'rgba(255, 255, 255, 0.4)',
+    fontFamily: 'Sansation-Regular',
   },
   arrow: {
     fontSize: 20,
@@ -181,6 +169,7 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontWeight: '600',
     color: 'rgba(240, 235, 220, 0.95)',
+    fontFamily: 'Sansation-Regular',
   },
   cancelButton: {
     backgroundColor: 'rgba(255, 255, 255, 0.05)',
@@ -194,5 +183,6 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
     color: 'rgba(255, 255, 255, 0.7)',
+    fontFamily: 'Sansation-Regular',
   },
 });

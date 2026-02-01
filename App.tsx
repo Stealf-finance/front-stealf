@@ -1,17 +1,11 @@
-import 'react-native-get-random-values';
-import 'react-native-url-polyfill/auto';
-import { Buffer } from 'buffer';
-
-global.Buffer = Buffer;
-
 import React from 'react';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { useFonts } from 'expo-font';
 import { AuthProvider } from './src/contexts/AuthContext';
 import AppNavigator from './src/navigation/AppNavigator';
 import { TurnkeyProvider } from '@turnkey/react-native-wallet-kit';
 import { TURNKEY_CONFIG, TURNKEY_CALLBACKS } from './src/constants/turnkey';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { GestureHandlerRootView } from 'react-native-gesture-handler';
 
 const queryClient = new QueryClient({
   defaultOptions: {
