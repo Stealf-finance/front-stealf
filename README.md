@@ -108,6 +108,7 @@ EXPO_PUBLIC_ORGANIZATION_ID="turnkey-org-id"
 EXPO_PUBLIC_AUTH_PROXY_CONFIG_ID="turnkey-auth-proxy-id"
 EXPO_PUBLIC_API_URL=http://localhost:3000
 EXPO_PUBLIC_SOLANA_RPC_URL=https://api.devnet.solana.com
+VAULT_ADDRESS=
 ```
 
 ## Run
