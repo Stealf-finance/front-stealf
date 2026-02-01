@@ -1,0 +1,128 @@
+import { io, Socket } from 'socket.io-client';
+
+const SOCKET_URL = process.env.EXPO_PUBLIC_API_URL || 'http://localhost:3000';
+
+interface PrivacyBalances {
+  sol: number;
+  usdc: number;
+}
+
+class SocketService {
+  private socket: Socket | null = null;
+  private subscribedWallets: Set<string> = new Set();
+  private token: string | null = null;
+  private isDisconnectingManually: boolean = false;
+  private privacyBalances: PrivacyBalances = { sol: 0, usdc: 0 };
+
+  connect(jwtToken?: string) {
+    if (this.socket?.connected) {
+      return;
+    }
+
+    this.token = jwtToken || null;
+
+    const socketOptions: any = {
+      transports: ['websocket'],
+      reconnection: true,
+      reconnectionAttempts: 5,
+      reconnectionDelay: 1000,
+    };
+
+    if (jwtToken) {
+      socketOptions.auth = { token: jwtToken };
+    }
+
+    this.socket = io(SOCKET_URL, socketOptions);
+
+    this.socket.on('connect', () => {
+      this.subscribedWallets.forEach(walletAddress => {
+        this.socket?.emit('subscribe:wallet', walletAddress);
+      });
+    });
+
+    this.socket.on('disconnect', (reason) => {
+
+      if (!this.isDisconnectingManually && reason !== 'io client disconnect') {
+        console.error('Socket disconnected:', reason);
+      }
+      this.isDisconnectingManually = false;
+    });
+
+    this.socket.on('connect_error', (error) => {
+      console.error('Socket connection error:', error.message);
+    });
+
+    this.socket.on('error', (error) => {
+      console.error('Socket error:', error);
+    });
+
+    // Listen to private balance updates
+    this.socket.on('private-balance:updated', (data: { userId: string; balances: PrivacyBalances; timestamp: string }) => {
+      console.log('\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+      console.log('🔔 WEBHOOK REÇU: private-balance:updated');
+      console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+      console.log('👤 User ID:', data.userId);
+      console.log('💰 SOL Balance:', data.balances.sol);
+      console.log('💵 USDC Balance:', data.balances.usdc);
+      console.log('⏰ Timestamp:', data.timestamp);
+      console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n');
+
+      this.privacyBalances = data.balances;
+    });
+  }
+
+  disconnect() {
+    if (this.socket) {
+      this.isDisconnectingManually = true;
+      this.socket.disconnect();
+      this.socket = null;
+      this.subscribedWallets.clear();
+    }
+  }
+
+  subscribeToWallet(walletAddress: string) {
+    if (!this.socket?.connected) {
+      return;
+    }
+
+    this.socket.emit('subscribe:wallet', walletAddress);
+    this.subscribedWallets.add(walletAddress);
+  }
+
+  unsubscribeFromWallet(walletAddress: string) {
+    this.subscribedWallets.delete(walletAddress);
+  }
+
+  on(event: string, callback: (...args: any[]) => void) {
+    if (!this.socket) {
+      return;
+    }
+    this.socket.on(event, callback);
+  }
+
+  off(event: string, callback?: (...args: any[]) => void) {
+    if (!this.socket) return;
+    if (callback) {
+      this.socket.off(event, callback);
+    } else {
+      this.socket.off(event);
+    }
+  }
+
+  emit(event: string, data?: any) {
+    if (!this.socket?.connected) {
+      return;
+    }
+    this.socket.emit(event, data);
+  }
+
+  get isConnected(): boolean {
+    return this.socket?.connected || false;
+  }
+
+  getPrivacyBalances(): PrivacyBalances {
+    return this.privacyBalances;
+  }
+}
+
+export const socketService = new SocketService();

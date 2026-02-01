@@ -1,23 +1,10 @@
-// Screen props interfaces
-export interface BalanceDisplayProps {
-  isPrivacy?: boolean;
-  style?: any;
-}
-
 export interface AddFundsScreenProps {
   onBack?: () => void;
 }
 
 export interface SendScreenProps {
   onBack?: () => void;
-}
-
-export interface SendPrivateScreenProps {
-  onBack?: () => void;
-}
-
-export interface AddFundsPrivacyProps {
-  onBack?: () => void;
+  transferType?: 'basic' | 'private';
 }
 
 export interface ProfileScreenProps {
@@ -29,5 +16,4 @@ export interface ProfileScreenProps {
   username?: string;
 }
 
-// Page types for navigation
 export type PageType = 'home' | 'send' | 'addFunds' | 'privacy' | 'sendPrivate' | 'addFundsPrivacy' | 'profile';

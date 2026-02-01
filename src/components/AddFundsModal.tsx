@@ -13,12 +13,14 @@ interface AddFundsModalProps {
   visible: boolean;
   onClose: () => void;
   onSelectStablecoin: () => void;
+  onSelectPrivateCash?: () => void;
 }
 
 export default function AddFundsModal({
   visible,
   onClose,
   onSelectStablecoin,
+  onSelectPrivateCash,
 }: AddFundsModalProps) {
   return (
     <Modal
@@ -32,8 +34,8 @@ export default function AddFundsModal({
           <View style={styles.content}>
             {/* Header */}
             <View style={styles.header}>
-              <Text style={styles.title}>Add Funds</Text>
-              <Text style={styles.subtitle}>Choose your preferred method</Text>
+              <Text style={styles.title}>Deposit funds</Text>
+              <Text style={styles.subtitle}>Choose your method</Text>
             </View>
 
             {/* Options */}
@@ -46,14 +48,27 @@ export default function AddFundsModal({
               >
                 <View style={styles.optionContent}>
                   <View style={styles.optionTextContainer}>
-                    <Text style={styles.optionTitle}>Stablecoin</Text>
-                    <Text style={styles.optionDescription}>
-                      Deposit USDC from another wallet
-                    </Text>
+                    <Text style={styles.optionTitle}>Deposit simple cash</Text>
                   </View>
                   <Text style={styles.arrow}>›</Text>
                 </View>
               </TouchableOpacity>
+
+              {/* Private Cash Option */}
+              {onSelectPrivateCash && (
+                <TouchableOpacity
+                  style={styles.optionButton}
+                  onPress={onSelectPrivateCash}
+                  activeOpacity={0.7}
+                >
+                  <View style={styles.optionContent}>
+                    <View style={styles.optionTextContainer}>
+                      <Text style={styles.optionTitle}>Deposit private cash</Text>
+                    </View>
+                    <Text style={styles.arrow}>›</Text>
+                  </View>
+                </TouchableOpacity>
+              )}
 
               {/* Bank Transfer Option - Coming Soon */}
               <TouchableOpacity

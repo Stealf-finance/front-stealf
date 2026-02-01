@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useRef } from 'react';
 import {
   View,
   Text,
@@ -12,37 +12,100 @@ import {
   Platform,
   ScrollView,
   Linking,
+  Alert,
 } from 'react-native';
 import * as Clipboard from 'expo-clipboard';
 import { useFonts } from 'expo-font';
-import AppBackground from '../../components/common/AppBackground';
-import { useSendTransaction } from '../../hooks/useSendTransaction';
+import { LinearGradient } from 'expo-linear-gradient';
+import { useSendTransaction } from '../../hooks/useSendSimpleTransaction';
+import { useAuth } from '../../contexts/AuthContext';
+import { useAuthenticatedApi } from '../../services/clientStealf';
+import { createGetSolPriceUSD } from '../../services/fetchWalletInfos';
 
 interface SendConfirmationProps {
   amount: string;
   onBack: () => void;
+  onClose?: () => void;
   onSuccess: () => void;
 }
 
-export default function SendConfirmation({ amount, onBack, onSuccess }: SendConfirmationProps) {
-  const {
-    isLoading,
-    showSuccessModal,
-    transactionSignature,
-    destinationType,
-    setDestinationType,
-    externalAddress,
-    setExternalAddress,
-    selectedPrivacyWallet,
-    setSelectedPrivacyWallet,
-    showPrivacyDropdown,
-    setShowPrivacyDropdown,
-    successAnimation,
-    checkmarkScale,
-    privateWallets,
-    handleConfirm,
-    closeSuccessModal,
-  } = useSendTransaction(onSuccess);
+export default function SendConfirmation({ amount, onBack, onClose, onSuccess }: SendConfirmationProps) {
+  const { userData } = useAuth();
+  const { sendTransaction, loading } = useSendTransaction();
+  const api = useAuthenticatedApi();
+
+  const [externalAddress, setExternalAddress] = useState('');
+  const [showSuccessModal, setShowSuccessModal] = useState(false);
+  const [transactionSignature, setTransactionSignature] = useState<string | null>(null);
+
+  const successAnimation = useRef(new Animated.Value(0)).current;
+  const checkmarkScale = useRef(new Animated.Value(0)).current;
+
+  const handleConfirm = async () => {
+    if (!externalAddress) {
+      Alert.alert('Error', 'Please enter a destination address');
+      return;
+    }
+
+    if (!userData?.cash_wallet) {
+      Alert.alert('Error', 'No wallet found');
+      return;
+    }
+
+    try {
+      if (!externalAddress) {
+        throw new Error('Invalid destination address');
+      }
+
+      const getSolPrice = createGetSolPriceUSD(api);
+      const priceData = await getSolPrice();
+      const solPrice = priceData?.price_usd || priceData?.price || 0;
+
+      if (solPrice === 0) {
+        throw new Error('Unable to fetch SOL price. Please try again.');
+      }
+
+      const amountSOL = parseFloat(amount) / solPrice;
+      const signature = await sendTransaction(
+        userData.cash_wallet,
+        externalAddress,
+        amountSOL
+      );
+
+      setTransactionSignature(signature);
+      setShowSuccessModal(true);
+      Animated.sequence([
+        Animated.timing(successAnimation, {
+          toValue: 1,
+          duration: 300,
+          useNativeDriver: true,
+        }),
+        Animated.spring(checkmarkScale, {
+          toValue: 1,
+          friction: 4,
+          tension: 40,
+          useNativeDriver: true,
+        }),
+      ]).start();
+
+    } catch (err: any) {
+      if (!err.isGuard) console.error('Transaction error:', err);
+      Alert.alert(
+        err.isGuard ? 'Validation Error' : 'Transaction Failed',
+        err.message || 'An error occurred while sending the transaction'
+      );
+    }
+  };
+
+  const closeSuccessModal = () => {
+    setShowSuccessModal(false);
+    successAnimation.setValue(0);
+    checkmarkScale.setValue(0);
+    setTransactionSignature(null);
+    onSuccess();
+  };
+
+  const isLoading = loading;
 
   const [fontsLoaded] = useFonts({
     'Sansation-Regular': require('../../assets/font/Sansation/Sansation-Regular.ttf'),
@@ -56,7 +119,13 @@ export default function SendConfirmation({ amount, onBack, onSuccess }: SendConf
 
   return (
     <View style={styles.container}>
-      <AppBackground>
+        <LinearGradient
+              colors={['#000000', '#000000', '#000000']}
+              locations={[0, 0.5, 1]}
+              start={{ x: 0, y: 1 }}
+              end={{ x: 0, y: 0 }}
+              style={styles.background}
+            >
 
         {/* Header */}
         <View style={styles.header}>
@@ -64,7 +133,9 @@ export default function SendConfirmation({ amount, onBack, onSuccess }: SendConf
             <Text style={styles.backArrow}>←</Text>
           </TouchableOpacity>
           <Text style={styles.headerTitle}>Confirm</Text>
-          <View style={styles.placeholder} />
+          <TouchableOpacity style={styles.closeButton} onPress={onClose || onBack} activeOpacity={0.8}>
+            <Text style={styles.closeIcon}>✕</Text>
+          </TouchableOpacity>
         </View>
 
         {/* Content with KeyboardAvoidingView */}
@@ -95,117 +166,25 @@ export default function SendConfirmation({ amount, onBack, onSuccess }: SendConf
           <View style={styles.section}>
             <Text style={styles.label}>To</Text>
 
-            {/* Destination Type Selector */}
-            <View style={styles.destinationToggle}>
-              <TouchableOpacity
-                style={[
-                  styles.toggleOption,
-                  destinationType === 'privacy' && styles.toggleOptionActive
-                ]}
-                onPress={() => setDestinationType('privacy')}
-                activeOpacity={0.8}
-              >
-                <Text style={[
-                  styles.toggleText,
-                  destinationType === 'privacy' && styles.toggleTextActive
-                ]}>
-                  My Privacy Wallet
-                </Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                style={[
-                  styles.toggleOption,
-                  destinationType === 'external' && styles.toggleOptionActive
-                ]}
-                onPress={() => setDestinationType('external')}
-                activeOpacity={0.8}
-              >
-                <Text style={[
-                  styles.toggleText,
-                  destinationType === 'external' && styles.toggleTextActive
-                ]}>
-                  Other Wallet
-                </Text>
-              </TouchableOpacity>
+            {/* Address Input */}
+            <View style={styles.addressInputContainer}>
+              <TextInput
+                style={styles.addressInput}
+                placeholder="Paste wallet address..."
+                placeholderTextColor="rgba(255, 255, 255, 0.3)"
+                value={externalAddress}
+                onChangeText={setExternalAddress}
+                autoCapitalize="none"
+                autoCorrect={false}
+              />
             </View>
-
-            {/* Privacy Wallet Info */}
-            {destinationType === 'privacy' && (
-              <View style={styles.privacyInfoContainer}>
-                <Text style={styles.privacyInfoTitle}>🔒 Umbra Privacy Transfer</Text>
-                <Text style={styles.privacyInfoText}>
-                  Your funds will be anonymously deposited into the Umbra mixer pool.
-                </Text>
-                <Text style={styles.privacyInfoDetails}>
-                  • Transaction is anonymous{'\n'}
-                  • Amount visible on-chain{'\n'}
-                  • Estimated time: 30-60 seconds{'\n'}
-                  • Can be claimed later from Privacy Balance
-                </Text>
-              </View>
-            )}
-
-            {/* Privacy Wallet Dropdown - Commented for now (single wallet) */}
-            {false && destinationType === 'privacy' && (
-              <View style={styles.dropdownContainer}>
-                <TouchableOpacity
-                  style={styles.dropdownButton}
-                  onPress={() => setShowPrivacyDropdown(!showPrivacyDropdown)}
-                  activeOpacity={0.8}
-                >
-                  <Text style={styles.dropdownButtonText}>
-                    {privateWallets.find(w => w.id === selectedPrivacyWallet)?.name || 'Select Wallet'}
-                  </Text>
-                  <Text style={styles.dropdownArrow}>▼</Text>
-                </TouchableOpacity>
-
-                {showPrivacyDropdown && (
-                  <View style={styles.dropdownList}>
-                    {privateWallets.map((wallet) => (
-                      <TouchableOpacity
-                        key={wallet.id}
-                        style={styles.dropdownItem}
-                        onPress={() => {
-                          setSelectedPrivacyWallet(wallet.id);
-                          setShowPrivacyDropdown(false);
-                        }}
-                        activeOpacity={0.8}
-                      >
-                        <Text style={[
-                          styles.dropdownItemText,
-                          selectedPrivacyWallet === wallet.id && styles.dropdownItemTextActive
-                        ]}>
-                          {wallet.name}
-                        </Text>
-                      </TouchableOpacity>
-                    ))}
-                  </View>
-                )}
-              </View>
-            )}
-
-            {/* External Address Input */}
-            {destinationType === 'external' && (
-              <View style={styles.addressInputContainer}>
-                <TextInput
-                  style={styles.addressInput}
-                  placeholder="Paste wallet address..."
-                  placeholderTextColor="rgba(255, 255, 255, 0.3)"
-                  value={externalAddress}
-                  onChangeText={setExternalAddress}
-                  autoCapitalize="none"
-                  autoCorrect={false}
-                />
-              </View>
-            )}
           </View>
 
           {/* Confirm Button */}
           <View style={styles.buttonContainer}>
             <TouchableOpacity
               style={styles.confirmButton}
-              onPress={() => handleConfirm(amount)}
+              onPress={handleConfirm}
               disabled={isLoading}
               activeOpacity={0.8}
             >
@@ -284,12 +263,9 @@ export default function SendConfirmation({ amount, onBack, onSuccess }: SendConf
 
                 <TouchableOpacity
                   style={styles.viewExplorerButton}
-                  onPress={() => {
-                    Linking.openURL(`https://explorer.solana.com/tx/${transactionSignature}?cluster=devnet`);
-                  }}
+
                   activeOpacity={0.8}
                 >
-                  <Text style={styles.viewExplorerText}>View on Explorer</Text>
                 </TouchableOpacity>
 
                 <TouchableOpacity
@@ -303,13 +279,16 @@ export default function SendConfirmation({ amount, onBack, onSuccess }: SendConf
             </TouchableOpacity>
           </TouchableOpacity>
         </Modal>
-      </AppBackground>
+      </LinearGradient>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
+    flex: 1,
+  },
+  background: {
     flex: 1,
   },
   header: {
@@ -342,6 +321,19 @@ const styles = StyleSheet.create({
   placeholder: {
     width: 40,
   },
+  closeButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: 'rgba(60, 60, 60, 0.9)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  closeIcon: {
+    fontSize: 18,
+    color: 'white',
+    fontWeight: 'bold',
+  },
   content: {
     flex: 1,
   },
@@ -364,78 +356,6 @@ const styles = StyleSheet.create({
     color: 'white',
     fontWeight: '400',
     fontFamily: 'Sansation-Light',
-  },
-  destinationToggle: {
-    flexDirection: 'row',
-    backgroundColor: 'rgba(255, 255, 255, 0.05)',
-    borderRadius: 16,
-    padding: 4,
-    gap: 4,
-  },
-  toggleOption: {
-    flex: 1,
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    borderRadius: 12,
-    alignItems: 'center',
-  },
-  toggleOptionActive: {
-    backgroundColor: 'rgba(255, 255, 255, 0.15)',
-  },
-  toggleText: {
-    fontSize: 14,
-    color: 'rgba(255, 255, 255, 0.5)',
-    fontFamily: 'Sansation-Regular',
-  },
-  toggleTextActive: {
-    color: 'white',
-    fontFamily: 'Sansation-Bold',
-  },
-  dropdownContainer: {
-    marginTop: 16,
-  },
-  dropdownButton: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    backgroundColor: 'rgba(255, 255, 255, 0.05)',
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.1)',
-    paddingVertical: 16,
-    paddingHorizontal: 16,
-  },
-  dropdownButtonText: {
-    color: 'white',
-    fontSize: 16,
-    fontFamily: 'Sansation-Regular',
-  },
-  dropdownArrow: {
-    color: 'rgba(255, 255, 255, 0.5)',
-    fontSize: 12,
-  },
-  dropdownList: {
-    marginTop: 8,
-    backgroundColor: 'rgba(255, 255, 255, 0.05)',
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.1)',
-    overflow: 'hidden',
-  },
-  dropdownItem: {
-    paddingVertical: 14,
-    paddingHorizontal: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: 'rgba(255, 255, 255, 0.05)',
-  },
-  dropdownItemText: {
-    color: 'rgba(255, 255, 255, 0.7)',
-    fontSize: 15,
-    fontFamily: 'Sansation-Regular',
-  },
-  dropdownItemTextActive: {
-    color: 'white',
-    fontFamily: 'Sansation-Bold',
   },
   addressInputContainer: {
     marginTop: 16,
@@ -544,33 +464,5 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: 'bold',
     fontFamily: 'Sansation-Bold',
-  },
-  privacyInfoContainer: {
-    marginTop: 16,
-    backgroundColor: 'rgba(138, 43, 226, 0.1)',
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: 'rgba(138, 43, 226, 0.3)',
-    padding: 16,
-  },
-  privacyInfoTitle: {
-    color: '#B19CD9',
-    fontSize: 16,
-    fontWeight: '600',
-    marginBottom: 8,
-    fontFamily: 'Sansation-Bold',
-  },
-  privacyInfoText: {
-    color: 'rgba(255, 255, 255, 0.8)',
-    fontSize: 14,
-    marginBottom: 12,
-    fontFamily: 'Sansation-Regular',
-    lineHeight: 20,
-  },
-  privacyInfoDetails: {
-    color: 'rgba(255, 255, 255, 0.6)',
-    fontSize: 12,
-    fontFamily: 'Sansation-Regular',
-    lineHeight: 18,
   },
 });

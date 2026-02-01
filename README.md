@@ -1,166 +1,153 @@
-# Stealf - Application
+# Stealf - Frontend
 
----
+Application mobile React Native avec authentification Turnkey Passkey.
 
-## 📁 Project Structure
+toujours en developpement
 
-```
-front-stealf/
-├── src/
-│   ├── app/                    # Application screens (Expo Router)
-│   │   ├── (auth)/            # Authentication screens (Login, Register)
-│   │   ├── (tabs)/            # Main tab screens (Home, Privacy, Profile)
-│   │   ├── (send)/            # Send transaction screens
-│   │   ├── (add)/             # Add funds screens
-│   │   └── (infos)/           # Information screens
-│   ├── components/            # Reusable UI components
-│   │   ├── common/            # Common components (AppBackground)
-│   │   ├── features/          # Feature-specific components (BalanceCard, etc.)
-│   │   └── auth/              # Auth components (LoginSuccessAnimation)
-│   ├── config/                # App configuration (Grid SDK setup)
-│   ├── contexts/              # React contexts (AuthContext)
-│   ├── hooks/                 # Custom React hooks
-│   │   ├── auth/              # Authentication hooks (useLogin, useRegister)
-│   │   └── ...                # Other hooks (useBalance, useWallet, etc.)
-│   ├── navigation/            # Navigation setup
-│   ├── services/              # Services (authStorage, biometricService)
-│   ├── types/                 # TypeScript type definitions
-│   └── assets/                # Fonts and images
-├── App.tsx                    # Root component
-├── app.config.js              # Expo configuration with env vars
-└── package.json
-```
+pour le moment on peut seulement créer un compte.
 
----
+pour l'auth -> envoie d'un lien unique (toujours sur stealf.fi@gmail pour le moment).
+il faut configurer resend
+une fois email vérifier auth avec passkey gere directement par turnkey, pour le moment seulement fonctionnel avec ios.
 
-## 🚀 Getting Started
+on ne peut pas se signin pour le moment
 
-### Prerequisites
+Le SDK Turnkey est natif, ce n’est pas juste une librairie JS ou un script web. Concrètement ça signifie :
 
-- Node.js >= 18.x
-- npm or yarn
-- Expo CLI (installed automatically with npx)
-- iOS Simulator or Android Emulator (for mobile testing)
+1️⃣ Implications principales
+Doit être lié à la plateforme:
 
-### Installation
+iOS : via CocoaPods / Swift / Objective-C
+
+Android : via Gradle / Java / Kotlin
+
+Ne fonctionne pas “à chaud” dans Expo Go
+
+Si tu utilises Expo classique, tu dois build une app native (npx expo prebuild ou npx react-native run-ios/run-android)
+Parce que le SDK Turnkey doit être compilé dans l’app et relié aux API biométriques / Passkeys natives
+Compilation obligatoire pour tester Passkeys / biométrie
+
+Même en dev : l’app sur l’iPhone ou l’émulateur Android doit avoir le SDK inclus dans le build
+Tu ne peux pas tester Turnkey via un navigateur ou dans un simulateur “JS only”
+
+## Prérequis
+
+- Node.js 18+
+- iOS: macOS + Xcode + CocoaPods
+- Android: Android Studio + JDK
+
+## Installation
 
 ```bash
-# Install dependencies
 npm install
-
-# Start development server
-npm start
-# or with clear cache
-npx expo start --clear
-
-# Run on specific platform
-npm run ios      # iOS Simulator
-npm run android  # Android Emulator
-npm run web      # Web browser
 ```
 
-### Development Commands
+## Configuration
 
-```bash
-# Start dev server
-npx expo start --clear
-
-# Start with specific port
-npx expo start --clear --port 8082
-
-# Type checking
-npx tsc --noEmit
-
-# Clear all caches and reinstall
-rm -rf node_modules && npm install && npx expo start --clear
-```
-
----
-
-## 🔐 Environment Variables
-
-Create a `.env` file at the root of the project:
+Créer un fichier `.env` à la racine:
 
 ```env
-EXPO_PUBLIC_GRID_API_KEY=your_grid_api_key_here
-EXPO_PUBLIC_GRID_ENV=production
+EXPO_PUBLIC_ORGANIZATION_ID="your-turnkey-org-id"
+EXPO_PUBLIC_AUTH_PROXY_CONFIG_ID="your-turnkey-auth-proxy-id"
+EXPO_PUBLIC_API_URL=http://localhost:3000
+EXPO_PUBLIC_SOLANA_RPC_URL=https://api.devnet.solana.com
 ```
 
-**Important Notes:**
-- Environment variables must be prefixed with `EXPO_PUBLIC_` to be accessible in React Native
-- The Grid API key is required for authentication and transactions
-- Environment: `production` or `development`
+## Développement
 
+### Expo Go (pas de passkeys)
 
----
+```bash
+npm start
+```
 
-## 📱 Key Features
+Scannez le QR code avec l'app Expo Go.
 
-### ✅ Implemented Features
+**⚠️ Les passkeys ne fonctionnent PAS sur Expo Go.**
 
-- **Email + OTP Authentication**: Secure login and registration with Grid SDK
-- **Smart Accounts**: Grid-powered smart accounts on Solana mainnet
-- **Send USDC**: Transfer USDC
-- **Real-time Balance**: Live balance updates for SOL and USDC tokens
-- **Transaction History**: Complete transaction history with real-time updates
-- **Biometric Authentication**: Face ID / Touch ID support for quick login
-- **Add Funds**: Integration for adding funds to wallet
+### Development Build (avec passkeys)
 
-### 🚧 In Development
+#### iOS
 
-- **Privacy Wallet**: Privacy features are currently under development and not yet functional. Privacy-related screens and components are placeholders for future implementation.
+```bash
+# Sur simulateur (pas de passkeys)
+npx expo run:ios
 
----
+# Sur iPhone physique (passkeys fonctionnels)
+npx expo run:ios --device
+```
 
-## 🛠️ Tech Stack
+#### Android
 
-- **React Native** with **Expo** ~54.0
-- **TypeScript** 5.9
-- **Grid SDK** (@sqds/grid) - Smart accounts
-- **Expo SecureStore** - Encrypted credential storage
-- **AsyncStorage** - Local caching
-- **Expo Local Authentication** - Biometric authentication
+```bash
+# Sur émulateur (pas de passkeys)
+npx expo run:android
 
----
+# Sur appareil physique (passkeys fonctionnels)
+npx expo run:android --device
+```
 
-## 📦 Key Dependencies
+## Configuration Passkey
+
+### Domaine requis
+
+- rpId: `stealf.xyz`
+- AASA: `https://stealf.xyz/.well-known/apple-app-site-association`
+- Asset Links: `https://stealf.xyz/.well-known/assetlinks.json`
+
+### iOS Entitlements
+
+```xml
+<key>com.apple.developer.associated-domains</key>
+<array>
+  <string>webcredentials:stealf.xyz</string>
+</array>
+```
+
+### Fichier AASA (iOS)
+
+Héberger à `https://stealf.xyz/.well-known/apple-app-site-association`:
 
 ```json
 {
-  "@sqds/grid": "^0.1.0",
-  "@solana/web3.js": "^1.95.8",
-  "expo": "~54.0.22",
-  "expo-local-authentication": "~15.0.2",
-  "expo-secure-store": "~14.0.0",
-  "react-native": "0.81.4",
-  "typescript": "^5.9.3"
+  "webcredentials": {
+    "apps": ["63724CT6P8.com.stealf.app"]
+  }
 }
 ```
 
----
+## Architecture
 
-## 🐛 Common Issues
-
-### Metro Bundler Issues
-
-If you encounter module resolution errors:
-
-```bash
-# Clear all caches
-npx expo start --clear
-
-# Or manually clear
-rm -rf node_modules
-rm -rf .expo
-npm install
+```
+src/
+├── app/              # Screens (Expo Router)
+│   ├── (auth)/       # Auth screens (SignUp, etc.)
+│   └── (tabs)/       # Main app screens
+├── components/       # Composants réutilisables
+├── constants/        # Config Turnkey
+├── contexts/         # React Context (Auth)
+├── hooks/            # Custom hooks (useAuth, polling)
+├── navigation/       # Navigation setup
+├── services/         # API clients
+└── types/            # TypeScript types
 ```
 
+## Commandes utiles
 
+```bash
+# Clean iOS build
+cd ios && rm -rf build && cd ..
 
-## 📄 License
+# Clean Android build
+cd android && ./gradlew clean && cd ..
 
-Private project - All rights reserved
+# Rebuild pods (iOS)
+cd ios && pod install && cd ..
+```
 
----
+## Notes importantes
 
-**Last Updated**: 2025-11-04
+- **Passkeys nécessitent un appareil physique** avec Face ID/Touch ID (iOS) ou empreinte digitale (Android)
+- **HTTPS obligatoire** pour le fichier AASA
+- **Clean build requis** après changement des entitlements
+- **Backend local**: Utiliser l'IP locale (ex: `192.168.1.36:3000`) au lieu de `localhost` pour tester sur appareil physique

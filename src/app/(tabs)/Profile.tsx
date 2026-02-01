@@ -1,10 +1,7 @@
-import React, { useState, useEffect } from 'react';
-import { StyleSheet, View, Text, TouchableOpacity, ScrollView, Image, PanResponder, Switch, Linking } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
-import AppBackground from '../../components/common/AppBackground';
-import { storageService } from '../../services';
-import { isBiometricAvailable, isBiometricEnabled, enableBiometric, disableBiometric, getBiometricType } from '../../services/biometricService';
-import { authStorage } from '../../services/authStorage';
+import React from 'react';
+import { StyleSheet, View, Text, TouchableOpacity, ScrollView, Image, PanResponder, Linking } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
+import { useAuth } from '../../contexts/AuthContext';
 
 interface ProfileScreenProps {
   onBack?: () => void;
@@ -16,60 +13,20 @@ interface ProfileScreenProps {
 }
 
 export default function ProfileScreen({ onBack, onNavigateToPage, onLogout, currentPage, userEmail, username }: ProfileScreenProps) {
-  const [biometricAvailable, setBiometricAvailable] = useState(false);
-  const [biometricEnabled, setBiometricEnabled] = useState(false);
-  const [biometricType, setBiometricType] = useState<string | null>(null);
-  const [isTogglingBiometric, setIsTogglingBiometric] = useState(false);
-
-  useEffect(() => {
-    checkBiometricStatus();
-  }, []);
-
-  const checkBiometricStatus = async () => {
-    const available = await isBiometricAvailable();
-    const enabled = await isBiometricEnabled();
-    const type = await getBiometricType();
-
-    setBiometricAvailable(available);
-    setBiometricEnabled(enabled);
-    setBiometricType(type);
-  };
-
-  const handleToggleBiometric = async (value: boolean) => {
-    setIsTogglingBiometric(true);
-
-    try {
-      if (value) {
-        const token = await authStorage.getAccessToken();
-        if (token) {
-          const success = await enableBiometric(token);
-          if (success) {
-            setBiometricEnabled(true);
-            console.log('✅ Biometric enabled successfully');
-          } else {
-            console.log('❌ Failed to enable biometric');
-          }
-        }
-      } else {
-        await disableBiometric();
-        setBiometricEnabled(false);
-        console.log('✅ Biometric disabled');
-      }
-    } catch (error) {
-      console.error('Error toggling biometric:', error);
-    } finally {
-      setIsTogglingBiometric(false);
-    }
-  };
+  const { setUserData } = useAuth();
 
   const handleLogout = async () => {
     try {
-      await storageService.clearAll();
-      console.log('✅ All user data cleared from storage');
-      onLogout();
+      setUserData(null);
+      console.log('User logged out');
+      if (onLogout) {
+        onLogout();
+      }
     } catch (error) {
-      console.error('❌ Error clearing user data:', error);
-      onLogout();
+      console.error('Error logging out:', error);
+      if (onLogout) {
+        onLogout();
+      }
     }
   };
 
@@ -83,7 +40,6 @@ export default function ProfileScreen({ onBack, onNavigateToPage, onLogout, curr
     }
   };
 
-  // Pan Responder pour le swipe depuis le profil
   const panResponder = PanResponder.create({
     onStartShouldSetPanResponder: () => true,
     onMoveShouldSetPanResponder: (_, gestureState) => {
@@ -91,33 +47,29 @@ export default function ProfileScreen({ onBack, onNavigateToPage, onLogout, curr
     },
     onPanResponderRelease: (_, gestureState) => {
       if (gestureState.dx > 50) {
-        // Swipe vers la droite depuis le profil - retour vers Privacy
-        onBack();
+        if (onNavigateToPage) {
+          onNavigateToPage('home');
+        }
+        if (onBack) {
+          onBack();
+        }
       }
     },
   });
 
   return (
     <View style={styles.container}>
-      <AppBackground>
-
-        {/* Header */}
-        <View style={styles.header}>
-          <TouchableOpacity style={styles.backButton} onPress={onBack} activeOpacity={0.8}>
-            <Text style={styles.backArrow}>←</Text>
-          </TouchableOpacity>
-          <View style={styles.placeholder} />
-        </View>
+      <LinearGradient colors={['#000000', '#000000', '#000000']} style={styles.background}>
 
         {/* Profile Header */}
         <View style={styles.profileHeader}>
           {/* User Info */}
           <View style={styles.userInfo}>
             <Text style={styles.userType}>Personal</Text>
-            <Text style={styles.userEmail}>{userEmail || 'No email provided'}</Text>
             {username && (
-              <Text style={styles.username}>{username}</Text>
+              <Text style={styles.username}>@{username}</Text>
             )}
+            <Text style={styles.userEmail}>{userEmail || 'No email provided'}</Text>
           </View>
         </View>
 
@@ -130,28 +82,6 @@ export default function ProfileScreen({ onBack, onNavigateToPage, onLogout, curr
 
           {/* Bottom Actions */}
           <View style={styles.bottomActions}>
-            {/* Biometric Toggle */}
-            {biometricAvailable && (
-              <View style={styles.profileActionButton}>
-                <View style={styles.profileActionIcon}>
-                  <Ionicons name="scan" size={20} color="white" />
-                </View>
-                <View style={styles.profileActionInfo}>
-                  <Text style={styles.profileActionTitle}>{biometricType}</Text>
-                  <Text style={styles.profileActionSubtitle}>
-                    {biometricEnabled ? 'Active' : 'Disabled'}
-                  </Text>
-                </View>
-                <Switch
-                  value={biometricEnabled}
-                  onValueChange={handleToggleBiometric}
-                  disabled={isTogglingBiometric}
-                  trackColor={{ false: 'rgba(255, 255, 255, 0.2)', true: 'rgba(255, 255, 255, 0.4)' }}
-                  thumbColor={biometricEnabled ? '#ffffff' : '#f4f3f4'}
-                />
-              </View>
-            )}
-
             <TouchableOpacity style={styles.profileActionButton} activeOpacity={0.8} onPress={handleOpenTelegramBot}>
               <View style={styles.profileActionIcon}>
                 <Text style={styles.profileActionIconText}>?</Text>
@@ -189,7 +119,7 @@ export default function ProfileScreen({ onBack, onNavigateToPage, onLogout, curr
           </View>
         </ScrollView>
         </View>
-      </AppBackground>
+      </LinearGradient>
     </View>
   );
 }
@@ -198,33 +128,12 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
   },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 24,
-    paddingTop: 80,
-    paddingBottom: 20,
-  },
-  backButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: 'rgba(60, 60, 60, 0.9)',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  backArrow: {
-    fontSize: 18,
-    color: 'white',
-    fontWeight: 'bold',
-  },
-  placeholder: {
-    width: 40,
+  background: {
+    flex: 1,
   },
   profileHeader: {
     paddingHorizontal: 24,
-    paddingTop: 10,
+    paddingTop: 120,
     paddingBottom: 10,
   },
   userInfo: {
@@ -237,48 +146,21 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   userEmail: {
-    color: 'white',
-    fontSize: 18,
-    fontWeight: 'bold',
-    fontFamily: 'Sansation-Bold',
-    marginBottom: 4,
-  },
-  username: {
     color: 'rgba(255, 255, 255, 0.7)',
     fontSize: 16,
     fontFamily: 'Sansation-Regular',
+    marginBottom: 4,
+  },
+  username: {
+    color: 'white',
+    fontSize: 24,
+    fontWeight: 'bold',
+    fontFamily: 'Sansation-Bold',
+    marginBottom: 8,
   },
   profileContent: {
     flex: 1,
     paddingHorizontal: 24,
-  },
-  totalCashContainer: {
-    alignItems: 'center',
-    marginTop: 40,
-    marginBottom: 60,
-  },
-  totalCashCard: {
-    paddingVertical: 20,
-    paddingHorizontal: 32,
-    borderRadius: 20,
-    backgroundColor: 'rgb(255, 255, 255)',
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    width: '100%',
-    maxWidth: 400,
-  },
-  totalCashLabel: {
-    color: 'rgba(0, 0, 0, 0.7)',
-    fontSize: 16,
-    fontWeight: '500',
-    fontFamily: 'Sansation-Regular',
-  },
-  totalCashAmount: {
-    color: 'rgba(0, 0, 0, 0.9)',
-    fontSize: 24,
-    fontWeight: 'bold',
-    fontFamily: 'Sansation-Bold',
   },
   bottomActions: {
     gap: 20,

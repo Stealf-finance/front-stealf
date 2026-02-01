@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import {
   View,
   Text,
@@ -10,338 +10,137 @@ import {
   Linking,
   Alert,
 } from 'react-native';
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import { Connection, PublicKey, ParsedTransactionWithMeta, LAMPORTS_PER_SOL } from '@solana/web3.js';
-import { useWallet } from '../hooks';
-import { authStorage } from '../services/authStorage';
-import { SOLANA_CONFIG } from '../config/umbra';
-
-
-const CACHE_DURATION = 5 * 1000;
-const CACHE_KEY = 'transactions_cache_';
-
-interface Transaction {
-  signature: string;
-  type: 'send' | 'receive' | 'unknown';
-  amount: number;
-  token: string;
-  timestamp: number;
-  status: 'confirmed' | 'pending' | 'failed';
-  from?: string;
-  to?: string;
-  isPrivate?: boolean;
-}
+import { useWalletInfos } from '../hooks/useWalletInfos';
+import { useAuth } from '../contexts/AuthContext';
+import { useQueryClient } from '@tanstack/react-query';
 
 interface TransactionHistoryProps {
   limit?: number;
   style?: any;
-  isDemo?: boolean;
+  walletType?: 'cash' | 'privacy';
 }
 
-export default function TransactionHistory({ limit = 10, style, isDemo = false }: TransactionHistoryProps) {
-  const [transactions, setTransactions] = useState<Transaction[]>([]);
-  const [loading, setLoading] = useState(true);
+export default function TransactionHistory({
+  limit = 3,
+  style,
+  walletType = 'cash'
+} : TransactionHistoryProps) {
+
+  const { userData } = useAuth();
+  const queryClient = useQueryClient();
+
+  const wallet = walletType === 'privacy'
+    ? userData?.stealf_wallet
+    : userData?.cash_wallet;
+
+  const {
+    transactions,
+    isLoading,
+    historyError,
+  } = useWalletInfos(wallet || '');
+
+
+  const displayedTransactions = transactions.slice(0, limit);
+
   const [refreshing, setRefreshing] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
- 
-  const { walletAddress } = useWallet();
-
-  useEffect(() => {
-    // Si mode demo, afficher des transactions hardcodées
-    if (isDemo) {
-      const demoTransactions: Transaction[] = [
-        {
-          signature: 'demo-tx-1',
-          type: 'receive',
-          amount: 150.00,
-          token: 'USD',
-          timestamp: Date.now() - 2 * 60 * 60 * 1000, // 2h ago
-          status: 'confirmed',
-          from: '7xK...9pQ2',
-          isPrivate: false,
-        },
-        {
-          signature: 'demo-tx-2',
-          type: 'send',
-          amount: 45.50,
-          token: 'USD',
-          timestamp: Date.now() - 24 * 60 * 60 * 1000, // 1d ago
-          status: 'confirmed',
-          to: '3mF...8kL1',
-          isPrivate: false,
-        },
-      ];
-      setTransactions(demoTransactions);
-      setLoading(false);
-      return;
-    }
-
-    if (walletAddress) {
-      fetchTransactions();
-
-      // Refresh automatiquement toutes les 5 secondes
-      const interval = setInterval(() => {
-        fetchTransactions(true);
-      }, 5000);
-
-      return () => clearInterval(interval);
-    }
-  }, [walletAddress, isDemo]);
-
-  const fetchTransactions = async (silent = true, forceRefresh = false) => {
-    try {
-      // Ne plus jamais afficher le loading pour éviter les clignotements
-      // Le loading initial reste visible seulement si pas de transactions
-      if (transactions.length === 0 && !silent) {
-        setLoading(true);
-      }
-      setError(null);
-
-      if (!walletAddress) {
-        setError('No wallet found');
-        setLoading(false);
-        return;
-      }
-
-      // Vérifier le cache si pas de forceRefresh
-      if (!forceRefresh) {
-        const cacheKey = `${CACHE_KEY}${walletAddress}`;
-        const cachedData = await AsyncStorage.getItem(cacheKey);
-
-        if (cachedData) {
-          try {
-            const { transactions: cachedTxs, timestamp } = JSON.parse(cachedData);
-            const age = Date.now() - timestamp;
-
-            // Si le cache a moins de 5 secondes, l'utiliser
-            if (age < CACHE_DURATION) {
-              // Limiter le nombre de transactions selon la prop limit
-              setTransactions(cachedTxs.slice(0, limit));
-              setLoading(false);
-              return;
-            }
-          } catch (e) {
-            console.warn('Failed to parse cache:', e);
-          }
-        }
-      }
-
-      // Use Solana RPC to fetch transactions directly
-      console.log('🔍 Fetching transactions for Solana wallet:', walletAddress);
-
-      const connection = new Connection(SOLANA_CONFIG.RPC_URL, 'confirmed');
-      const publicKey = new PublicKey(walletAddress);
-
-      // Fetch confirmed signatures for this address
-      const signatures = await connection.getSignaturesForAddress(publicKey, {
-        limit: limit * 2, // Fetch more to account for failed transactions
-      });
-
-      console.log(`✅ Found ${signatures.length} signatures`);
-
-      // Fetch transaction details for each signature
-      const txPromises = signatures.map(sig =>
-        connection.getParsedTransaction(sig.signature, {
-          maxSupportedTransactionVersion: 0,
-        })
-      );
-
-      const parsedTxs = await Promise.all(txPromises);
-
-      // Transform Solana transactions to our Transaction type
-      const txs: Transaction[] = parsedTxs
-        .filter((tx): tx is ParsedTransactionWithMeta => tx !== null)
-        .map((tx, index) => {
-          const signature = signatures[index].signature;
-          const blockTime = tx.blockTime || 0;
-          const timestamp = blockTime * 1000; // Convert to milliseconds
-
-          // Determine if transaction was successful
-          const status: 'confirmed' | 'pending' | 'failed' =
-            tx.meta?.err ? 'failed' : 'confirmed';
-
-          // Find transfers involving our wallet
-          const preBalance = tx.meta?.preBalances?.[0] || 0;
-          const postBalance = tx.meta?.postBalances?.[0] || 0;
-          const balanceChange = postBalance - preBalance;
-
-          // Determine type (send or receive) based on balance change
-          const type: 'send' | 'receive' = balanceChange < 0 ? 'send' : 'receive';
-
-          // Calculate amount (in SOL)
-          const amount = Math.abs(balanceChange) / LAMPORTS_PER_SOL;
-
-          // Try to find the other party's address
-          let otherAddress: string | undefined;
-          if (tx.transaction.message.accountKeys.length > 1) {
-            // Get first non-wallet address
-            otherAddress = tx.transaction.message.accountKeys
-              .find(key => key.pubkey.toBase58() !== walletAddress)?.pubkey.toBase58();
-          }
-
-          return {
-            signature,
-            type,
-            amount,
-            token: 'SOL',
-            timestamp,
-            status,
-            from: type === 'send' ? walletAddress : otherAddress,
-            to: type === 'send' ? otherAddress : walletAddress,
-            isPrivate: false,
-          };
-        })
-        .filter(tx => tx.amount > 0) // Only show transactions with actual transfers
-        .slice(0, limit); // Apply final limit
-
-      console.log(`✅ Processed ${txs.length} transactions`);
-
-      setTransactions(txs);
-
-      // Sauvegarder dans le cache
-      if (txs.length > 0 && walletAddress) {
-        const cacheKey = `${CACHE_KEY}${walletAddress}`;
-        const cacheData = {
-          transactions: txs,
-          timestamp: Date.now(),
-        };
-        await AsyncStorage.setItem(cacheKey, JSON.stringify(cacheData));
-      }
-
-    } catch (err: any) {
-      console.error('❌ Error fetching transactions from Solana RPC:', err);
-      setError(err.message || 'Failed to load transactions');
-    } finally {
-      setLoading(false);
-      setRefreshing(false);
-    }
-  };
-
-
-  const handleRefresh = () => {
+  const handleRefresh = async () => {
     setRefreshing(true);
-    // Force refresh pour ignorer le cache lors du pull-to-refresh
-    fetchTransactions(false, true);
-  };
-
-  const openExplorer = (signature: string) => {
-    // Use devnet cluster parameter
-    const cluster = SOLANA_CONFIG.NETWORK === 'devnet' ? '?cluster=devnet' : '';
-    const explorerUrl = `https://explorer.solana.com/tx/${signature}${cluster}`;
-    Linking.openURL(explorerUrl).catch(() => {
-      Alert.alert('Error', 'Could not open Solana Explorer');
+    await queryClient.invalidateQueries({
+      queryKey: ['wallet-history', wallet],
     });
-  };
+    setRefreshing(false);
+  }
 
-  const formatDate = (timestamp: number) => {
-    const date = new Date(timestamp);
-    const now = new Date();
-    const diffMs = now.getTime() - date.getTime();
-    const diffMins = Math.floor(diffMs / 60000);
-    const diffHours = Math.floor(diffMs / 3600000);
-    const diffDays = Math.floor(diffMs / 86400000);
 
-    if (diffMins < 1) return 'Just now';
-    if (diffMins < 60) return `${diffMins}m ago`;
-    if (diffHours < 24) return `${diffHours}h ago`;
-    if (diffDays < 7) return `${diffDays}d ago`;
+  const isCompactMode = limit <= 3;
 
-    return date.toLocaleDateString('en-US', {
-      month: 'short',
-      day: 'numeric',
-    });
-  };
-
-  const formatAddress = (address: string) => {
-    if (!address) return 'Unknown';
-    return `${address.substring(0, 4)}...${address.substring(address.length - 4)}`;
-  };
-
-  // Ne jamais afficher d'état de chargement, toujours afficher directement le contenu
-  if (transactions.length === 0 && !loading) {
+  if (isLoading && displayedTransactions.length === 0) {
     return (
       <View style={[styles.container, style]}>
-        <View style={styles.emptyContainer}>
-          <Text style={styles.emptyIcon}>📭</Text>
-          <Text style={styles.emptyText}>No transactions yet</Text>
-          <Text style={styles.emptySubtext}>Your transaction history will appear here</Text>
-        </View>
+        <ActivityIndicator size="large" color="#ffffff" />
+        <Text style={styles.loadingText}>Loading transactions...</Text>
       </View>
     );
   }
 
-  // Si limit <= 3, on affiche sans ScrollView (pour HomeScreen)
-  // Sinon on garde le ScrollView (pour page dédiée historique)
-  const isCompactMode = limit <= 3;
+  if (historyError) {
+    return (
+      <View style={[styles.container, style]}>
+        <Text style={styles.errorText}>{historyError.message || 'Failed to load transactions'}</Text>
+        <TouchableOpacity style={styles.retryButton} onPress={handleRefresh}>
+          <Text style={styles.retryButtonText}>Retry</Text>
+        </TouchableOpacity>
+      </View>
+    );
+  }
 
-  const transactionsList = (
+  if (displayedTransactions.length === 0) {
+    return (
+      <View style={[styles.emptyContainer, style]}>
+        <Text style={styles.emptyText}>No transactions yet</Text>
+        <Text style={styles.emptySubtext}>Your transaction history will appear here</Text>
+      </View>
+    );
+  }
+
+const transactionsList = (
     <>
-      {transactions.map((tx, index) => (
-          <TouchableOpacity
-            key={`${tx.signature}-${index}`}
-            style={[
-              styles.transactionCard,
-              isCompactMode && { marginBottom: index === transactions.length - 1 ? 0 : 12 }
-            ]}
-            onPress={() => openExplorer(tx.signature)}
-            activeOpacity={0.7}
-          >
-            <View style={styles.transactionIcon}>
-              <Text style={styles.iconText}>
-                {tx.type === 'send' ? '↗' : '↙'}
+      {displayedTransactions.map((tx, index) => (
+        <TouchableOpacity
+          key={`${tx.signature}-${index}`}
+          style={[
+            styles.transactionCard,
+            isCompactMode && { marginBottom: index === displayedTransactions.length - 1 ? 0 : 12 }
+          ]}
+          onPress={() => Linking.openURL(tx.signatureURL)}
+          activeOpacity={0.7}
+        >
+          <View style={styles.transactionIcon}>
+            <Text style={styles.iconText}>
+              {tx.type === 'sent' ? '↗' : tx.type === 'received' ? '↙' : '•'}
+            </Text>
+          </View>
+
+          <View style={styles.transactionDetails}>
+            <View style={styles.transactionHeader}>
+              <Text style={styles.transactionType}>
+                {tx.type === 'sent' ? 'Sent' : tx.type === 'received' ? 'Received' : 'Transaction'}
+              </Text>
+              <Text style={[
+                styles.transactionAmount,
+                tx.type === 'sent' ? styles.amountSent : styles.amountReceived
+              ]}>
+                {tx.type === 'sent' ? '-' : tx.type === 'received' ? '+' : ''}
+                ${tx.amountUSD.toFixed(2)}
               </Text>
             </View>
 
-            <View style={styles.transactionDetails}>
-              <View style={styles.transactionHeader}>
-                <Text style={styles.transactionType}>
-                  {tx.type === 'send' ? 'Sent' : 'Received'}
-                  {tx.isPrivate
-                    ? ' (Private)'
-                    : (tx.type === 'send' && tx.to ? ` to ${formatAddress(tx.to)}` : '')
-                  }
-                  {!tx.isPrivate && tx.type === 'receive' && tx.from ? ` from ${formatAddress(tx.from)}` : ''}
-                </Text>
+            <View style={styles.transactionFooter}>
+              <Text style={styles.transactionDate}>{tx.dateFormatted}</Text>
+              <View style={styles.statusContainer}>
+                <View style={[
+                  styles.statusDot,
+                  tx.status === 'confirmed' && styles.statusConfirmed,
+                  tx.status === 'finalized' && styles.statusConfirmed,
+                  tx.status === 'success' && styles.statusConfirmed,
+                ]} />
                 <Text style={[
-                  styles.transactionAmount,
-                  tx.type === 'send' ? styles.amountSent : styles.amountReceived
+                  styles.statusText,
+                  styles.statusTextConfirmed,
                 ]}>
-                  {tx.type === 'send' ? '-' : '+'}
-                  {tx.amount.toFixed(4)} {tx.token}
+                  {tx.status.charAt(0).toUpperCase() + tx.status.slice(1)}
                 </Text>
               </View>
-
-              <View style={styles.transactionFooter}>
-                <Text style={styles.transactionDate}>{formatDate(tx.timestamp)}</Text>
-                <View style={styles.statusContainer}>
-                  <View style={[
-                    styles.statusDot,
-                    tx.isPrivate && styles.statusPrivate,
-                    !tx.isPrivate && tx.status === 'confirmed' && styles.statusConfirmed,
-                    !tx.isPrivate && tx.status === 'pending' && styles.statusPending,
-                    !tx.isPrivate && tx.status === 'failed' && styles.statusFailed,
-                  ]} />
-                  <Text style={[
-                    styles.statusText,
-                    tx.isPrivate && styles.statusTextPrivate,
-                    !tx.isPrivate && tx.status === 'confirmed' && styles.statusTextConfirmed,
-                    !tx.isPrivate && tx.status === 'pending' && styles.statusTextPending,
-                    !tx.isPrivate && tx.status === 'failed' && styles.statusTextFailed,
-                  ]}>
-                    {tx.isPrivate ? 'Private' : (tx.status.charAt(0).toUpperCase() + tx.status.slice(1))}
-                  </Text>
-                </View>
-              </View>
             </View>
+          </View>
 
-            <View style={styles.arrowContainer}>
-              <Text style={styles.arrowIcon}>›</Text>
-            </View>
-          </TouchableOpacity>
-        ))}
+          <View style={styles.arrowContainer}>
+            <Text style={styles.arrowIcon}>›</Text>
+          </View>
+        </TouchableOpacity>
+      ))}
 
-      {!isCompactMode && transactions.length > 0 && (
+      {!isCompactMode && displayedTransactions.length > 0 && (
         <TouchableOpacity style={styles.viewAllButton} onPress={handleRefresh}>
           <Text style={styles.viewAllText}>Refresh</Text>
         </TouchableOpacity>
@@ -349,7 +148,6 @@ export default function TransactionHistory({ limit = 10, style, isDemo = false }
     </>
   );
 
-  // Mode compact (HomeScreen) : pas de ScrollView, pas de flex
   if (isCompactMode) {
     return (
       <View style={[styles.compactContainer, style]}>
@@ -358,7 +156,6 @@ export default function TransactionHistory({ limit = 10, style, isDemo = false }
     );
   }
 
-  // Mode complet : avec ScrollView et pull-to-refresh
   return (
     <View style={[styles.container, style]}>
       <ScrollView
@@ -452,34 +249,17 @@ const styles = StyleSheet.create({
     height: 6,
     borderRadius: 3,
     marginRight: 5,
+    backgroundColor: 'rgba(255, 255, 255, 0.3)',
   },
   statusConfirmed: {
-    backgroundColor: 'rgba(255, 255, 255, 0.6)',
-  },
-  statusPending: {
-    backgroundColor: 'rgba(255, 255, 255, 0.6)',
-  },
-  statusFailed: {
-    backgroundColor: 'rgba(255, 255, 255, 0.6)',
-  },
-  statusPrivate: {
-    backgroundColor: 'rgba(255, 255, 255, 0.6)',
+    backgroundColor: 'rgba(76, 217, 100, 0.8)',
   },
   statusText: {
     fontSize: 11,
     fontWeight: '600',
   },
   statusTextConfirmed: {
-    color: 'rgba(255, 255, 255, 0.7)',
-  },
-  statusTextPending: {
-    color: 'rgba(255, 255, 255, 0.7)',
-  },
-  statusTextFailed: {
-    color: 'rgba(255, 255, 255, 0.7)',
-  },
-  statusTextPrivate: {
-    color: 'rgba(255, 255, 255, 0.7)',
+    color: 'rgba(76, 217, 100, 0.9)',
   },
   arrowContainer: {
     marginLeft: 8,
@@ -550,3 +330,4 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
 });
+

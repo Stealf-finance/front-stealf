@@ -11,42 +11,21 @@ import { StatusBar } from 'expo-status-bar';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useFonts } from 'expo-font';
 import type { SendScreenProps } from '../../types';
-import { useBalance, useWallet } from '../../hooks';
+import { useAuth } from '../../contexts/AuthContext';
+import { usePrivacyBalance } from '../../hooks/usePrivacyBalance';
+import { useWalletInfos } from '../../hooks/useWalletInfos';
 import SendPrivateConfirmation from './SendPrivateConfirmation';
 
-export default function SendScreen({ onBack }: SendScreenProps) {
+export default function SendScreen({ onBack, transferType }: SendScreenProps) {
   const [amount, setAmount] = useState('');
   const [showConfirmation, setShowConfirmation] = useState(false);
 
-  // Get wallet and balance
-  const { walletAddress } = useWallet();
-  const { balance } = useBalance(walletAddress);
+  const { userData } = useAuth();
+  const { totalUSD: privacyBalance } = usePrivacyBalance();
+  const { balance: basicBalance } = useWalletInfos(userData?.stealf_wallet || '');
 
-  // Calculate total USD - USDC tokens or SOL converted to USD
-  const calculateTotalUSD = () => {
-    if (!balance) return 0;
+  const displayBalance = transferType === 'private' ? privacyBalance : (basicBalance || 0);
 
-    // Priorité 1: Chercher le token USDC dans la liste
-    const usdcToken = balance.tokens.find(
-      (token) => token.symbol === 'USDC' || token.symbol === 'usdc'
-    );
-
-    if (usdcToken && usdcToken.amount > 0) {
-      return usdcToken.amount;
-    }
-
-    // Priorité 2: Utiliser SOL et le convertir en USD (prix fictif: $140 par SOL)
-    if (balance.sol > 0) {
-      const SOL_PRICE_USD = 140; // Prix fictif pour le devnet
-      return balance.sol * SOL_PRICE_USD;
-    }
-
-    return 0;
-  };
-
-  const totalUSD = calculateTotalUSD();
-
-  // Load fonts
   const [fontsLoaded] = useFonts({
     'Sansation-Regular': require('../../assets/font/Sansation/Sansation-Regular.ttf'),
     'Sansation-Bold': require('../../assets/font/Sansation/Sansation-Bold.ttf'),
@@ -79,21 +58,24 @@ export default function SendScreen({ onBack }: SendScreenProps) {
     setShowConfirmation(false);
   };
 
-  // Show confirmation screen
+
   if (showConfirmation) {
     return (
       <SendPrivateConfirmation
         amount={amount}
         onBack={() => setShowConfirmation(false)}
+        onClose={onBack}
         onSuccess={handleSuccess}
+        transferType={transferType}
       />
     );
   }
 
+
   return (
     <View style={styles.container}>
       <LinearGradient
-        colors={['#050008', '#0a0510', '#0f0a18']}
+        colors={['#000000', '#000000', '#000000']}
         locations={[0, 0.5, 1]}
         start={{ x: 0, y: 1 }}
         end={{ x: 0, y: 0 }}
@@ -107,31 +89,20 @@ export default function SendScreen({ onBack }: SendScreenProps) {
             <Text style={styles.backArrow}>←</Text>
           </TouchableOpacity>
           <Text style={styles.headerTitle}>Transfer</Text>
-          <View style={styles.placeholder} />
+          <TouchableOpacity style={styles.closeButton} onPress={onBack} activeOpacity={0.8}>
+            <Text style={styles.closeIcon}>✕</Text>
+          </TouchableOpacity>
         </View>
 
         {/* Amount Display */}
         <View style={styles.amountContainer}>
           <View style={styles.amountRow}>
             <Text style={styles.amountText}>{amount || '0'}</Text>
-            <Text style={styles.currencyText}>USD</Text>
+            <Text style={styles.currencyText}>SOL</Text>
           </View>
-          <Text style={styles.balanceText}>Your balance ${totalUSD.toFixed(2)}</Text>
+          <Text style={styles.balanceText}>Your balance {displayBalance.toFixed(2)}SOL</Text>
         </View>
 
-        {/* Account Selection */}
-        <View style={styles.accountSection}>
-          <View style={styles.accountButton}>
-            <View style={styles.accountIconContainer}>
-              <Image
-                source={require('../../assets/logo-transparent.png')}
-                style={styles.accountIcon}
-                resizeMode="contain"
-              />
-            </View>
-            <Text style={styles.accountText}>Privacy{'\n'}account</Text>
-          </View>
-        </View>
 
         {/* Continue Button */}
         <TouchableOpacity
@@ -181,7 +152,9 @@ export default function SendScreen({ onBack }: SendScreenProps) {
           </View>
 
           <View style={styles.keyboardRow}>
-            <View style={styles.key} />
+            <TouchableOpacity style={styles.key} onPress={() => handleNumberPress('.')}>
+              <Text style={styles.keyText}>.</Text>
+            </TouchableOpacity>
             <TouchableOpacity style={styles.key} onPress={() => handleNumberPress('0')}>
               <Text style={styles.keyText}>0</Text>
             </TouchableOpacity>
@@ -231,6 +204,19 @@ const styles = StyleSheet.create({
   },
   placeholder: {
     width: 40,
+  },
+  closeButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: 'rgba(60, 60, 60, 0.9)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  closeIcon: {
+    fontSize: 18,
+    color: 'white',
+    fontWeight: 'bold',
   },
   amountContainer: {
     alignItems: 'center',

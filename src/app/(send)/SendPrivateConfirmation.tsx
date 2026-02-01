@@ -18,36 +18,113 @@ import * as Clipboard from 'expo-clipboard';
 import { StatusBar } from 'expo-status-bar';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useFonts } from 'expo-font';
-import { authStorage } from '../../services/authStorage';
-import solanaWalletService from '../../services/solanaWalletService';
-import stealfService from '../../services/stealfService';
-import { arciumApi, isArciumError } from '../../services/arciumApiClient';
-import bs58 from 'bs58';
-import type { PrivacyPoolTransferResponse, ArciumApiError } from '../../services/arciumApiClient';
+import { useAuth } from '../../contexts/AuthContext';
+import { useSendTransaction } from '../../hooks/useSendSimpleTransaction';
+import { useAuthenticatedApi } from '../../services/clientStealf';
+import { createGetSolPriceUSD } from '../../services/fetchWalletInfos';
+import { usePrivacyCashTransfer } from '../../hooks/usePrivacyCashTransfer';
+import { useTurnkey } from '@turnkey/react-native-wallet-kit';
+import { usePrivacyBalance } from '../../hooks/usePrivacyBalance';
 
 interface SendConfirmationProps {
   amount: string;
   onBack: () => void;
+  onClose?: () => void;
   onSuccess: () => void;
+  transferType?: 'basic' | 'private';
 }
 
-export default function SendConfirmation({ amount, onBack, onSuccess }: SendConfirmationProps) {
-  const [isLoading, setIsLoading] = useState(false);
-  const [showSuccessModal, setShowSuccessModal] = useState(false);
-  const [transactionSignature, setTransactionSignature] = useState('');
-  const [destinationType, setDestinationType] = useState<'privacy' | 'external'>('privacy');
+export default function SendConfirmation({ amount, onBack, onClose, onSuccess, transferType = 'private' }: SendConfirmationProps) {
+  const { userData } = useAuth();
+  const { session } = useTurnkey();
+  const { sendTransaction, loading: simpleLoading } = useSendTransaction();
+  const { initiatePrivateWithdraw, loading: privateLoading } = usePrivacyCashTransfer();
+  const api = useAuthenticatedApi();
+
   const [externalAddress, setExternalAddress] = useState('');
-  const [selectedPrivacyWallet, setSelectedPrivacyWallet] = useState('privacy_1');
-  const [showPrivacyDropdown, setShowPrivacyDropdown] = useState(false);
+  const [showSuccessModal, setShowSuccessModal] = useState(false);
+  const [transactionSignature, setTransactionSignature] = useState<string | null>(null);
+
   const successAnimation = useRef(new Animated.Value(0)).current;
   const checkmarkScale = useRef(new Animated.Value(0)).current;
 
-  // Liste des wallets privés (à remplacer par des vraies données plus tard)
-  const privateWallets = [
-    { id: 'privacy_1', name: 'MAIN' },
-  ];
+  const handleConfirm = async () => {
+    if (!externalAddress) {
+      Alert.alert('Error', 'Please enter a destination address');
+      return;
+    }
 
-  // Load fonts
+    if (!userData?.stealf_wallet) {
+      Alert.alert('Error', 'No privacy wallet found');
+      return;
+    }
+
+    try {
+      if (!externalAddress) {
+        throw new Error('Invalid destination address');
+      }
+
+      const amountSOL = parseFloat(amount);
+      let signature: string;
+
+      if (transferType === 'private') {
+        if (!session?.token) {
+          Alert.alert('Error', 'No session token found');
+          return;
+        }
+
+        const transfer = await initiatePrivateWithdraw(
+          userData.cash_wallet,
+          externalAddress,
+          amountSOL,
+          session.token
+        );
+
+        signature = transfer.transactions?.privacyCashWithdrawTx || 'Processing...';
+      } else {
+        signature = await sendTransaction(
+          userData.stealf_wallet,
+          externalAddress,
+          amountSOL
+        );
+      }
+
+      setTransactionSignature(signature);
+      setShowSuccessModal(true);
+
+      Animated.sequence([
+        Animated.timing(successAnimation, {
+          toValue: 1,
+          duration: 300,
+          useNativeDriver: true,
+        }),
+        Animated.spring(checkmarkScale, {
+          toValue: 1,
+          friction: 4,
+          tension: 40,
+          useNativeDriver: true,
+        }),
+      ]).start();
+
+    } catch (err: any) {
+      console.error('[SendPrivateConfirmation] Transfer error:', err);
+      Alert.alert(
+        'Transfer Failed',
+        err.message || 'An error occurred while sending the transaction'
+      );
+    }
+  };
+
+  const closeSuccessModal = () => {
+    setShowSuccessModal(false);
+    successAnimation.setValue(0);
+    checkmarkScale.setValue(0);
+    setTransactionSignature(null);
+    onSuccess();
+  };
+
+  const isLoading = transferType === 'private' ? privateLoading : simpleLoading;
+
   const [fontsLoaded] = useFonts({
     'Sansation-Regular': require('../../assets/font/Sansation/Sansation-Regular.ttf'),
     'Sansation-Bold': require('../../assets/font/Sansation/Sansation-Bold.ttf'),
@@ -58,111 +135,10 @@ export default function SendConfirmation({ amount, onBack, onSuccess }: SendConf
     return null;
   }
 
-  const closeSuccessModal = () => {
-    Animated.timing(successAnimation, {
-      toValue: 0,
-      duration: 200,
-      useNativeDriver: true,
-    }).start(() => {
-      setShowSuccessModal(false);
-      checkmarkScale.setValue(0);
-      onSuccess();
-    });
-  };
-
-  const handleConfirm = async () => {
-    if (destinationType === 'external' && !externalAddress.trim()) {
-      Alert.alert('Error', 'Please enter a wallet address');
-      return;
-    }
-
-    setIsLoading(true);
-    try {
-      console.log('🔒 Starting PRIVATE transfer from Privacy Wallet...');
-
-      // Get the private wallet's keypair (sender)
-      const privateWalletKeypair = await stealfService.getPrivateWalletKeypair();
-      if (!privateWalletKeypair) {
-        throw new Error('Private wallet not found');
-      }
-
-      const privateWalletAddress = privateWalletKeypair.publicKey.toBase58();
-      const privateKeyBase58 = bs58.encode(privateWalletKeypair.secretKey);
-      console.log(`📤 From Private Wallet: ${privateWalletAddress.slice(0, 8)}...`);
-
-      // Determine recipient address
-      let recipientAddress: string;
-      if (destinationType === 'privacy') {
-        // Send to public wallet
-        const solanaKeypair = await solanaWalletService.loadWallet();
-        if (!solanaKeypair) {
-          throw new Error('Public wallet not found');
-        }
-        recipientAddress = solanaKeypair.publicKey.toBase58();
-        console.log(`📥 To Public Wallet: ${recipientAddress.slice(0, 8)}...`);
-      } else {
-        // Send to external address
-        recipientAddress = externalAddress.trim();
-        console.log(`📥 To External Address: ${recipientAddress.slice(0, 8)}...`);
-      }
-
-      // Convert USD to SOL
-      const SOL_PRICE_USD = 140;
-      const amountInSOL = parseFloat(amount) / SOL_PRICE_USD;
-      console.log(`💰 Amount: ${amountInSOL.toFixed(4)} SOL`);
-
-      // Execute private transfer via Privacy Pool
-      console.log('🔒 Creating PRIVATE transfer via Privacy Pool...');
-      const poolResult = await arciumApi.encryptedTransfer({
-        fromPrivateKey: privateKeyBase58,
-        toAddress: recipientAddress,
-        amount: amountInSOL,
-      });
-
-      if (isArciumError(poolResult)) {
-        const error = poolResult as ArciumApiError;
-        console.error('❌ Privacy pool transfer failed:', error.message);
-        throw new Error(`Private transfer failed: ${error.message}`);
-      }
-
-      const result = poolResult as PrivacyPoolTransferResponse;
-      console.log('✅ PRIVATE TRANSFER COMPLETE!');
-      console.log(`   Deposit TX: ${result.transactions.deposit.signature}`);
-      console.log(`   Withdraw TX: ${result.transactions.withdraw.signature}`);
-      console.log('🔒 No direct on-chain link between sender and recipient!');
-
-      // Show success
-      setTransactionSignature(result.transactions.withdraw.signature);
-      setShowSuccessModal(true);
-
-      Animated.parallel([
-        Animated.timing(successAnimation, {
-          toValue: 1,
-          duration: 300,
-          useNativeDriver: true,
-        }),
-        Animated.spring(checkmarkScale, {
-          toValue: 1,
-          friction: 6,
-          tension: 80,
-          useNativeDriver: true,
-        }),
-      ]).start();
-
-    } catch (error: any) {
-      console.error('❌ Transfer error:', error);
-      Alert.alert('Error', error.message || 'Failed to transfer');
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const solPrice = 100; // TODO: Get real SOL price
-
   return (
     <View style={styles.container}>
       <LinearGradient
-        colors={['#050008', '#0a0510', '#0f0a18']}
+        colors={['#000000', '#000000', '#000000']}
         locations={[0, 0.5, 1]}
         start={{ x: 0, y: 1 }}
         end={{ x: 0, y: 0 }}
@@ -176,7 +152,9 @@ export default function SendConfirmation({ amount, onBack, onSuccess }: SendConf
             <Text style={styles.backArrow}>←</Text>
           </TouchableOpacity>
           <Text style={styles.headerTitle}>Confirm</Text>
-          <View style={styles.placeholder} />
+          <TouchableOpacity style={styles.closeButton} onPress={onClose || onBack} activeOpacity={0.8}>
+            <Text style={styles.closeIcon}>✕</Text>
+          </TouchableOpacity>
         </View>
 
         {/* Content with KeyboardAvoidingView */}
@@ -194,7 +172,7 @@ export default function SendConfirmation({ amount, onBack, onSuccess }: SendConf
           {/* Amount */}
           <View style={styles.section}>
             <Text style={styles.label}>Amount</Text>
-            <Text style={styles.value}>{amount} USD</Text>
+            <Text style={styles.value}>{amount} SOL</Text>
           </View>
 
           {/* Network */}
@@ -207,94 +185,18 @@ export default function SendConfirmation({ amount, onBack, onSuccess }: SendConf
           <View style={styles.section}>
             <Text style={styles.label}>To</Text>
 
-            {/* Destination Type Selector */}
-            <View style={styles.destinationToggle}>
-              <TouchableOpacity
-                style={[
-                  styles.toggleOption,
-                  destinationType === 'privacy' && styles.toggleOptionActive
-                ]}
-                onPress={() => setDestinationType('privacy')}
-                activeOpacity={0.8}
-              >
-                <Text style={[
-                  styles.toggleText,
-                  destinationType === 'privacy' && styles.toggleTextActive
-                ]}>
-                  My Public Wallet
-                </Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                style={[
-                  styles.toggleOption,
-                  destinationType === 'external' && styles.toggleOptionActive
-                ]}
-                onPress={() => setDestinationType('external')}
-                activeOpacity={0.8}
-              >
-                <Text style={[
-                  styles.toggleText,
-                  destinationType === 'external' && styles.toggleTextActive
-                ]}>
-                  Other Wallet
-                </Text>
-              </TouchableOpacity>
+            {/* Address Input */}
+            <View style={styles.addressInputContainer}>
+              <TextInput
+                style={styles.addressInput}
+                placeholder="Paste wallet address..."
+                placeholderTextColor="rgba(255, 255, 255, 0.3)"
+                value={externalAddress}
+                onChangeText={setExternalAddress}
+                autoCapitalize="none"
+                autoCorrect={false}
+              />
             </View>
-
-            {/* Privacy Wallet Dropdown */}
-            {destinationType === 'privacy' && (
-              <View style={styles.dropdownContainer}>
-                <TouchableOpacity
-                  style={styles.dropdownButton}
-                  onPress={() => setShowPrivacyDropdown(!showPrivacyDropdown)}
-                  activeOpacity={0.8}
-                >
-                  <Text style={styles.dropdownButtonText}>
-                    {privateWallets.find(w => w.id === selectedPrivacyWallet)?.name || 'Select Wallet'}
-                  </Text>
-                  <Text style={styles.dropdownArrow}>▼</Text>
-                </TouchableOpacity>
-
-                {showPrivacyDropdown && (
-                  <View style={styles.dropdownList}>
-                    {privateWallets.map((wallet) => (
-                      <TouchableOpacity
-                        key={wallet.id}
-                        style={styles.dropdownItem}
-                        onPress={() => {
-                          setSelectedPrivacyWallet(wallet.id);
-                          setShowPrivacyDropdown(false);
-                        }}
-                        activeOpacity={0.8}
-                      >
-                        <Text style={[
-                          styles.dropdownItemText,
-                          selectedPrivacyWallet === wallet.id && styles.dropdownItemTextActive
-                        ]}>
-                          {wallet.name}
-                        </Text>
-                      </TouchableOpacity>
-                    ))}
-                  </View>
-                )}
-              </View>
-            )}
-
-            {/* External Address Input */}
-            {destinationType === 'external' && (
-              <View style={styles.addressInputContainer}>
-                <TextInput
-                  style={styles.addressInput}
-                  placeholder="Paste wallet address..."
-                  placeholderTextColor="rgba(255, 255, 255, 0.3)"
-                  value={externalAddress}
-                  onChangeText={setExternalAddress}
-                  autoCapitalize="none"
-                  autoCorrect={false}
-                />
-              </View>
-            )}
           </View>
 
           {/* Confirm Button */}
@@ -441,6 +343,19 @@ const styles = StyleSheet.create({
   placeholder: {
     width: 40,
   },
+  closeButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: 'rgba(60, 60, 60, 0.9)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  closeIcon: {
+    fontSize: 18,
+    color: 'white',
+    fontWeight: 'bold',
+  },
   content: {
     flex: 1,
   },
@@ -463,78 +378,6 @@ const styles = StyleSheet.create({
     color: 'white',
     fontWeight: '400',
     fontFamily: 'Sansation-Light',
-  },
-  destinationToggle: {
-    flexDirection: 'row',
-    backgroundColor: 'rgba(255, 255, 255, 0.05)',
-    borderRadius: 16,
-    padding: 4,
-    gap: 4,
-  },
-  toggleOption: {
-    flex: 1,
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    borderRadius: 12,
-    alignItems: 'center',
-  },
-  toggleOptionActive: {
-    backgroundColor: 'rgba(255, 255, 255, 0.15)',
-  },
-  toggleText: {
-    fontSize: 14,
-    color: 'rgba(255, 255, 255, 0.5)',
-    fontFamily: 'Sansation-Regular',
-  },
-  toggleTextActive: {
-    color: 'white',
-    fontFamily: 'Sansation-Bold',
-  },
-  dropdownContainer: {
-    marginTop: 16,
-  },
-  dropdownButton: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    backgroundColor: 'rgba(255, 255, 255, 0.05)',
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.1)',
-    paddingVertical: 16,
-    paddingHorizontal: 16,
-  },
-  dropdownButtonText: {
-    color: 'white',
-    fontSize: 16,
-    fontFamily: 'Sansation-Regular',
-  },
-  dropdownArrow: {
-    color: 'rgba(255, 255, 255, 0.5)',
-    fontSize: 12,
-  },
-  dropdownList: {
-    marginTop: 8,
-    backgroundColor: 'rgba(255, 255, 255, 0.05)',
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.1)',
-    overflow: 'hidden',
-  },
-  dropdownItem: {
-    paddingVertical: 14,
-    paddingHorizontal: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: 'rgba(255, 255, 255, 0.05)',
-  },
-  dropdownItemText: {
-    color: 'rgba(255, 255, 255, 0.7)',
-    fontSize: 15,
-    fontFamily: 'Sansation-Regular',
-  },
-  dropdownItemTextActive: {
-    color: 'white',
-    fontFamily: 'Sansation-Bold',
   },
   addressInputContainer: {
     marginTop: 16,

@@ -10,30 +10,39 @@ export default {
     userInterfaceStyle: "light",
     newArchEnabled: true,
     splash: {
-      image: "./src/assets/splash-icon.png",
+      image: "./src/assets/logo-transparent.png",
       resizeMode: "contain",
-      backgroundColor: "#ffffff"
+      backgroundColor: "#000000"
     },
     ios: {
-      supportsTablet: true
+      supportsTablet: true,
+      bundleIdentifier: "com.stealf.app",
+      associatedDomains: ["webcredentials:localhost"]
     },
     android: {
+      package: "com.stealf.app",
       adaptiveIcon: {
-        foregroundImage: "./src/assets/adaptive-icon.png",
-        backgroundColor: "#ffffff"
+        foregroundImage: "./src/assets/logo-transparent.png",
+        backgroundColor: "#000000"
       },
       edgeToEdgeEnabled: true,
-      predictiveBackGestureEnabled: false
+      predictiveBackGestureEnabled: false,
+      intentFilters: [
+        {
+          action: "VIEW",
+          category: ["BROWSABLE", "DEFAULT"],
+          data: {
+            scheme: "https",
+            host: "localhost"
+          }
+        }
+      ]
     },
     web: {
-      favicon: "./src/assets/favicon.png"
+      favicon: "./src/assets/logo-transparent.png"
     },
     plugins: [
       "expo-secure-store"
     ],
-    extra: {
-      EXPO_PUBLIC_GRID_API_KEY: process.env.EXPO_PUBLIC_GRID_API_KEY,
-      EXPO_PUBLIC_GRID_ENV: process.env.EXPO_PUBLIC_GRID_ENV,
-    }
   }
 };

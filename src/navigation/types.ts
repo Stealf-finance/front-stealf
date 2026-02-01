@@ -1,8 +1,2 @@
-export type PageType = 'home' | 'privacy' | 'transactionHistory';
-export type ScreenType = 'auth' | 'main';
+export type PageType = 'home' | 'privacy' | 'transactionHistory' | 'profile';
 
-export interface NavigationState {
-  currentScreen: ScreenType;
-  currentPage: PageType;
-  showProfile: boolean;
-}

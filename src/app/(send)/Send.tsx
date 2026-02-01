@@ -8,44 +8,22 @@ import {
   Alert,
 } from 'react-native';
 import { useFonts } from 'expo-font';
-import AppBackground from '../../components/common/AppBackground';
+import { LinearGradient } from 'expo-linear-gradient';
 import type { SendScreenProps } from '../../types';
-import { useBalance, useWallet } from '../../hooks';
 import SendConfirmation from './SendConfirmation';
+import { useAuth } from '../../contexts/AuthContext';
+import { useWalletInfos } from '../../hooks/useWalletInfos';
+import { validateAmount } from '../../services/transactionsGuard';
 
 export default function SendScreen({ onBack }: SendScreenProps) {
   const [amount, setAmount] = useState('');
   const [showConfirmation, setShowConfirmation] = useState(false);
 
-  // Get wallet and balance
-  const { walletAddress } = useWallet();
-  const { balance } = useBalance(walletAddress);
+  const { userData } = useAuth();
+  const { balance } = useWalletInfos(userData?.cash_wallet || '');
 
-  // Calculate total USD - USDC tokens or SOL converted to USD
-  const calculateTotalUSD = () => {
-    if (!balance) return 0;
+  const totalUSD = balance || 0;
 
-    // Priorité 1: Chercher le token USDC dans la liste
-    const usdcToken = balance.tokens.find(
-      (token) => token.symbol === 'USDC' || token.symbol === 'usdc'
-    );
-
-    if (usdcToken && usdcToken.amount > 0) {
-      return usdcToken.amount;
-    }
-
-    // Priorité 2: Utiliser SOL et le convertir en USD (prix fictif: $140 par SOL)
-    if (balance.sol > 0) {
-      const SOL_PRICE_USD = 140; // Prix fictif pour le devnet
-      return balance.sol * SOL_PRICE_USD;
-    }
-
-    return 0;
-  };
-
-  const totalUSD = calculateTotalUSD();
-
-  // Load fonts
   const [fontsLoaded] = useFonts({
     'Sansation-Regular': require('../../assets/font/Sansation/Sansation-Regular.ttf'),
     'Sansation-Bold': require('../../assets/font/Sansation/Sansation-Bold.ttf'),
@@ -66,8 +44,13 @@ export default function SendScreen({ onBack }: SendScreenProps) {
   };
 
   const handleContinue = () => {
-    if (!amount || amount.trim() === '' || isNaN(parseFloat(amount)) || parseFloat(amount) <= 0) {
-      Alert.alert('Error', 'Please enter a valid amount');
+    const check = validateAmount(amount);
+    if (!check.valid) {
+      Alert.alert('Error', check.error || 'Invalid amount');
+      return;
+    }
+    if (parseFloat(amount) > totalUSD) {
+      Alert.alert('Error', `Insufficient balance. Your balance is $${totalUSD.toFixed(2)}`);
       return;
     }
     setShowConfirmation(true);
@@ -84,6 +67,7 @@ export default function SendScreen({ onBack }: SendScreenProps) {
       <SendConfirmation
         amount={amount}
         onBack={() => setShowConfirmation(false)}
+        onClose={onBack}
         onSuccess={handleSuccess}
       />
     );
@@ -91,7 +75,13 @@ export default function SendScreen({ onBack }: SendScreenProps) {
 
   return (
     <View style={styles.container}>
-      <AppBackground>
+            <LinearGradient
+              colors={['#000000', '#000000', '#000000']}
+              locations={[0, 0.5, 1]}
+              start={{ x: 0, y: 1 }}
+              end={{ x: 0, y: 0 }}
+              style={styles.background}
+            >
 
         {/* Header */}
         <View style={styles.header}>
@@ -109,20 +99,6 @@ export default function SendScreen({ onBack }: SendScreenProps) {
             <Text style={styles.currencyText}>USD</Text>
           </View>
           <Text style={styles.balanceText}>Your balance ${totalUSD.toFixed(2)}</Text>
-        </View>
-
-        {/* Account Selection */}
-        <View style={styles.accountSection}>
-          <View style={styles.accountButton}>
-            <View style={styles.accountIconContainer}>
-              <Image
-                source={require('../../assets/logo-transparent.png')}
-                style={styles.accountIcon}
-                resizeMode="contain"
-              />
-            </View>
-            <Text style={styles.accountText}>Main{'\n'}account</Text>
-          </View>
         </View>
 
         {/* Continue Button */}
@@ -182,13 +158,16 @@ export default function SendScreen({ onBack }: SendScreenProps) {
             </TouchableOpacity>
           </View>
         </View>
-      </AppBackground>
+      </LinearGradient>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
+    flex: 1,
+  },
+  background: {
     flex: 1,
   },
   header: {

@@ -3,5 +3,10 @@
   "compilerOptions": {
     "strict": false,
     "skipLibCheck": true
-  }
+  },
+  "include": [
+    "**/*.ts",
+    "**/*.tsx",
+    "src/types/**/*.d.ts"
+  ]
 }

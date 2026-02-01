@@ -1,36 +1,62 @@
 import React from 'react';
-import { View, TouchableOpacity, StyleSheet, Image } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import { View, TouchableOpacity, StyleSheet, Text } from 'react-native';
+import type { PageType } from '../navigation/types';
 
 interface MinimalNavBarProps {
   onOpenProfile: () => void;
-  onOpenNotifications?: () => void;
+  onNavigateToPage: (page: PageType) => void;
+  currentPage: PageType;
+  username?: string;
 }
 
-export default function MinimalNavBar({ onOpenProfile, onOpenNotifications }: MinimalNavBarProps) {
+export default function MinimalNavBar({
+  onOpenProfile,
+  onNavigateToPage,
+  currentPage,
+  username
+}: MinimalNavBarProps) {
+  // Get first letter of username for the profile circle
+  const initial = username ? username.charAt(0).toUpperCase() : 'U';
+
   return (
     <View style={styles.container}>
-      <Image
-        source={require('../assets/logo-transparent.png')}
-        style={styles.logo}
-        resizeMode="contain"
-      />
-      <View style={styles.rightButtons}>
-        <TouchableOpacity
-          style={styles.notificationButton}
-          onPress={onOpenNotifications}
-          activeOpacity={0.7}
-        >
-          <Ionicons name="notifications-outline" size={28} color="rgba(255, 255, 255, 0.9)" />
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={styles.profileButton}
-          onPress={onOpenProfile}
-          activeOpacity={0.7}
-        >
-          <Ionicons name="person-circle-outline" size={32} color="rgba(255, 255, 255, 0.9)" />
-        </TouchableOpacity>
-      </View>
+      {/* Wealth (Privacy) */}
+      <TouchableOpacity
+        onPress={() => onNavigateToPage('privacy')}
+        activeOpacity={0.7}
+      >
+        <Text style={[
+          styles.navText,
+          currentPage === 'privacy' && styles.navTextActive
+        ]}>
+          Wealth
+        </Text>
+      </TouchableOpacity>
+
+      {/* Cash (Home) */}
+      <TouchableOpacity
+        onPress={() => onNavigateToPage('home')}
+        activeOpacity={0.7}
+      >
+        <Text style={[
+          styles.navText,
+          currentPage === 'home' && styles.navTextActive
+        ]}>
+          Cash
+        </Text>
+      </TouchableOpacity>
+
+      {/* Profile Circle with Initial */}
+      <TouchableOpacity
+        style={[
+          styles.profileCircle,
+          currentPage === 'profile' && styles.profileCircleActive
+        ]}
+        onPress={onOpenProfile}
+        activeOpacity={0.7}
+      >
+        <Text style={styles.profileInitial}>{initial}</Text>
+      </TouchableOpacity>
     </View>
   );
 }
@@ -38,25 +64,39 @@ export default function MinimalNavBar({ onOpenProfile, onOpenNotifications }: Mi
 const styles = StyleSheet.create({
   container: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
-    paddingHorizontal: 20,
+    paddingHorizontal: 24,
     paddingTop: 60,
-    paddingBottom: 10,
+    paddingBottom: 16,
+    gap: 20,
   },
-  logo: {
-    width: 40,
-    height: 40,
+  navText: {
+    fontSize: 20,
+    fontWeight: '500',
+    color: 'rgba(255, 255, 255, 0.4)',
+    fontFamily: 'Sansation-Regular',
   },
-  rightButtons: {
-    flexDirection: 'row',
+  navTextActive: {
+    color: 'rgba(255, 255, 255, 1)',
+    fontWeight: '600',
+    fontFamily: 'Sansation-Bold',
+  },
+  profileCircle: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: 'rgba(255, 255, 255, 0.15)',
+    justifyContent: 'center',
     alignItems: 'center',
-    gap: 8,
+    marginLeft: 'auto',
   },
-  notificationButton: {
-    padding: 8,
+  profileCircleActive: {
+    backgroundColor: '#FFFFFF',
   },
-  profileButton: {
-    padding: 8,
+  profileInitial: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: 'black',
+    fontFamily: 'Sansation-Bold',
   },
 });

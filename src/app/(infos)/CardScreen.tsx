@@ -1,12 +1,13 @@
 import React, { useEffect, useRef } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ImageBackground, Animated, Easing, Image } from 'react-native';
-import AppBackground from '../../components/common/AppBackground';
+import { LinearGradient } from 'expo-linear-gradient';
 
 interface CardScreenProps {
   onClose: () => void;
+  cardType: 'stealf' | 'gmpc';
 }
 
-export default function CardScreen({ onClose }: CardScreenProps) {
+export default function CardScreen({ onClose, cardType }: CardScreenProps) {
   const fadeAnim = useRef(new Animated.Value(1)).current;
   const slideAnim = useRef(new Animated.Value(0)).current;
 
@@ -34,8 +35,14 @@ export default function CardScreen({ onClose }: CardScreenProps) {
       opacity: fadeAnim,
       transform: [{ translateY: slideAnim }]
     }]}>
-      {/* Background Gradient - Same as HomeScreen */}
-      <AppBackground>
+
+        <LinearGradient
+          colors={['#000000', '#000000', '#000000']}
+          locations={[0, 0.5, 1]}
+          start={{ x: 0, y: 1 }}
+          end={{ x: 0, y: 0 }}
+          style={styles.background}
+        >
 
       {/* Back Button */}
       <TouchableOpacity
@@ -47,29 +54,20 @@ export default function CardScreen({ onClose }: CardScreenProps) {
 
       {/* Titre de la carte */}
       <View style={styles.cardTitleContainer}>
-        <Text style={styles.cardName}>Basic *8903</Text>
-        <Text style={styles.cardType}>Virtual Card</Text>
+        <Text style={styles.cardName}>
+          {cardType === 'stealf' ? 'Basic *8903' : 'gMPC Card'}
+        </Text>
+        <Text style={styles.cardType}>
+          {cardType === 'stealf' ? 'Virtual Card' : 'Secure Card'}
+        </Text>
       </View>
 
       {/* Carte à la même position que sur HomeScreen */}
       <View style={styles.cardContainer}>
         <ImageBackground
-          source={require('../../assets/stealf-card.png')}
-          style={styles.cardImage}
-          resizeMode="cover"
-          imageStyle={{ borderRadius: 20 }}
-        />
-      </View>
-
-      {/* Deuxième carte gMPC */}
-      <View style={styles.secondCardTitleContainer}>
-        <Text style={styles.cardName}>gMPC Card</Text>
-        <Text style={styles.cardType}>Secure Card</Text>
-      </View>
-
-      <View style={styles.secondCardContainer}>
-        <ImageBackground
-          source={require('../../assets/gMPC-card.png')}
+          source={cardType === 'stealf'
+            ? require('../../assets/stealf-card.png')
+            : require('../../assets/gMPC-card.png')}
           style={styles.cardImage}
           resizeMode="cover"
           imageStyle={{ borderRadius: 20 }}
@@ -126,7 +124,7 @@ export default function CardScreen({ onClose }: CardScreenProps) {
           <Text style={styles.quickActionArrow}>›</Text>
         </TouchableOpacity>
       </View>
-      </AppBackground>
+      </LinearGradient>
     </Animated.View>
   );
 }
@@ -139,6 +137,9 @@ const styles = StyleSheet.create({
     right: 0,
     bottom: 0,
     zIndex: 99999,
+  },
+  background: {
+    flex: 1,
   },
   backButton: {
     position: 'absolute',
@@ -163,7 +164,7 @@ const styles = StyleSheet.create({
     position: 'absolute',
     top: 150,
     left: '50%',
-    marginLeft: '-37%', // Décalé vers la droite
+    marginLeft: '-37%',
     width: '85%',
     maxWidth: 320,
     height: 200,
