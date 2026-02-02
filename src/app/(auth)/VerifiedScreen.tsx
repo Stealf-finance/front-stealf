@@ -12,6 +12,7 @@ import { useSetupWallet } from '../../hooks/useSetupWallet';
 import { useAuth as useAuthContext } from '../../contexts/AuthContext';
 import { useTurnkey } from '@turnkey/react-native-wallet-kit';
 import { LinearGradient } from 'expo-linear-gradient';
+import { CASH_WALLET_CONFIG } from '../../constants/turnkey';
 
 const API_URL = process.env.EXPO_PUBLIC_API_URL;
 
@@ -32,26 +33,18 @@ export default function VerifiedScreen({ email, pseudo }: VerifiedScreenProps) {
   const [error, setError] = useState('');
   const [sessionToken, setSessionToken] = useState<string | null>(null);
   const [cashWallet, setCashWallet] = useState<string>('');
+  const [stealfWallet, setStealfWallet] = useState<string>('');
   const [coldWalletPrivateKey, setColdWalletPrivateKey] = useState<string | undefined>();
+  const [pendingUser, setPendingUser] = useState<any>(null);
 
-  // Step 1: Passkey auth + cash wallet creation via Turnkey
+  //Passkey auth + cash wallet creation via Turnkey
   useEffect(() => {
     const createPasskey = async () => {
       try {
         const authResult = await signUpWithPasskey({
           createSubOrgParams: {
             subOrgName: `User ${email}`,
-            customWallet: {
-              walletName: "STEALF wallets",
-              walletAccounts: [
-                {
-                  curve: "CURVE_ED25519" as const,
-                  pathFormat: 'PATH_FORMAT_BIP32' as const,
-                  path: "m/44'/501'/0'/0'",
-                  addressFormat: "ADDRESS_FORMAT_SOLANA" as const,
-                },
-              ],
-            },
+            customWallet: CASH_WALLET_CONFIG,
           },
         });
 
@@ -60,7 +53,6 @@ export default function VerifiedScreen({ email, pseudo }: VerifiedScreenProps) {
 
         setSessionToken(token);
 
-        // Get the cash wallet address
         const wallets = await refreshWallets();
         const cashAddr = wallets?.[0]?.accounts?.[0]?.address || '';
         if (!cashAddr) throw new Error('Failed to retrieve cash wallet address');
@@ -83,28 +75,28 @@ export default function VerifiedScreen({ email, pseudo }: VerifiedScreenProps) {
     setScreenState('creatingWallet');
 
     try {
-      let stealfWallet = '';
+      let walletAddr = '';
 
       if (choice.mode === 'create' && choice.storage === 'turnkey') {
         const result = await setupWallet.handleCreateAndStoreWallet();
         if (!result.success) throw new Error(result.error);
-        stealfWallet = result.walletAddress || '';
+        walletAddr = result.walletAddress || '';
       } else if (choice.mode === 'create' && choice.storage === 'cold') {
         const result = await setupWallet.handleCreateWallet();
         if (!result.success) throw new Error(result.error);
-        stealfWallet = result.walletAddress || '';
+        walletAddr = result.walletAddress || '';
         setColdWalletPrivateKey(result.privateKey);
       } else if (choice.mode === 'import' && choice.storage === 'turnkey') {
-        // Import into Turnkey requires mnemonic — here we receive a private key
-        // Store locally + in Turnkey via import
-        const result = await setupWallet.handleImportAndStoreWallet(choice.privateKey);
+        const result = await setupWallet.handleImportAndStoreWallet(choice.mnemonic);
         if (!result.success) throw new Error(result.error);
-        stealfWallet = result.walletAddress || '';
+        walletAddr = result.walletAddress || '';
       } else if (choice.mode === 'import' && choice.storage === 'skip') {
-        const result = await setupWallet.handleImportWallet(choice.privateKey);
+        const result = await setupWallet.handleImportWallet(choice.mnemonic);
         if (!result.success) throw new Error(result.error);
-        stealfWallet = result.walletAddress || '';
+        walletAddr = result.walletAddress || '';
       }
+
+      setStealfWallet(walletAddr);
 
       // Register with backend
       const response = await fetch(`${API_URL}/api/users/auth`, {
@@ -117,7 +109,7 @@ export default function VerifiedScreen({ email, pseudo }: VerifiedScreenProps) {
           email,
           pseudo,
           cash_wallet: cashWallet,
-          stealf_wallet: stealfWallet,
+          stealf_wallet: walletAddr,
         }),
       });
 
@@ -129,14 +121,13 @@ export default function VerifiedScreen({ email, pseudo }: VerifiedScreenProps) {
       const data = await response.json();
       if (!data.data?.user) throw new Error('Backend did not return user data');
 
-      // If cold wallet, show the private key before finishing
-      if (choice.mode === 'create' && choice.storage === 'cold' && coldWalletPrivateKey) {
+      if (choice.mode === 'create' && choice.storage === 'cold') {
+        setPendingUser(data.data.user);
         setScreenState('showPrivateKey');
         setLoading(false);
         return;
       }
 
-      // Otherwise finish immediately
       finishAuth(data.data.user);
     } catch (err: any) {
       console.error('Wallet setup failed:', err);
@@ -148,15 +139,13 @@ export default function VerifiedScreen({ email, pseudo }: VerifiedScreenProps) {
     }
   };
 
-  // Called after cold wallet user confirms they saved the key
   const handleColdWalletConfirmed = () => {
-    // Re-fetch user data is not needed, it was already saved in backend
-    // Just set user data to trigger auth
-    // We need to call the backend again or store the response — simplest: re-call
-    finishAuthFromBackend();
+    setColdWalletPrivateKey(undefined);
+    if (pendingUser) finishAuth(pendingUser);
   };
 
   const finishAuth = (user: any) => {
+    setPendingUser(null);
     setUserData({
       email: user.email,
       username: user.username || user.pseudo || pseudo,
@@ -164,28 +153,6 @@ export default function VerifiedScreen({ email, pseudo }: VerifiedScreenProps) {
       stealf_wallet: user.stealf_wallet,
       subOrgId: user.subOrgId,
     });
-  };
-
-  const finishAuthFromBackend = async () => {
-    try {
-      setLoading(true);
-      const response = await fetch(`${API_URL}/api/users/auth`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${sessionToken}`,
-        },
-        body: JSON.stringify({ email, pseudo, cash_wallet: cashWallet }),
-      });
-
-      if (!response.ok) throw new Error('Failed to fetch user');
-      const data = await response.json();
-      if (data.data?.user) finishAuth(data.data.user);
-    } catch (err: any) {
-      console.error('Error finishing auth:', err);
-    } finally {
-      setLoading(false);
-    }
   };
 
   // --- RENDERS ---
@@ -228,7 +195,6 @@ export default function VerifiedScreen({ email, pseudo }: VerifiedScreenProps) {
     );
   }
 
-  // Error
   return (
     <View style={styles.container}>
       <LinearGradient colors={['#000000', '#000000', '#000000']} locations={[0, 0.5, 1]} start={{ x: 0, y: 1 }} end={{ x: 0, y: 0 }} style={styles.background}>

@@ -4,6 +4,8 @@ import { Keypair } from "@solana/web3.js";
 import * as SecureStore from "expo-secure-store";
 import bs58 from "bs58";
 
+import { STEALF_WALLET_CONFIG } from "../constants/turnkey";
+
 const SECURE_STORE_KEY = "stealf_private_key";
 
 interface SetupWalletResult {
@@ -22,19 +24,13 @@ export function useSetupWallet() {
     try {
       await importWallet({
         mnemonic,
-        walletName: "StealfWallet",
-        accounts: [
-          {
-            curve: "CURVE_ED25519",
-            pathFormat: "PATH_FORMAT_BIP32",
-            path: "m/44'/501'/0'/0'",
-            addressFormat: "ADDRESS_FORMAT_SOLANA",
-          },
-        ],
+        walletName: STEALF_WALLET_CONFIG.walletName,
+        accounts: STEALF_WALLET_CONFIG.walletAccounts,
       });
 
       const wallets = await refreshWallets();
-      const walletAddress = wallets?.[0]?.accounts?.[0]?.address;
+      const stealfWallet = wallets?.find((w: any) => w.walletName === STEALF_WALLET_CONFIG.walletName);
+      const walletAddress = stealfWallet?.accounts?.[0]?.address;
 
       return { success: true, walletAddress };
     } catch (error: any) {
@@ -49,19 +45,13 @@ export function useSetupWallet() {
     setLoading(true);
     try {
       await createWallet({
-        walletName: "StealfWallet",
-        accounts: [
-          {
-            curve: "CURVE_ED25519",
-            pathFormat: "PATH_FORMAT_BIP32",
-            path: "m/44'/501'/0'/0'",
-            addressFormat: "ADDRESS_FORMAT_SOLANA",
-          },
-        ],
+        walletName: STEALF_WALLET_CONFIG.walletName,
+        accounts: STEALF_WALLET_CONFIG.walletAccounts,
       });
 
       const wallets = await refreshWallets();
-      const walletAddress = wallets?.[0]?.accounts?.[0]?.address;
+      const stealfWallet = wallets?.find((w: any) => w.walletName === STEALF_WALLET_CONFIG.walletName);
+      const walletAddress = stealfWallet?.accounts?.[0]?.address;
 
       return { success: true, walletAddress };
     } catch (error: any) {
@@ -94,21 +84,26 @@ export function useSetupWallet() {
   };
 
   /**
-   * Import an existing wallet from a private key and store it in SecureStore
+   * Derive keypair from mnemonic and store private key in SecureStore (self-managed)
    */
-  const handleImportWallet = async (privateKey: string): Promise<SetupWalletResult> => {
+  const handleImportWallet = async (mnemonic: string): Promise<SetupWalletResult> => {
     setLoading(true);
     try {
-      const secretKey = bs58.decode(privateKey);
-      const keypair = Keypair.fromSecretKey(secretKey);
+      const bip39 = require("bip39");
+      const { derivePath } = require("ed25519-hd-key");
+      const seed = await bip39.mnemonicToSeed(mnemonic);
+      const seedHex = Buffer.from(seed).toString("hex");
+      const { key } = derivePath("m/44'/501'/0'/0'", seedHex);
+      const keypair = Keypair.fromSeed(Uint8Array.from(key));
+      const privateKey = bs58.encode(keypair.secretKey);
       const walletAddress = keypair.publicKey.toBase58();
 
       await SecureStore.setItemAsync(SECURE_STORE_KEY, privateKey);
 
       return { success: true, walletAddress };
     } catch (error: any) {
-      console.error("Import local wallet failed:", error);
-      return { success: false, error: error?.message || "Invalid private key" };
+      console.error("Import wallet from mnemonic failed:", error);
+      return { success: false, error: error?.message || "Failed to import wallet" };
     } finally {
       setLoading(false);
     }

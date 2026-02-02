@@ -109,6 +109,27 @@ export function validateNotSelf(from: string, to: string): GuardResult {
 }
 
 /**
+ * Validates a mnemonic seed phrase (12 or 24 words, lowercase alpha only)
+ */
+export function validateMnemonic(mnemonic: string): GuardResult {
+  if (!mnemonic || mnemonic.trim() === '') {
+    return { valid: false, error: 'Please enter your seed phrase' };
+  }
+
+  const words = mnemonic.trim().split(/\s+/);
+
+  if (words.length !== 12 && words.length !== 24) {
+    return { valid: false, error: 'Seed phrase must be 12 or 24 words' };
+  }
+
+  if (!words.every(w => /^[a-z]+$/.test(w))) {
+    return { valid: false, error: 'Seed phrase must contain only lowercase words' };
+  }
+
+  return { valid: true };
+}
+
+/**
  * Full pre-check before sending a SOL transaction.
  * Returns the first error found, or { valid: true } if all checks pass.
  */

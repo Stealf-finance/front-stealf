@@ -10,14 +10,18 @@ import {
   Alert,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
+import AddIcon from '../../assets/buttons/add.svg';
+import DepositIcon from '../../assets/buttons/deposit.svg';
+import ComebackIcon from '../../assets/buttons/comeback.svg';
+import { validateMnemonic } from '../../services/transactionsGuard';
 
-type SetupStep = 'choose' | 'createOptions' | 'importWallet' | 'coldWalletResult';
+type SetupStep = 'choose' | 'createOptions' | 'importWallet' | 'importOptions' | 'coldWalletResult';
 
 export type WalletSetupChoice =
   | { mode: 'create'; storage: 'turnkey' }
   | { mode: 'create'; storage: 'cold' }
-  | { mode: 'import'; storage: 'turnkey'; privateKey: string }
-  | { mode: 'import'; storage: 'skip'; privateKey: string };
+  | { mode: 'import'; storage: 'turnkey'; mnemonic: string }
+  | { mode: 'import'; storage: 'skip'; mnemonic: string };
 
 interface WalletSetupScreenProps {
   onComplete: (choice: WalletSetupChoice) => void;
@@ -28,6 +32,7 @@ interface WalletSetupScreenProps {
 export default function WalletSetupScreen({ onComplete, loading, coldWalletPrivateKey }: WalletSetupScreenProps) {
   const [step, setStep] = useState<SetupStep>(coldWalletPrivateKey ? 'coldWalletResult' : 'choose');
   const [importKey, setImportKey] = useState('');
+  const [importError, setImportError] = useState('');
 
   const handleCreateNew = () => setStep('createOptions');
   const handleImport = () => setStep('importWallet');
@@ -42,18 +47,20 @@ export default function WalletSetupScreen({ onComplete, loading, coldWalletPriva
 
   const handleImportSaveInTurnkey = () => {
     if (!importKey.trim()) {
-      Alert.alert('Error', 'Please enter your private key');
+      Alert.alert('Error', 'Please enter your seed phrase');
       return;
     }
-    onComplete({ mode: 'import', storage: 'turnkey', privateKey: importKey.trim() });
+    onComplete({ mode: 'import', storage: 'turnkey', mnemonic: importKey.trim() });
+    setImportKey('');
   };
 
   const handleImportSkip = () => {
     if (!importKey.trim()) {
-      Alert.alert('Error', 'Please enter your private key');
+      Alert.alert('Error', 'Please enter your seed phrase');
       return;
     }
-    onComplete({ mode: 'import', storage: 'skip', privateKey: importKey.trim() });
+    onComplete({ mode: 'import', storage: 'skip', mnemonic: importKey.trim() });
+    setImportKey('');
   };
 
   return (
@@ -65,10 +72,15 @@ export default function WalletSetupScreen({ onComplete, loading, coldWalletPriva
         end={{ x: 0, y: 0 }}
         style={styles.background}
       >
+        {step !== 'choose' && step !== 'coldWalletResult' && (
+          <TouchableOpacity style={styles.backButton} onPress={() => setStep(step === 'importOptions' ? 'importWallet' : 'choose')}>
+            <ComebackIcon width={20} height={16} />
+          </TouchableOpacity>
+        )}
         <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
           {step === 'choose' && (
             <>
-              <Text style={styles.title}>Private Wallet</Text>
+              <Text style={styles.title}>Stealf Wallet</Text>
               <Text style={styles.subtitle}>
                 Choose how to set up your private wallet
               </Text>
@@ -79,7 +91,9 @@ export default function WalletSetupScreen({ onComplete, loading, coldWalletPriva
                 activeOpacity={0.7}
                 disabled={loading}
               >
-                <Text style={styles.optionIcon}>+</Text>
+                <View style={styles.optionIconContainer}>
+                  <AddIcon width={24} height={24} />
+                </View>
                 <View style={styles.optionTextContainer}>
                   <Text style={styles.optionTitle}>Create new wallet</Text>
                   <Text style={styles.optionDescription}>Generate a brand new wallet</Text>
@@ -92,7 +106,9 @@ export default function WalletSetupScreen({ onComplete, loading, coldWalletPriva
                 activeOpacity={0.7}
                 disabled={loading}
               >
-                <Text style={styles.optionIcon}>↓</Text>
+                <View style={styles.optionIconContainer}>
+                  <DepositIcon width={24} height={24} />
+                </View>
                 <View style={styles.optionTextContainer}>
                   <Text style={styles.optionTitle}>Import wallet</Text>
                   <Text style={styles.optionDescription}>Use an existing private key</Text>
@@ -103,10 +119,6 @@ export default function WalletSetupScreen({ onComplete, loading, coldWalletPriva
 
           {step === 'createOptions' && (
             <>
-              <TouchableOpacity style={styles.backLink} onPress={() => setStep('choose')}>
-                <Text style={styles.backLinkText}>← Back</Text>
-              </TouchableOpacity>
-
               <Text style={styles.title}>Create Wallet</Text>
               <Text style={styles.subtitle}>
                 Choose how to store your private wallet
@@ -118,7 +130,7 @@ export default function WalletSetupScreen({ onComplete, loading, coldWalletPriva
                 activeOpacity={0.7}
                 disabled={loading}
               >
-                <Text style={styles.optionIcon}>🔐</Text>
+
                 <View style={styles.optionTextContainer}>
                   <Text style={styles.optionTitle}>Cold wallet</Text>
                   <Text style={styles.optionDescription}>
@@ -133,9 +145,8 @@ export default function WalletSetupScreen({ onComplete, loading, coldWalletPriva
                 activeOpacity={0.7}
                 disabled={loading}
               >
-                <Text style={styles.optionIcon}>🛡️</Text>
                 <View style={styles.optionTextContainer}>
-                  <Text style={styles.optionTitle}>Save in Turnkey</Text>
+                  <Text style={styles.optionTitle}>Save in Stealf</Text>
                   <Text style={styles.optionDescription}>
                     Secured by Turnkey infrastructure.{'\n'}Access with your passkey.
                   </Text>
@@ -150,23 +161,19 @@ export default function WalletSetupScreen({ onComplete, loading, coldWalletPriva
 
           {step === 'importWallet' && (
             <>
-              <TouchableOpacity style={styles.backLink} onPress={() => setStep('choose')}>
-                <Text style={styles.backLinkText}>← Back</Text>
-              </TouchableOpacity>
-
               <Text style={styles.title}>Import Wallet</Text>
               <Text style={styles.subtitle}>
-                Enter your private key to import your wallet
+                Enter your seed phrase to import your wallet
               </Text>
 
               <View style={styles.inputGroup}>
-                <Text style={styles.label}>Private Key</Text>
+                <Text style={styles.label}>Seed Phrase</Text>
                 <TextInput
                   style={styles.input}
-                  placeholder="Enter your private key"
+                  placeholder="Enter your 12 or 24 word seed phrase"
                   placeholderTextColor="rgba(255, 255, 255, 0.3)"
                   value={importKey}
-                  onChangeText={setImportKey}
+                  onChangeText={(text) => { setImportKey(text); setImportError(''); }}
                   autoCapitalize="none"
                   autoCorrect={false}
                   multiline
@@ -174,16 +181,46 @@ export default function WalletSetupScreen({ onComplete, loading, coldWalletPriva
                 />
               </View>
 
+              {importError ? (
+                <Text style={styles.errorText}>{importError}</Text>
+              ) : null}
+
+              <TouchableOpacity
+                style={[styles.primaryButton, !importKey.trim() && styles.buttonDisabled]}
+                onPress={() => {
+                  const result = validateMnemonic(importKey.trim());
+                  if (!result.valid) {
+                    setImportError(result.error || 'Invalid seed phrase');
+                    return;
+                  }
+                  setImportError('');
+                  setStep('importOptions');
+                }}
+                activeOpacity={0.7}
+                disabled={!importKey.trim()}
+              >
+                <Text style={styles.primaryButtonText}>Import Wallet</Text>
+              </TouchableOpacity>
+            </>
+          )}
+
+          {step === 'importOptions' && (
+            <>
+              <Text style={styles.title}>Store your wallet</Text>
+              <Text style={styles.subtitle}>
+                Choose how to store your imported wallet
+              </Text>
+
               <TouchableOpacity
                 style={[styles.primaryButton, loading && styles.buttonDisabled]}
                 onPress={handleImportSaveInTurnkey}
                 activeOpacity={0.7}
-                disabled={loading || !importKey.trim()}
+                disabled={loading}
               >
                 {loading ? (
                   <ActivityIndicator color="#000" />
                 ) : (
-                  <Text style={styles.primaryButtonText}>Save in Turnkey</Text>
+                  <Text style={styles.primaryButtonText}>Save your private key in Stealf</Text>
                 )}
               </TouchableOpacity>
 
@@ -191,9 +228,9 @@ export default function WalletSetupScreen({ onComplete, loading, coldWalletPriva
                 style={[styles.secondaryButton, loading && styles.buttonDisabled]}
                 onPress={handleImportSkip}
                 activeOpacity={0.7}
-                disabled={loading || !importKey.trim()}
+                disabled={loading}
               >
-                <Text style={styles.secondaryButtonText}>Skip</Text>
+                <Text style={styles.secondaryButtonText}>Skip - Self managed</Text>
               </TouchableOpacity>
             </>
           )}
@@ -246,8 +283,14 @@ const styles = StyleSheet.create({
     flexGrow: 1,
     justifyContent: 'center',
     paddingHorizontal: 32,
-    paddingTop: 100,
     paddingBottom: 40,
+  },
+  backButton: {
+    position: 'absolute',
+    top: 60,
+    left: 24,
+    zIndex: 10,
+    padding: 8,
   },
   title: {
     fontSize: 28,
@@ -275,8 +318,9 @@ const styles = StyleSheet.create({
     padding: 20,
     marginBottom: 16,
   },
-  optionIcon: {
-    fontSize: 28,
+  optionIconContainer: {
+    width: 28,
+    alignItems: 'center',
     marginRight: 16,
   },
   optionTextContainer: {
@@ -294,15 +338,6 @@ const styles = StyleSheet.create({
     color: 'rgba(255, 255, 255, 0.5)',
     fontFamily: 'Sansation-Regular',
     lineHeight: 18,
-  },
-  backLink: {
-    alignSelf: 'flex-start',
-    marginBottom: 24,
-  },
-  backLinkText: {
-    fontSize: 15,
-    color: 'rgba(255, 255, 255, 0.6)',
-    fontFamily: 'Sansation-Regular',
   },
   inputGroup: {
     marginBottom: 24,
@@ -370,6 +405,13 @@ const styles = StyleSheet.create({
     color: 'rgba(240, 235, 220, 0.95)',
     fontFamily: 'Sansation-Regular',
     lineHeight: 20,
+  },
+  errorText: {
+    fontSize: 13,
+    color: '#ff4444',
+    fontFamily: 'Sansation-Regular',
+    textAlign: 'center',
+    marginBottom: 16,
   },
   warningText: {
     fontSize: 13,
