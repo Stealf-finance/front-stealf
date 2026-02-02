@@ -112,7 +112,7 @@ export default function PrivacyScreen({
             ]}
           >
             <View style={styles.activityHeader}>
-              <Text style={styles.activityTitle}>Recent Activity</Text>
+              <Text style={styles.activityTitle}>Transactions</Text>
               <TouchableOpacity onPress={() => onNavigateToPage('transactionHistory')}>
                 <Text style={styles.seeAllText}>See All</Text>
               </TouchableOpacity>

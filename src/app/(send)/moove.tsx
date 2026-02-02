@@ -14,7 +14,6 @@ import { useAuth } from '../../contexts/AuthContext';
 import { usePrivacyBalance } from '../../hooks/usePrivacyBalance';
 import { useWalletInfos } from '../../hooks/useWalletInfos';
 
-// Import SVG icons
 import ArrowIcon from '../../assets/buttons/arrow.svg';
 import ComebackIcon from '../../assets/buttons/comeback.svg';
 
@@ -28,8 +27,9 @@ export default function MooveScreen({ onBack }: MooveScreenProps) {
   const rotateAnim = useRef(new Animated.Value(0)).current;
 
   const { userData } = useAuth();
-  const { totalUSD: cashBalance } = usePrivacyBalance();
-  const { balance: wealthBalance } = useWalletInfos(userData?.stealf_wallet || '');
+  const { usdcBalance: cashUsdcBalance } = usePrivacyBalance();
+  const { tokens: wealthTokens } = useWalletInfos(userData?.stealf_wallet || '');
+  const wealthUsdcBalance = wealthTokens.find(t => t.tokenSymbol === 'USDC')?.balance || 0;
 
   const [fontsLoaded] = useFonts({
     'Sansation-Regular': require('../../assets/font/Sansation/Sansation-Regular.ttf'),
@@ -71,14 +71,13 @@ export default function MooveScreen({ onBack }: MooveScreenProps) {
     }
 
     const amountNum = parseFloat(amount);
-    const sourceBalance = direction === 'wealthToCash' ? (wealthBalance || 0) : cashBalance;
+    const sourceBalance = direction === 'wealthToCash' ? (wealthUsdcBalance || 0) : cashUsdcBalance;
 
     if (amountNum > sourceBalance) {
       Alert.alert('Error', 'Insufficient balance');
       return;
     }
 
-    // TODO: Implement the actual move logic
     Alert.alert('Success', `Moving ${amount} SOL from ${direction === 'wealthToCash' ? 'Wealth' : 'Cash'} to ${direction === 'wealthToCash' ? 'Cash' : 'Wealth'}`);
     setAmount('');
   };
@@ -111,11 +110,11 @@ export default function MooveScreen({ onBack }: MooveScreenProps) {
               <View style={styles.cardLeft}>
                 <Text style={styles.cardLabel}>Wealth</Text>
                 <Text style={styles.balanceSubtext}>
-                  {(wealthBalance || 0).toFixed(2)} USD
+                  {(wealthUsdcBalance || 0).toFixed(3)} usdc
                 </Text>
               </View>
               <Text style={[styles.cardAmountRight, amount ? styles.cardAmountActive : null]}>
-                {direction === 'wealthToCash' ? '-' : '+'}{amount || '0'}
+                {direction === 'wealthToCash' ? '+' : '-'}{amount || '0'}
               </Text>
             </View>
           </View>
@@ -137,11 +136,11 @@ export default function MooveScreen({ onBack }: MooveScreenProps) {
               <View style={styles.cardLeft}>
                 <Text style={styles.cardLabel}>Cash</Text>
                 <Text style={styles.balanceSubtext}>
-                  {cashBalance.toFixed(2)} USD
+                  {cashUsdcBalance.toFixed(3)} usdc
                 </Text>
               </View>
               <Text style={[styles.cardAmountRight, amount ? styles.cardAmountActive : null]}>
-                {direction === 'wealthToCash' ? '+' : '-'}{amount || '0'}
+                {direction === 'wealthToCash' ? '-' : '+'}{amount || '0'}
               </Text>
             </View>
           </View>

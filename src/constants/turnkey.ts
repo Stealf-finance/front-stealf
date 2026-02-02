@@ -24,13 +24,7 @@ export const WALLET_CONFIG = {
       pathFormat: 'PATH_FORMAT_BIP32' as const,
       path: "m/44'/501'/0'/0'",
       addressFormat: "ADDRESS_FORMAT_SOLANA" as const,
-    },
-    {
-      curve: "CURVE_ED25519" as const,
-      pathFormat: 'PATH_FORMAT_BIP32' as const,
-      path: "m/44'/501'/1'/0'",
-      addressFormat: "ADDRESS_FORMAT_SOLANA" as const,
-    },
+    }
   ],
 };
 

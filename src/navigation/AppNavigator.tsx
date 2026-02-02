@@ -14,6 +14,7 @@ import AddFundsPrivacyScreen from '../app/(add)/AddFundsPrivacy';
 import DepositPrivateCashScreen from '../app/(deposit)/DepositPrivateCash';
 import ProfileScreen from '../app/(tabs)/Profile';
 import InfoScreen from '../app/(infos)/InfoScreen';
+import TransactionHistoryScreen from '../app/(infos)/TransactionHistoryScreen';
 import { useAuth } from '../contexts/AuthContext';
 import { animateScreenTransition } from '../utils/animations';
 import type { PageType } from './types';
@@ -23,18 +24,17 @@ import { RevolutPager, RevolutPagerRef } from './swipePager';
 export default function AppNavigator() {
   const { isAuthenticated, userData, logout, loading } = useAuth();
   const [currentPage, setCurrentPage] = useState<PageType>('home');
-  const [currentScreen, setCurrentScreen] = useState<'main' | 'send' | 'sendPrivate' | 'moove' | 'addFunds' | 'addFundsPrivacy' | 'depositPrivateCash' | 'info'>('main');
+  const [currentScreen, setCurrentScreen] = useState<'main' | 'send' | 'sendPrivate' | 'moove' | 'addFunds' | 'addFundsPrivacy' | 'depositPrivateCash' | 'info' | 'transactionHistory'>('main');
   const [isCardScreenOpen, setIsCardScreenOpen] = useState(false);
   const [authMode, setAuthMode] = useState<'signin' | 'signup'>('signin');
   const [depositWalletType, setDepositWalletType] = useState<'cash' | 'privacy'>('cash');
   const [previousPage, setPreviousPage] = useState<PageType>('home');
   const [transferType, setTransferType] = useState<'basic' | 'private'>('private');
+  const [txHistoryWalletType, setTxHistoryWalletType] = useState<'cash' | 'privacy'>('cash');
 
-  // Animations for overlay screens
   const screenFadeAnim = useRef(new Animated.Value(1)).current;
   const screenSlideAnim = useRef(new Animated.Value(0)).current;
 
-  // Map pages to indices for RevolutPager
   const pageOrder: PageType[] = ['privacy', 'home', 'profile'];
   const getPageIndex = (page: PageType) => pageOrder.indexOf(page);
   const getPageFromIndex = (index: number) => pageOrder[index];
@@ -42,6 +42,11 @@ export default function AppNavigator() {
   const pagerRef = useRef<RevolutPagerRef>(null);
 
   const handleNavigateToPage = (page: PageType) => {
+    if (page === 'transactionHistory') {
+      setTxHistoryWalletType(currentPage === 'privacy' ? 'privacy' : 'cash');
+      handleOpenScreen('transactionHistory');
+      return;
+    }
     const targetIndex = getPageIndex(page);
     setCurrentPage(page);
     // Sync the pager with the page change
@@ -55,7 +60,7 @@ export default function AppNavigator() {
     setCurrentPage(page);
   };
 
-  const handleOpenScreen = (screen: 'send' | 'sendPrivate' | 'moove' | 'addFunds' | 'addFundsPrivacy' | 'depositPrivateCash' | 'info') => {
+  const handleOpenScreen = (screen: 'send' | 'sendPrivate' | 'moove' | 'addFunds' | 'addFundsPrivacy' | 'depositPrivateCash' | 'info' | 'transactionHistory') => {
     setPreviousPage(currentPage);
     animateScreenTransition(screenFadeAnim, screenSlideAnim, () => setCurrentScreen(screen));
   };
@@ -198,6 +203,7 @@ export default function AppNavigator() {
         {currentScreen === 'addFundsPrivacy' && <AddFundsPrivacyScreen onBack={handleBackToMain} />}
         {currentScreen === 'depositPrivateCash' && <DepositPrivateCashScreen onBack={handleBackToMain} walletType={depositWalletType} />}
         {currentScreen === 'info' && <InfoScreen onBack={handleBackToMain} />}
+        {currentScreen === 'transactionHistory' && <TransactionHistoryScreen onClose={handleBackToMain} walletType={txHistoryWalletType} />}
       </View>
     </View>
   );

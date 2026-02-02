@@ -72,7 +72,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  const isAuthenticated = !!session && !!user;
+  const isAuthenticated = !!session && !!user && !!userDataState?.stealf_wallet;
 
   return (
     <AuthContext.Provider

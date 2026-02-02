@@ -8,9 +8,10 @@ import {
   ScrollView,
   RefreshControl,
   Linking,
-  Alert,
 } from 'react-native';
 import { useWalletInfos } from '../hooks/useWalletInfos';
+import SendIcon from '../assets/buttons/send.svg';
+import ReceivedIcon from '../assets/buttons/received.svg';
 import { useAuth } from '../contexts/AuthContext';
 import { useQueryClient } from '@tanstack/react-query';
 
@@ -24,7 +25,7 @@ export default function TransactionHistory({
   limit = 3,
   style,
   walletType = 'cash'
-} : TransactionHistoryProps) {
+}: TransactionHistoryProps) {
 
   const { userData } = useAuth();
   const queryClient = useQueryClient();
@@ -39,7 +40,6 @@ export default function TransactionHistory({
     historyError,
   } = useWalletInfos(wallet || '');
 
-
   const displayedTransactions = transactions.slice(0, limit);
 
   const [refreshing, setRefreshing] = useState(false);
@@ -49,8 +49,7 @@ export default function TransactionHistory({
       queryKey: ['wallet-history', wallet],
     });
     setRefreshing(false);
-  }
-
+  };
 
   const isCompactMode = limit <= 3;
 
@@ -83,60 +82,40 @@ export default function TransactionHistory({
     );
   }
 
-const transactionsList = (
+  const getLabel = (tx: typeof displayedTransactions[0]) => {
+    return tx.type === 'sent' ? 'Sent' : tx.type === 'received' ? 'Received' : 'Transaction';
+  };
+
+  const transactionsList = (
     <>
       {displayedTransactions.map((tx, index) => (
         <TouchableOpacity
           key={`${tx.signature}-${index}`}
-          style={[
-            styles.transactionCard,
-            isCompactMode && { marginBottom: index === displayedTransactions.length - 1 ? 0 : 12 }
-          ]}
+          style={styles.row}
           onPress={() => Linking.openURL(tx.signatureURL)}
           activeOpacity={0.7}
         >
-          <View style={styles.transactionIcon}>
-            <Text style={styles.iconText}>
-              {tx.type === 'sent' ? '↗' : tx.type === 'received' ? '↙' : '•'}
+          {/* Avatar */}
+          <View style={styles.avatar}>
+            {tx.type === 'sent' ? (
+              <SendIcon width={20} height={20} />
+            ) : (
+              <ReceivedIcon width={20} height={20} />
+            )}
+          </View>
+
+          {/* Name + date */}
+          <View style={styles.details}>
+            <Text style={styles.name}>{getLabel(tx)}</Text>
+            <Text style={styles.subtitle}>
+              {tx.dateFormatted} · {tx.tokenSymbol}
             </Text>
           </View>
 
-          <View style={styles.transactionDetails}>
-            <View style={styles.transactionHeader}>
-              <Text style={styles.transactionType}>
-                {tx.type === 'sent' ? 'Sent' : tx.type === 'received' ? 'Received' : 'Transaction'}
-              </Text>
-              <Text style={[
-                styles.transactionAmount,
-                tx.type === 'sent' ? styles.amountSent : styles.amountReceived
-              ]}>
-                {tx.type === 'sent' ? '-' : tx.type === 'received' ? '+' : ''}
-                ${tx.amountUSD.toFixed(2)}
-              </Text>
-            </View>
-
-            <View style={styles.transactionFooter}>
-              <Text style={styles.transactionDate}>{tx.dateFormatted}</Text>
-              <View style={styles.statusContainer}>
-                <View style={[
-                  styles.statusDot,
-                  tx.status === 'confirmed' && styles.statusConfirmed,
-                  tx.status === 'finalized' && styles.statusConfirmed,
-                  tx.status === 'success' && styles.statusConfirmed,
-                ]} />
-                <Text style={[
-                  styles.statusText,
-                  styles.statusTextConfirmed,
-                ]}>
-                  {tx.status.charAt(0).toUpperCase() + tx.status.slice(1)}
-                </Text>
-              </View>
-            </View>
-          </View>
-
-          <View style={styles.arrowContainer}>
-            <Text style={styles.arrowIcon}>›</Text>
-          </View>
+          {/* Amount */}
+          <Text style={styles.amount}>
+            {tx.type === 'received' ? '+' : '-'}${tx.amountUSD.toFixed(2)}
+          </Text>
         </TouchableOpacity>
       ))}
 
@@ -178,108 +157,56 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
   },
-  compactContainer: {
-    // Pas de flex: 1 pour ne pas prendre tout l'espace
-  },
-  transactionCard: {
+  compactContainer: {},
+  row: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'rgba(255, 255, 255, 0.05)',
-    borderRadius: 16,
-    padding: 15,
-    marginBottom: 12,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.1)',
+    paddingVertical: 14,
   },
-  transactionIcon: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+  avatar: {
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    backgroundColor: 'rgba(255, 255, 255, 0.12)',
     justifyContent: 'center',
     alignItems: 'center',
-    marginRight: 12,
+    marginRight: 14,
   },
-  iconText: {
-    fontSize: 20,
-    color: 'white',
-  },
-  transactionDetails: {
+  details: {
     flex: 1,
   },
-  transactionHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
-    marginBottom: 6,
-  },
-  transactionType: {
-    color: 'white',
-    fontSize: 15,
+  name: {
+    fontSize: 16,
     fontWeight: '600',
-    flex: 1,
-    marginRight: 10,
-  },
-  transactionAmount: {
-    fontSize: 15,
-    fontWeight: 'bold',
     color: 'white',
+    fontFamily: 'Sansation-Bold',
+    marginBottom: 2,
   },
-  amountSent: {
-    color: 'white',
+  subtitle: {
+    fontSize: 13,
+    color: 'rgba(255, 255, 255, 0.45)',
+    fontFamily: 'Sansation-Regular',
   },
-  amountReceived: {
-    color: 'white',
-  },
-  transactionFooter: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  transactionDate: {
-    color: 'rgba(255, 255, 255, 0.5)',
-    fontSize: 12,
-  },
-  statusContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  statusDot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-    marginRight: 5,
-    backgroundColor: 'rgba(255, 255, 255, 0.3)',
-  },
-  statusConfirmed: {
-    backgroundColor: 'rgba(76, 217, 100, 0.8)',
-  },
-  statusText: {
-    fontSize: 11,
+  amount: {
+    fontSize: 16,
     fontWeight: '600',
-  },
-  statusTextConfirmed: {
-    color: 'rgba(76, 217, 100, 0.9)',
-  },
-  arrowContainer: {
-    marginLeft: 8,
-  },
-  arrowIcon: {
-    color: 'rgba(255, 255, 255, 0.3)',
-    fontSize: 24,
-    fontWeight: '300',
+    color: 'white',
+    fontFamily: 'Sansation-Bold',
+    marginLeft: 12,
   },
   loadingText: {
     color: '#FFFFFF',
     fontSize: 14,
     marginTop: 10,
     textAlign: 'center',
+    fontFamily: 'Sansation-Regular',
   },
   errorText: {
     color: '#ff6b6b',
     fontSize: 14,
     textAlign: 'center',
     marginBottom: 15,
+    fontFamily: 'Sansation-Regular',
   },
   retryButton: {
     backgroundColor: 'rgba(255, 255, 255, 0.1)',
@@ -294,25 +221,24 @@ const styles = StyleSheet.create({
     color: 'white',
     fontSize: 14,
     fontWeight: '600',
+    fontFamily: 'Sansation-Regular',
   },
   emptyContainer: {
     alignItems: 'center',
     paddingVertical: 40,
-  },
-  emptyIcon: {
-    fontSize: 60,
-    marginBottom: 15,
   },
   emptyText: {
     color: 'white',
     fontSize: 18,
     fontWeight: '600',
     marginBottom: 8,
+    fontFamily: 'Sansation-Bold',
   },
   emptySubtext: {
     color: 'rgba(255, 255, 255, 0.5)',
     fontSize: 14,
     textAlign: 'center',
+    fontFamily: 'Sansation-Regular',
   },
   viewAllButton: {
     backgroundColor: 'rgba(255, 255, 255, 0.05)',
@@ -328,6 +254,6 @@ const styles = StyleSheet.create({
     color: 'rgba(255, 255, 255, 0.7)',
     fontSize: 14,
     fontWeight: '600',
+    fontFamily: 'Sansation-Regular',
   },
 });
-

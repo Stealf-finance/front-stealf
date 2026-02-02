@@ -1,6 +1,4 @@
-import { useTurnkey } from "@turnkey/react-native-wallet-kit";
 import { useAuth as useAuthContext } from "../contexts/AuthContext";
-import { WALLET_CONFIG } from "../constants/turnkey";
 
 const API_URL = process.env.EXPO_PUBLIC_API_URL;
 
@@ -14,7 +12,6 @@ interface UseAuthFlowParams {
 }
 
 export function useAuthFlow() {
-  const { signUpWithPasskey, refreshWallets } = useTurnkey();
   const { setUserData } = useAuthContext();
 
 
@@ -72,12 +69,12 @@ export function useAuthFlow() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, pseudo }),
       });
-
       if (!response.ok) {
         throw new Error('Failed to check availability');
       }
 
       const data = await response.json();
+      console.log('check-availability response:', JSON.stringify(data));
 
       if (!data.canProceed) {
         const unavailable = data.unavailable || [];
@@ -114,37 +111,22 @@ export function useAuthFlow() {
 
 
   /**
-   * Called after magic link verification (from deep link)
-   * Creates Turnkey wallet with Passkey and authenticates with backend
+   * Called after wallet setup to register user with backend
+   * stealf_wallet can be null/undefined if user chose not to store it
    */
-  const handleMagicLinkVerified = async (params: Pick<UseAuthFlowParams, 'email' | 'pseudo' | 'setLoading' | 'setShowLogoAnimation'>) => {
-    const { email, pseudo, setLoading, setShowLogoAnimation } = params;
+  const handleRegisterUser = async (params: {
+    email: string;
+    pseudo: string;
+    sessionToken: string;
+    cash_wallet: string;
+    stealf_wallet: string | null;
+    setLoading: (loading: boolean) => void;
+  }) => {
+    const { email, pseudo, sessionToken, cash_wallet, stealf_wallet, setLoading } = params;
 
     setLoading(true);
 
     try {
-      const authResult = await signUpWithPasskey({
-        createSubOrgParams: {
-          subOrgName: `User ${email}`,
-          customWallet: WALLET_CONFIG,
-        },
-      });
-
-      const { sessionToken } = authResult;
-      if (!sessionToken) {
-        throw new Error('No session token received from Turnkey');
-      }
-
-      const refreshedWallets = await refreshWallets();
-
-      const walletAccounts = refreshedWallets?.[0]?.accounts || [];
-      const cash_wallet = walletAccounts[0]?.address || '';
-      const stealf_wallet = walletAccounts[1]?.address || '';
-
-      if (!cash_wallet || !stealf_wallet) {
-        throw new Error('Failed to create wallet accounts');
-      }
-
       const response = await fetch(`${API_URL}/api/users/auth`, {
         method: 'POST',
         headers: {
@@ -174,22 +156,21 @@ export function useAuthFlow() {
         email: data.data.user.email,
         username: data.data.user.username || data.data.user.pseudo || pseudo,
         cash_wallet: data.data.user.cash_wallet,
-        stealf_wallet: data.data.user.stealf_wallet,
+        stealf_wallet: data.data.user.stealf_wallet || stealf_wallet || '',
         subOrgId: data.data.user.subOrgId,
       };
 
       setUserData(userData);
-      setShowLogoAnimation(true);
 
       return { success: true };
 
     } catch (error: any) {
-      console.error('Error during magic link verification:', error);
+      console.error('Error during user registration:', error);
 
       return {
         success: false,
-        message: 'Wallet Creation Failed',
-        description: error?.message || 'Failed to create your wallet. Please try again.'
+        message: 'Registration Failed',
+        description: error?.message || 'Failed to register. Please try again.'
       };
     } finally {
       setLoading(false);
@@ -199,6 +180,6 @@ export function useAuthFlow() {
   return {
     handleResendMagicLink,
     handleEmailSubmit,
-    handleMagicLinkVerified,
+    handleRegisterUser,
   };
 }

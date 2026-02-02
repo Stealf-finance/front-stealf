@@ -2,12 +2,14 @@ const { getDefaultConfig } = require('expo/metro-config');
 
 const config = getDefaultConfig(__dirname);
 
-// Add Node.js polyfills for React Native
+config.resolver.unstable_enablePackageExports = false;
+
+config.resolver.resolverMainFields = ['react-native', 'browser', 'main'];
+
 config.resolver.extraNodeModules = {
   stream: require.resolve('readable-stream'),
   buffer: require.resolve('buffer'),
 };
-
 
 config.transformer = {
   ...config.transformer,
