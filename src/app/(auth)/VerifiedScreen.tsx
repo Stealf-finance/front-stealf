@@ -13,6 +13,8 @@ import { useAuth as useAuthContext } from '../../contexts/AuthContext';
 import { useTurnkey } from '@turnkey/react-native-wallet-kit';
 import { LinearGradient } from 'expo-linear-gradient';
 import { CASH_WALLET_CONFIG } from '../../constants/turnkey';
+import { WelcomeLoader } from '../../components/WelcomeLoader';
+import Logo from '../../assets/logo/logo.svg';
 
 const API_URL = process.env.EXPO_PUBLIC_API_URL;
 
@@ -36,6 +38,7 @@ export default function VerifiedScreen({ email, pseudo }: VerifiedScreenProps) {
   const [stealfWallet, setStealfWallet] = useState<string>('');
   const [coldWalletPrivateKey, setColdWalletPrivateKey] = useState<string | undefined>();
   const [pendingUser, setPendingUser] = useState<any>(null);
+  const [isColdWallet, setIsColdWallet] = useState(false);
 
   //Passkey auth + cash wallet creation via Turnkey
   useEffect(() => {
@@ -76,6 +79,8 @@ export default function VerifiedScreen({ email, pseudo }: VerifiedScreenProps) {
 
     try {
       let walletAddr = '';
+      const cold = choice.storage === 'cold' || choice.storage === 'skip';
+      setIsColdWallet(cold);
 
       if (choice.mode === 'create' && choice.storage === 'turnkey') {
         const result = await setupWallet.handleCreateAndStoreWallet();
@@ -152,6 +157,7 @@ export default function VerifiedScreen({ email, pseudo }: VerifiedScreenProps) {
       cash_wallet: user.cash_wallet,
       stealf_wallet: user.stealf_wallet,
       subOrgId: user.subOrgId,
+      coldWallet: isColdWallet,
     });
   };
 
@@ -182,17 +188,7 @@ export default function VerifiedScreen({ email, pseudo }: VerifiedScreenProps) {
   }
 
   if (screenState === 'creatingWallet') {
-    return (
-      <View style={styles.container}>
-        <LinearGradient colors={['#000000', '#000000', '#000000']} locations={[0, 0.5, 1]} start={{ x: 0, y: 1 }} end={{ x: 0, y: 0 }} style={styles.background}>
-          <View style={styles.content}>
-            <Text style={styles.title}>Setting up your wallet</Text>
-            <Text style={styles.subtitle}>This may take a few moments...</Text>
-            <ActivityIndicator size="large" color="rgba(240, 235, 220, 0.95)" style={styles.loader} />
-          </View>
-        </LinearGradient>
-      </View>
-    );
+    return <View style={styles.container} />;
   }
 
   return (
@@ -211,7 +207,7 @@ export default function VerifiedScreen({ email, pseudo }: VerifiedScreenProps) {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1 },
+  container: { flex: 1, backgroundColor: '#000' },
   background: { flex: 1 },
   content: { flex: 1, justifyContent: 'center', alignItems: 'center', paddingHorizontal: 32 },
   title: { fontSize: 28, fontWeight: '300', color: 'white', fontFamily: 'Sansation-Light', marginBottom: 16, textAlign: 'center' },

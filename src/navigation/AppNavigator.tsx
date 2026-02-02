@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { View, StyleSheet, Animated } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import MinimalNavBar from '../components/MinimalNavBar';
@@ -20,6 +20,9 @@ import { animateScreenTransition } from '../utils/animations';
 import type { PageType } from './types';
 import { Image } from 'react-native';
 import { RevolutPager, RevolutPagerRef } from './swipePager';
+import { WelcomeLoader } from '../components/WelcomeLoader';
+import Logo from '../assets/logo/logo.svg';
+import { useWalletInfos } from '../hooks/useWalletInfos';
 
 export default function AppNavigator() {
   const { isAuthenticated, userData, logout, loading } = useAuth();
@@ -34,6 +37,33 @@ export default function AppNavigator() {
 
   const screenFadeAnim = useRef(new Animated.Value(1)).current;
   const screenSlideAnim = useRef(new Animated.Value(0)).current;
+
+  // Welcome loader: only show when transitioning from non-auth to auth
+  const [showWelcome, setShowWelcome] = useState(false);
+  const [welcomeFadeOut, setWelcomeFadeOut] = useState(false);
+  const wasAuthenticated = useRef(isAuthenticated);
+  const { isLoadingBalance } = useWalletInfos(userData?.cash_wallet || '');
+
+  useEffect(() => {
+    if (isAuthenticated && !wasAuthenticated.current) {
+      // Just became authenticated, show welcome loader
+      setShowWelcome(true);
+      setWelcomeFadeOut(false);
+    }
+    wasAuthenticated.current = isAuthenticated;
+  }, [isAuthenticated]);
+
+  useEffect(() => {
+    if (showWelcome && isAuthenticated && !isLoadingBalance) {
+      const timer = setTimeout(() => setWelcomeFadeOut(true), 300);
+      return () => clearTimeout(timer);
+    }
+  }, [showWelcome, isAuthenticated, isLoadingBalance]);
+
+  const handleWelcomeDone = useCallback(() => {
+    setShowWelcome(false);
+    setWelcomeFadeOut(false);
+  }, []);
 
   const pageOrder: PageType[] = ['privacy', 'home', 'profile'];
   const getPageIndex = (page: PageType) => pageOrder.indexOf(page);
@@ -205,6 +235,16 @@ export default function AppNavigator() {
         {currentScreen === 'info' && <InfoScreen onBack={handleBackToMain} />}
         {currentScreen === 'transactionHistory' && <TransactionHistoryScreen onClose={handleBackToMain} walletType={txHistoryWalletType} />}
       </View>
+
+      {showWelcome && (
+        <View style={styles.welcomeOverlay}>
+          <WelcomeLoader
+            logo={<Logo width={80} height={80} />}
+            fadeOutTrigger={welcomeFadeOut}
+            onFadeOutEnd={handleWelcomeDone}
+          />
+        </View>
+      )}
     </View>
   );
 }
@@ -235,5 +275,9 @@ const styles = StyleSheet.create({
   splashLogo: {
     width: 150,
     height: 150,
+  },
+  welcomeOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    zIndex: 2000,
   },
 });

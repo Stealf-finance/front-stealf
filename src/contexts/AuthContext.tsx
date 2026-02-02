@@ -9,6 +9,7 @@ interface UserData {
   cash_wallet?: string;
   stealf_wallet?: string;
   subOrgId?: string;
+  coldWallet?: boolean;
 }
 
 interface AuthContextType {
@@ -37,6 +38,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           cash_wallet: storedData?.cash_wallet || '',
           stealf_wallet: storedData?.stealf_wallet || '',
           subOrgId: user.userId,
+          coldWallet: storedData?.coldWallet || false,
         });
 
         if (session.token){
