@@ -23,6 +23,7 @@ import { RevolutPager, RevolutPagerRef } from './swipePager';
 import { WelcomeLoader } from '../components/WelcomeLoader';
 import Logo from '../assets/logo/logo.svg';
 import { useWalletInfos } from '../hooks/useWalletInfos';
+import LockScreen from '../app/(lock)/LockScreen';
 
 export default function AppNavigator() {
   const { isAuthenticated, userData, logout, loading } = useAuth();
@@ -34,6 +35,7 @@ export default function AppNavigator() {
   const [previousPage, setPreviousPage] = useState<PageType>('home');
   const [transferType, setTransferType] = useState<'basic' | 'private'>('private');
   const [txHistoryWalletType, setTxHistoryWalletType] = useState<'cash' | 'privacy'>('cash');
+  const [isLocked, setIsLocked] = useState(false);
 
   const screenFadeAnim = useRef(new Animated.Value(1)).current;
   const screenSlideAnim = useRef(new Animated.Value(0)).current;
@@ -129,6 +131,15 @@ export default function AppNavigator() {
     setCurrentPage('home');
     setCurrentScreen('main');
   };
+
+  if (isLocked) {
+    return (
+      <View style={styles.backgroundContainer}>
+        <StatusBar style="light" />
+        <LockScreen onUnlock={() => setIsLocked(false)} />
+      </View>
+    );
+  }
 
   if (loading) {
     return (
@@ -236,6 +247,12 @@ export default function AppNavigator() {
         {currentScreen === 'transactionHistory' && <TransactionHistoryScreen onClose={handleBackToMain} walletType={txHistoryWalletType} />}
       </View>
 
+      {isLocked && (
+        <View style={styles.lockOverlay}>
+          <LockScreen onUnlock={() => setIsLocked(false)} />
+        </View>
+      )}
+
       {showWelcome && (
         <View style={styles.welcomeOverlay}>
           <WelcomeLoader
@@ -275,6 +292,10 @@ const styles = StyleSheet.create({
   splashLogo: {
     width: 150,
     height: 150,
+  },
+  lockOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    zIndex: 3000,
   },
   welcomeOverlay: {
     ...StyleSheet.absoluteFillObject,

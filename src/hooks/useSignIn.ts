@@ -22,11 +22,12 @@ export function useSignIn() {
       }
 
       const refreshedWallets = await refreshWallets();
-      const walletAccounts = refreshedWallets?.[0]?.accounts || [];
-      const cash_wallet = walletAccounts[0]?.address || '';
-      const stealf_wallet = walletAccounts[1]?.address || '';
+      const cashWalletData = refreshedWallets?.find(w => w.walletName?.includes('Cash'));
+      const privacyWalletData = refreshedWallets?.find(w => w.walletName?.includes('Privacy'));
+      const cash_wallet = cashWalletData?.accounts?.[0]?.address || '';
+      const stealf_wallet = privacyWalletData?.accounts?.[0]?.address || '';
 
-      if (!cash_wallet || !stealf_wallet) {
+      if (!cash_wallet) {
         throw new Error('Failed to get wallet addresses');
       }
 

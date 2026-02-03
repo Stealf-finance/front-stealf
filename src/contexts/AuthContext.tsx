@@ -33,7 +33,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         const storedData = await authStorage.getUserData();
         
         setUserDataState({
-          email: user.userEmail,
+          email: user.userEmail || storedData?.email || '',
           username: storedData?.username || '',
           cash_wallet: storedData?.cash_wallet || '',
           stealf_wallet: storedData?.stealf_wallet || '',
