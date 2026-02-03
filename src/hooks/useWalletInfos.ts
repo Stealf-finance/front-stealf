@@ -53,7 +53,6 @@ export function useWalletInfos(address: string) {
     queryKey: ['wallet-balance', address],
     queryFn: async () => {
       const result = await createGetBalance(api, address)();
-      console.log('[DEBUG] Balance response for', address, ':', JSON.stringify(result, null, 2));
       return result;
     },
     staleTime: Infinity,

@@ -13,7 +13,6 @@ import {
   StyleSheet,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import LoginSuccessAnimation from '../../components/auth/LoginSuccessAnimation';
 import VerifiedScreen from './VerifiedScreen';
 import { useAuthFlow } from '../../hooks/useSignUp';
 import { useEmailVerificationPolling } from '../../hooks/useEmailVerificationPolling';

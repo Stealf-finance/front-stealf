@@ -1,4 +1,9 @@
+import { useState, useCallback } from "react";
+import { useTurnkey } from "@turnkey/react-native-wallet-kit";
 import { useAuth as useAuthContext } from "../contexts/AuthContext";
+import { useSetupWallet } from "./useSetupWallet";
+import { CASH_WALLET_CONFIG } from "../constants/turnkey";
+import type { WalletSetupChoice } from "../app/(auth)/WalletSetupScreen";
 
 const API_URL = process.env.EXPO_PUBLIC_API_URL;
 
@@ -11,17 +16,189 @@ interface UseAuthFlowParams {
   setShowLogoAnimation: (show: boolean) => void;
 }
 
+type ScreenState = 'passkey' | 'walletSetup' | 'creatingWallet' | 'showPrivateKey' | 'error';
+
+interface PasskeyResult {
+  success: boolean;
+  sessionToken?: string;
+  cashWallet?: string;
+  error?: string;
+}
+
+interface WalletChoiceResult {
+  success: boolean;
+  user?: any;
+  privateKey?: string;
+  isColdWallet?: boolean;
+  error?: string;
+}
+
 export function useAuthFlow() {
   const { setUserData } = useAuthContext();
+  const { signUpWithPasskey, refreshWallets } = useTurnkey();
+  const setupWallet = useSetupWallet();
 
+  const [screenState, setScreenState] = useState<ScreenState>('passkey');
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+  const [sessionToken, setSessionToken] = useState<string | null>(null);
+  const [cashWallet, setCashWallet] = useState<string>('');
+  const [coldWalletPrivateKey, setColdWalletPrivateKey] = useState<string | undefined>();
+  const [pendingUser, setPendingUser] = useState<any>(null);
+  const [isColdWallet, setIsColdWallet] = useState(false);
+
+  /**
+   * Step 1: Create passkey and cash wallet via Turnkey
+   */
+  const createPasskey = useCallback(async (email: string): Promise<PasskeyResult> => {
+    try {
+      const authResult = await signUpWithPasskey({
+        createSubOrgParams: {
+          subOrgName: `User ${email}`,
+          customWallet: CASH_WALLET_CONFIG,
+        },
+      });
+
+      const { sessionToken: token } = authResult;
+      if (!token) throw new Error('No session token received from Turnkey');
+
+      setSessionToken(token);
+
+      const wallets = await refreshWallets();
+      const cashAddr = wallets?.[0]?.accounts?.[0]?.address || '';
+      if (!cashAddr) throw new Error('Failed to retrieve cash wallet address');
+
+      setCashWallet(cashAddr);
+      setScreenState('walletSetup');
+
+      return { success: true, sessionToken: token, cashWallet: cashAddr };
+    } catch (err: any) {
+      console.error('Passkey creation failed:', err);
+      const errorMsg = err?.message || 'Failed to create passkey';
+      setError(errorMsg);
+      setScreenState('error');
+      return { success: false, error: errorMsg };
+    }
+  }, [signUpWithPasskey, refreshWallets]);
+
+  /**
+   * Step 2: Handle wallet setup choice and register with backend
+   */
+  const handleWalletChoice = useCallback(async (
+    choice: WalletSetupChoice,
+    email: string,
+    pseudo: string
+  ): Promise<WalletChoiceResult> => {
+    setLoading(true);
+    setScreenState('creatingWallet');
+
+    try {
+      let walletAddr = '';
+      const cold = choice.storage === 'cold' || choice.storage === 'skip';
+      setIsColdWallet(cold);
+
+      if (choice.mode === 'create' && choice.storage === 'turnkey') {
+        const result = await setupWallet.handleCreateAndStoreWallet();
+        if (!result.success) throw new Error(result.error);
+        walletAddr = result.walletAddress || '';
+      } else if (choice.mode === 'create' && choice.storage === 'cold') {
+        const result = await setupWallet.handleCreateWallet();
+        if (!result.success) throw new Error(result.error);
+        walletAddr = result.walletAddress || '';
+        setColdWalletPrivateKey(result.privateKey);
+      } else if (choice.mode === 'import' && choice.storage === 'turnkey') {
+        const result = await setupWallet.handleImportAndStoreWallet(choice.mnemonic!);
+        if (!result.success) throw new Error(result.error);
+        walletAddr = result.walletAddress || '';
+      } else if (choice.mode === 'import' && choice.storage === 'skip') {
+        const result = await setupWallet.handleImportWallet(choice.mnemonic!);
+        if (!result.success) throw new Error(result.error);
+        walletAddr = result.walletAddress || '';
+      }
+
+      // Register with backend
+      const response = await fetch(`${API_URL}/api/users/auth`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${sessionToken}`,
+        },
+        body: JSON.stringify({
+          email,
+          pseudo,
+          cash_wallet: cashWallet,
+          stealf_wallet: walletAddr,
+          coldWallet: cold,
+        }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to authenticate with backend');
+      }
+
+      const data = await response.json();
+      if (!data.data?.user) throw new Error('Backend did not return user data');
+
+      if (choice.mode === 'create' && choice.storage === 'cold') {
+        setPendingUser(data.data.user);
+        setScreenState('showPrivateKey');
+        setLoading(false);
+        return {
+          success: true,
+          user: data.data.user,
+          privateKey: coldWalletPrivateKey,
+          isColdWallet: true
+        };
+      }
+
+      finishAuth(data.data.user, pseudo, cold);
+      return { success: true, user: data.data.user, isColdWallet: cold };
+
+    } catch (err: any) {
+      console.error('Wallet setup failed:', err);
+      const errorMsg = err?.message || 'Failed to set up wallet';
+      setError(errorMsg);
+      setScreenState('error');
+      setLoading(false);
+      return { success: false, error: errorMsg };
+    } finally {
+      setLoading(false);
+    }
+  }, [sessionToken, cashWallet, setupWallet, coldWalletPrivateKey]);
+
+  /**
+   * Called after user confirms they saved their cold wallet private key
+   */
+  const handleColdWalletConfirmed = useCallback((pseudo: string) => {
+    setColdWalletPrivateKey(undefined);
+    if (pendingUser) {
+      finishAuth(pendingUser, pseudo, true);
+    }
+  }, [pendingUser]);
+
+  /**
+   * Complete authentication by setting user data
+   */
+  const finishAuth = (user: any, pseudo: string, coldWallet: boolean) => {
+    setPendingUser(null);
+    setUserData({
+      email: user.email,
+      username: user.username || user.pseudo || pseudo,
+      cash_wallet: user.cash_wallet,
+      stealf_wallet: user.stealf_wallet,
+      subOrgId: user.subOrgId,
+      coldWallet: user.coldWallet ?? coldWallet,
+    });
+  };
 
   /**
    * Resend magic link to user's email
    */
   const handleResendMagicLink = async (params: Pick<UseAuthFlowParams, 'email' | 'pseudo' | 'setLoading'>) => {
-    const { email, pseudo, setLoading } = params;
+    const { email, pseudo, setLoading: setLoadingParam } = params;
 
-    setLoading(true);
+    setLoadingParam(true);
     try {
       const response = await fetch(`${API_URL}/api/users/send-magic-link`, {
         method: 'POST',
@@ -38,7 +215,7 @@ export function useAuthFlow() {
       console.error('Error resending magic link:', error);
       return { success: false, message: 'Failed to resend magic link' };
     } finally {
-      setLoading(false);
+      setLoadingParam(false);
     }
   };
 
@@ -47,7 +224,7 @@ export function useAuthFlow() {
    * Returns preAuthToken for polling verification status
    */
   const handleEmailSubmit = async (params: Pick<UseAuthFlowParams, 'email' | 'pseudo' | 'setStep' | 'setLoading'>) => {
-    const { email, pseudo, setStep, setLoading } = params;
+    const { email, pseudo, setStep, setLoading: setLoadingParam } = params;
 
     if (!email) {
       return { success: false, message: 'Email is required' };
@@ -61,7 +238,7 @@ export function useAuthFlow() {
       return { success: false, message: 'Pseudo is required' };
     }
 
-    setLoading(true);
+    setLoadingParam(true);
 
     try {
       const response = await fetch(`${API_URL}/api/users/check-availability`, {
@@ -74,7 +251,6 @@ export function useAuthFlow() {
       }
 
       const data = await response.json();
-      console.log('check-availability response:', JSON.stringify(data));
 
       if (!data.canProceed) {
         const unavailable = data.unavailable || [];
@@ -86,7 +262,7 @@ export function useAuthFlow() {
         if (unavailable.includes(2)) {
           errors.push('This pseudo is already registered');
         }
-        if (unavailable.length === 0){
+        if (unavailable.length === 0) {
           errors.push('User already exists!');
         }
 
@@ -105,81 +281,23 @@ export function useAuthFlow() {
       console.error('Error during email submit:', error);
       return { success: false, message: error?.message || 'An error occurred' };
     } finally {
-      setLoading(false);
-    }
-  };
-
-
-  /**
-   * Called after wallet setup to register user with backend
-   * stealf_wallet can be null/undefined if user chose not to store it
-   */
-  const handleRegisterUser = async (params: {
-    email: string;
-    pseudo: string;
-    sessionToken: string;
-    cash_wallet: string;
-    stealf_wallet: string | null;
-    setLoading: (loading: boolean) => void;
-  }) => {
-    const { email, pseudo, sessionToken, cash_wallet, stealf_wallet, setLoading } = params;
-
-    setLoading(true);
-
-    try {
-      const response = await fetch(`${API_URL}/api/users/auth`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${sessionToken}`,
-        },
-        body: JSON.stringify({
-          email,
-          pseudo,
-          cash_wallet,
-          stealf_wallet,
-        }),
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to authenticate with backend');
-      }
-
-      const data = await response.json();
-
-      if (!data.data?.user) {
-        throw new Error('Backend did not return user data');
-      }
-
-      const userData = {
-        email: data.data.user.email,
-        username: data.data.user.username || data.data.user.pseudo || pseudo,
-        cash_wallet: data.data.user.cash_wallet,
-        stealf_wallet: data.data.user.stealf_wallet || stealf_wallet || '',
-        subOrgId: data.data.user.subOrgId,
-      };
-
-      setUserData(userData);
-
-      return { success: true };
-
-    } catch (error: any) {
-      console.error('Error during user registration:', error);
-
-      return {
-        success: false,
-        message: 'Registration Failed',
-        description: error?.message || 'Failed to register. Please try again.'
-      };
-    } finally {
-      setLoading(false);
+      setLoadingParam(false);
     }
   };
 
   return {
+    // State
+    screenState,
+    setScreenState,
+    loading,
+    error,
+    coldWalletPrivateKey,
+
+    // Actions
+    createPasskey,
+    handleWalletChoice,
+    handleColdWalletConfirmed,
     handleResendMagicLink,
     handleEmailSubmit,
-    handleRegisterUser,
   };
 }
