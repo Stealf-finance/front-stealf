@@ -5,7 +5,8 @@ import * as LocalAuthentication from 'expo-local-authentication';
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
 interface LockScreenProps {
-  onUnlock: () => void;
+  onUnlock: () => Promise<{ success: boolean; error?: string }>;
+  username?: string;
 }
 
 export default function LockScreen({ onUnlock }: LockScreenProps) {
@@ -83,19 +84,46 @@ const styles = StyleSheet.create({
     backgroundColor: '#000000',
     alignItems: 'center',
   },
-  image: {
-    marginTop: '30%',
+  imageContainer: {
+    marginTop: '25%',
     width: SCREEN_WIDTH * 0.95,
-    height: undefined,
     aspectRatio: 3 / 4,
+    position: 'relative',
+  },
+  image: {
+    width: '100%',
+    height: '100%',
     borderRadius: 20,
   },
+  welcomeText: {
+    position: 'absolute',
+    bottom: 60,
+    left: 0,
+    right: 0,
+    color: '#FFFFFF',
+    fontSize: 25,
+    fontFamily: 'Sansation-Bold',
+    textAlign: 'center',
+  },
+  errorText: {
+    color: '#FF6B6B',
+    fontSize: 14,
+    fontFamily: 'Sansation-Regular',
+    marginTop: 12,
+    textAlign: 'center',
+    paddingHorizontal: 40,
+  },
   unlockButton: {
-    marginTop: 40,
+    marginTop: 24,
     paddingVertical: 14,
     paddingHorizontal: 48,
     borderRadius: 16,
     backgroundColor: '#FFFFFF',
+    minWidth: 200,
+    alignItems: 'center',
+  },
+  unlockButtonDisabled: {
+    opacity: 0.7,
   },
   unlockButtonDisabled: {
     opacity: 0.6,
@@ -103,7 +131,6 @@ const styles = StyleSheet.create({
   unlockText: {
     color: '#000000',
     fontSize: 18,
-    fontFamily: 'Sansation',
-    fontWeight: '700',
+    fontFamily: 'Sansation-Bold',
   },
 });
