@@ -36,10 +36,12 @@ export default function LockScreen({ onUnlock }: LockScreenProps) {
 
       if (result.success) {
         onUnlock();
-      } else if (result.error === 'user_cancel') {
-        // User cancelled, do nothing
       } else {
-        Alert.alert('Authentication Failed', 'Please try again.');
+        const failedResult = result as { success: false; error: string };
+        if (failedResult.error !== 'user_cancel') {
+          Alert.alert('Authentication Failed', 'Please try again.');
+        }
+        // User cancelled - do nothing
       }
     } catch (error) {
       if (__DEV__) console.error('Biometric auth error:', error);
@@ -124,9 +126,6 @@ const styles = StyleSheet.create({
   },
   unlockButtonDisabled: {
     opacity: 0.7,
-  },
-  unlockButtonDisabled: {
-    opacity: 0.6,
   },
   unlockText: {
     color: '#000000',

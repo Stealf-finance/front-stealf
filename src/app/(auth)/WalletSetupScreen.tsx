@@ -35,7 +35,7 @@ export default function WalletSetupScreen({ onComplete, loading, coldWalletPriva
   const [importKey, setImportKey] = useState('');
   const [importError, setImportError] = useState('');
   const [copied, setCopied] = useState(false);
-  const clipboardTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const clipboardTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Clear clipboard after 60 seconds when private key is copied
   useEffect(() => {
