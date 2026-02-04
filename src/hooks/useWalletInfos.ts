@@ -81,36 +81,12 @@ export function useWalletInfos(address: string) {
     });
 
     const handleBalanceUpdate = (data: { address: string; balance: number; timestamp: string }) => {
-      console.log('\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-      console.log('🔔 WEBHOOK REÇU: balance:updated');
-      console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-      console.log('📍 Wallet:', data.address);
-      console.log('💰 New Balance:', data.balance);
-      console.log('⏰ Timestamp:', data.timestamp);
-      console.log('🎯 Current wallet:', address);
-      console.log('✅ Match:', data.address === address ? 'OUI' : 'NON');
-      console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n');
-
       queryClient.invalidateQueries({
         queryKey: ['wallet-balance', data.address],
       });
     };
 
     const handleNewTransaction = (data: { address: string; transaction: Transaction; timestamp: string }) => {
-      console.log('\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-      console.log('🔔 WEBHOOK REÇU: transaction:new');
-      console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-      console.log('📍 Wallet:', data.address);
-      console.log('💸 Transaction:');
-      console.log('   - Signature:', data.transaction.signature);
-      console.log('   - Amount:', data.transaction.amountUSD, 'USD');
-      console.log('   - Type:', data.transaction.type);
-      console.log('   - Status:', data.transaction.status);
-      console.log('⏰ Timestamp:', data.timestamp);
-      console.log('🎯 Current wallet:', address);
-      console.log('✅ Match:', data.address === address ? 'OUI' : 'NON');
-      console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n');
-
       queryClient.invalidateQueries({
         queryKey: ['wallet-history', data.address],
       });

@@ -1,6 +1,13 @@
 import { io, Socket } from 'socket.io-client';
 
-const SOCKET_URL = process.env.EXPO_PUBLIC_API_URL || 'http://localhost:3000';
+// TODO: Consider adding certificate pinning for production
+// Options: react-native-ssl-pinning, or custom fetch with pinned certs
+// For now, enforce HTTPS in production
+const SOCKET_URL = process.env.EXPO_PUBLIC_API_URL;
+
+if (!SOCKET_URL) {
+  throw new Error('EXPO_PUBLIC_API_URL environment variable is required');
+}
 
 interface PrivacyBalances {
   sol: number;
@@ -58,15 +65,6 @@ class SocketService {
 
     // Listen to private balance updates
     this.socket.on('private-balance:updated', (data: { userId: string; balances: PrivacyBalances; timestamp: string }) => {
-      console.log('\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-      console.log('🔔 WEBHOOK REÇU: private-balance:updated');
-      console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-      console.log('👤 User ID:', data.userId);
-      console.log('💰 SOL Balance:', data.balances.sol);
-      console.log('💵 USDC Balance:', data.balances.usdc);
-      console.log('⏰ Timestamp:', data.timestamp);
-      console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n');
-
       this.privacyBalances = data.balances;
     });
   }
