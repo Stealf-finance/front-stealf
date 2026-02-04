@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -9,6 +9,7 @@ import {
   ScrollView,
   Alert,
 } from 'react-native';
+import * as Clipboard from 'expo-clipboard';
 import { LinearGradient } from 'expo-linear-gradient';
 import AddIcon from '../../assets/buttons/add.svg';
 import DepositIcon from '../../assets/buttons/deposit.svg';
@@ -33,6 +34,36 @@ export default function WalletSetupScreen({ onComplete, loading, coldWalletPriva
   const [step, setStep] = useState<SetupStep>(coldWalletPrivateKey ? 'coldWalletResult' : 'choose');
   const [importKey, setImportKey] = useState('');
   const [importError, setImportError] = useState('');
+  const [copied, setCopied] = useState(false);
+  const clipboardTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Clear clipboard after 60 seconds when private key is copied
+  useEffect(() => {
+    return () => {
+      if (clipboardTimeoutRef.current) {
+        clearTimeout(clipboardTimeoutRef.current);
+      }
+    };
+  }, []);
+
+  const handleCopyPrivateKey = async () => {
+    if (!coldWalletPrivateKey) return;
+
+    await Clipboard.setStringAsync(coldWalletPrivateKey);
+    setCopied(true);
+
+    // Clear clipboard after 60 seconds for security
+    clipboardTimeoutRef.current = setTimeout(async () => {
+      await Clipboard.setStringAsync('');
+      setCopied(false);
+    }, 60000);
+
+    Alert.alert(
+      'Copied',
+      'Private key copied to clipboard. It will be automatically cleared in 60 seconds for security.',
+      [{ text: 'OK' }]
+    );
+  };
 
   const handleCreateNew = () => setStep('createOptions');
   const handleImport = () => setStep('importWallet');
@@ -166,6 +197,10 @@ export default function WalletSetupScreen({ onComplete, loading, coldWalletPriva
                 Enter your seed phrase to import your wallet
               </Text>
 
+              <Text style={styles.screenshotWarning}>
+                Do not enter your seed phrase while screen sharing or recording.
+              </Text>
+
               <View style={styles.inputGroup}>
                 <Text style={styles.label}>Seed Phrase</Text>
                 <TextInput
@@ -242,9 +277,23 @@ export default function WalletSetupScreen({ onComplete, loading, coldWalletPriva
                 Save this key securely. Stealf will not store it.{'\n'}You will not be able to recover it.
               </Text>
 
+              <Text style={styles.screenshotWarning}>
+                Do not take screenshots. Write down or copy securely.
+              </Text>
+
               <View style={styles.keyContainer}>
-                <Text style={styles.keyText} selectable>{coldWalletPrivateKey}</Text>
+                <Text style={styles.keyText}>{coldWalletPrivateKey}</Text>
               </View>
+
+              <TouchableOpacity
+                style={[styles.copyButton, copied && styles.copyButtonCopied]}
+                onPress={handleCopyPrivateKey}
+                activeOpacity={0.7}
+              >
+                <Text style={styles.copyButtonText}>
+                  {copied ? 'Copied (clears in 60s)' : 'Copy to Clipboard'}
+                </Text>
+              </TouchableOpacity>
 
               <Text style={styles.warningText}>
                 Make sure you have saved this key before continuing.
@@ -419,5 +468,35 @@ const styles = StyleSheet.create({
     fontFamily: 'Sansation-Regular',
     textAlign: 'center',
     marginBottom: 24,
+  },
+  screenshotWarning: {
+    fontSize: 12,
+    color: '#ff4444',
+    fontFamily: 'Sansation-Bold',
+    textAlign: 'center',
+    marginBottom: 16,
+    backgroundColor: 'rgba(255, 68, 68, 0.1)',
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 8,
+  },
+  copyButton: {
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.2)',
+    paddingVertical: 12,
+    paddingHorizontal: 24,
+    borderRadius: 12,
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  copyButtonCopied: {
+    backgroundColor: 'rgba(76, 175, 80, 0.2)',
+    borderColor: 'rgba(76, 175, 80, 0.4)',
+  },
+  copyButtonText: {
+    fontSize: 14,
+    color: 'rgba(255, 255, 255, 0.8)',
+    fontFamily: 'Sansation-Regular',
   },
 });
