@@ -41,16 +41,18 @@ export const STEALF_WALLET_CONFIG = {
 };
 
 export const TURNKEY_CALLBACKS: TurnkeyCallbacks = {
-  beforeSessionExpiry: ({ sessionKey }) => {
-    console.log("[Turnkey] Session nearing expiry:", sessionKey);
+  beforeSessionExpiry: () => {
+    if (__DEV__) console.log("[Turnkey] Session nearing expiry");
+    // Handle session refresh if needed
   },
-  onSessionExpired: ({ sessionKey }) => {
-    console.log("[Turnkey] Session expired:", sessionKey);
+  onSessionExpired: () => {
+    if (__DEV__) console.log("[Turnkey] Session expired");
+    // Handle re-authentication if needed
   },
-  onAuthenticationSuccess: ({ action, method, identifier }) => {
-    console.log("[Turnkey] Auth success:", { action, method, identifier });
+  onAuthenticationSuccess: ({ action, method }) => {
+    if (__DEV__) console.log("[Turnkey] Auth success:", { action, method });
   },
   onError: (error) => {
-    console.error("[Turnkey] Error:", error);
+    if (__DEV__) console.error("[Turnkey] Error:", error);
   },
 };

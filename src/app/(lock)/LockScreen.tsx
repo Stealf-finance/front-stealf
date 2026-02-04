@@ -1,5 +1,5 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { View, Image, TouchableOpacity, Text, StyleSheet, Dimensions, ActivityIndicator } from 'react-native';
+import React, { useEffect, useState } from 'react';
+import { View, Image, TouchableOpacity, Text, StyleSheet, Dimensions, Alert } from 'react-native';
 import * as LocalAuthentication from 'expo-local-authentication';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
@@ -9,87 +9,70 @@ interface LockScreenProps {
   username?: string;
 }
 
-export default function LockScreen({ onUnlock, username }: LockScreenProps) {
+export default function LockScreen({ onUnlock }: LockScreenProps) {
+  const [biometricAvailable, setBiometricAvailable] = useState(false);
   const [isAuthenticating, setIsAuthenticating] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [biometricType, setBiometricType] = useState<'face' | 'fingerprint' | 'none'>('none');
-  const isInitialMount = useRef(true);
 
   useEffect(() => {
-    checkBiometricType();
-    // Auto-trigger biometric on mount (without showing error)
-    handleUnlock(true);
+    checkBiometricAvailability();
   }, []);
 
-  const checkBiometricType = async () => {
-    const types = await LocalAuthentication.supportedAuthenticationTypesAsync();
-    if (types.includes(LocalAuthentication.AuthenticationType.FACIAL_RECOGNITION)) {
-      setBiometricType('face');
-    } else if (types.includes(LocalAuthentication.AuthenticationType.FINGERPRINT)) {
-      setBiometricType('fingerprint');
-    } else {
-      setBiometricType('none');
-    }
+  const checkBiometricAvailability = async () => {
+    const compatible = await LocalAuthentication.hasHardwareAsync();
+    const enrolled = await LocalAuthentication.isEnrolledAsync();
+    setBiometricAvailable(compatible && enrolled);
   };
 
-  const handleUnlock = async (isAutoTrigger = false) => {
+  const handleBiometricAuth = async () => {
     if (isAuthenticating) return;
 
     setIsAuthenticating(true);
-    if (!isAutoTrigger) {
-      setError(null);
-    }
-
     try {
-      const result = await onUnlock();
-      // Only show error on manual button press, not on auto-trigger
-      if (!result.success && result.error && !isAutoTrigger) {
-        setError(result.error);
+      const result = await LocalAuthentication.authenticateAsync({
+        promptMessage: 'Authenticate to access Stealf',
+        cancelLabel: 'Cancel',
+        disableDeviceFallback: false,
+      });
+
+      if (result.success) {
+        onUnlock();
+      } else if (result.error === 'user_cancel') {
+        // User cancelled, do nothing
+      } else {
+        Alert.alert('Authentication Failed', 'Please try again.');
       }
-    } catch (err: any) {
-      if (!isAutoTrigger) {
-        setError(err?.message || 'Authentication failed');
-      }
+    } catch (error) {
+      if (__DEV__) console.error('Biometric auth error:', error);
+      Alert.alert('Error', 'Authentication failed. Please try again.');
     } finally {
       setIsAuthenticating(false);
-      isInitialMount.current = false;
     }
   };
 
-  const getButtonText = () => {
-    if (isAuthenticating) return 'Authenticating...';
-    if (biometricType === 'face') return 'Unlock with Face ID';
-    if (biometricType === 'fingerprint') return 'Unlock with Touch ID';
-    return 'Unlock';
+  const handleUnlock = () => {
+    if (biometricAvailable) {
+      handleBiometricAuth();
+    } else {
+      // Fallback for devices without biometrics
+      onUnlock();
+    }
   };
 
   return (
     <View style={styles.container}>
-      <View style={styles.imageContainer}>
-        <Image
-          source={require('../../assets/fond.png')}
-          style={styles.image}
-          resizeMode="contain"
-        />
-        <Text style={styles.welcomeText}>
-          Welcome back{username ? `, ${username}` : ''}
-        </Text>
-      </View>
-
-      {error && (
-        <Text style={styles.errorText}>{error}</Text>
-      )}
-
+      <Image
+        source={require('../../assets/fond.png')}
+        style={styles.image}
+        resizeMode="contain"
+      />
       <TouchableOpacity
         style={[styles.unlockButton, isAuthenticating && styles.unlockButtonDisabled]}
-        onPress={() => handleUnlock(false)}
+        onPress={handleUnlock}
         disabled={isAuthenticating}
       >
-        {isAuthenticating ? (
-          <ActivityIndicator color="#000000" size="small" />
-        ) : (
-          <Text style={styles.unlockText}>{getButtonText()}</Text>
-        )}
+        <Text style={styles.unlockText}>
+          {isAuthenticating ? 'Authenticating...' : biometricAvailable ? 'Unlock with Face ID' : 'Log in'}
+        </Text>
       </TouchableOpacity>
     </View>
   );
@@ -141,6 +124,9 @@ const styles = StyleSheet.create({
   },
   unlockButtonDisabled: {
     opacity: 0.7,
+  },
+  unlockButtonDisabled: {
+    opacity: 0.6,
   },
   unlockText: {
     color: '#000000',

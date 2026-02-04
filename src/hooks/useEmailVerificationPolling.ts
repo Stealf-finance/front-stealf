@@ -28,18 +28,21 @@ export function useEmailVerificationPolling({
       return;
     }
 
-    console.log('Starting polling for email verification...');
+    if (__DEV__) console.log('Starting polling for email verification...');
     setIsPolling(true);
 
     const pollInterval = setInterval(async () => {
-      console.log('Polling verification status...');
+      if (__DEV__) console.log('Polling verification status...');
 
       try {
         const response = await fetch(
-          `${API_URL}/api/users/check-verification?token=${preAuthToken}`,
+          `${API_URL}/api/users/check-verification`,
           {
             method: 'GET',
-            headers: { 'Content-Type': 'application/json' },
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${preAuthToken}`,
+            },
           }
         );
 
@@ -61,7 +64,7 @@ export function useEmailVerificationPolling({
     }, POLLING_INTERVAL);
 
     return () => {
-      console.log('Stopping polling');
+      if (__DEV__) console.log('Stopping polling');
       clearInterval(pollInterval);
       setIsPolling(false);
     };
