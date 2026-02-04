@@ -1,5 +1,6 @@
-import React from 'react';
-import { View, Image, TouchableOpacity, Text, StyleSheet, Dimensions } from 'react-native';
+import React, { useEffect, useState } from 'react';
+import { View, Image, TouchableOpacity, Text, StyleSheet, Dimensions, Alert } from 'react-native';
+import * as LocalAuthentication from 'expo-local-authentication';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
@@ -8,6 +9,54 @@ interface LockScreenProps {
 }
 
 export default function LockScreen({ onUnlock }: LockScreenProps) {
+  const [biometricAvailable, setBiometricAvailable] = useState(false);
+  const [isAuthenticating, setIsAuthenticating] = useState(false);
+
+  useEffect(() => {
+    checkBiometricAvailability();
+  }, []);
+
+  const checkBiometricAvailability = async () => {
+    const compatible = await LocalAuthentication.hasHardwareAsync();
+    const enrolled = await LocalAuthentication.isEnrolledAsync();
+    setBiometricAvailable(compatible && enrolled);
+  };
+
+  const handleBiometricAuth = async () => {
+    if (isAuthenticating) return;
+
+    setIsAuthenticating(true);
+    try {
+      const result = await LocalAuthentication.authenticateAsync({
+        promptMessage: 'Authenticate to access Stealf',
+        cancelLabel: 'Cancel',
+        disableDeviceFallback: false,
+      });
+
+      if (result.success) {
+        onUnlock();
+      } else if (result.error === 'user_cancel') {
+        // User cancelled, do nothing
+      } else {
+        Alert.alert('Authentication Failed', 'Please try again.');
+      }
+    } catch (error) {
+      if (__DEV__) console.error('Biometric auth error:', error);
+      Alert.alert('Error', 'Authentication failed. Please try again.');
+    } finally {
+      setIsAuthenticating(false);
+    }
+  };
+
+  const handleUnlock = () => {
+    if (biometricAvailable) {
+      handleBiometricAuth();
+    } else {
+      // Fallback for devices without biometrics
+      onUnlock();
+    }
+  };
+
   return (
     <View style={styles.container}>
       <Image
@@ -15,8 +64,14 @@ export default function LockScreen({ onUnlock }: LockScreenProps) {
         style={styles.image}
         resizeMode="contain"
       />
-      <TouchableOpacity style={styles.unlockButton} onPress={onUnlock}>
-        <Text style={styles.unlockText}>Log in</Text>
+      <TouchableOpacity
+        style={[styles.unlockButton, isAuthenticating && styles.unlockButtonDisabled]}
+        onPress={handleUnlock}
+        disabled={isAuthenticating}
+      >
+        <Text style={styles.unlockText}>
+          {isAuthenticating ? 'Authenticating...' : biometricAvailable ? 'Unlock with Face ID' : 'Log in'}
+        </Text>
       </TouchableOpacity>
     </View>
   );
@@ -41,6 +96,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: 48,
     borderRadius: 16,
     backgroundColor: '#FFFFFF',
+  },
+  unlockButtonDisabled: {
+    opacity: 0.6,
   },
   unlockText: {
     color: '#000000',

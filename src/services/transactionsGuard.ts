@@ -1,4 +1,5 @@
 import { PublicKey } from '@solana/web3.js';
+import * as bip39 from 'bip39';
 
 const ESTIMATED_FEE_SOL = 0.000005; // ~5000 lamports
 const RENT_EXEMPT_MIN_SOL = 0.00089; // minimum rent-exempt balance for account
@@ -109,21 +110,24 @@ export function validateNotSelf(from: string, to: string): GuardResult {
 }
 
 /**
- * Validates a mnemonic seed phrase (12 or 24 words, lowercase alpha only)
+ * Validates a mnemonic seed phrase using BIP39 standard
+ * Checks word count, wordlist validity, and checksum
  */
 export function validateMnemonic(mnemonic: string): GuardResult {
   if (!mnemonic || mnemonic.trim() === '') {
     return { valid: false, error: 'Please enter your seed phrase' };
   }
 
-  const words = mnemonic.trim().split(/\s+/);
+  const normalizedMnemonic = mnemonic.trim().toLowerCase();
+  const words = normalizedMnemonic.split(/\s+/);
 
   if (words.length !== 12 && words.length !== 24) {
     return { valid: false, error: 'Seed phrase must be 12 or 24 words' };
   }
 
-  if (!words.every(w => /^[a-z]+$/.test(w))) {
-    return { valid: false, error: 'Seed phrase must contain only lowercase words' };
+  // Use BIP39 validation (checks wordlist + checksum)
+  if (!bip39.validateMnemonic(normalizedMnemonic)) {
+    return { valid: false, error: 'Invalid seed phrase. Please check for typos.' };
   }
 
   return { valid: true };
