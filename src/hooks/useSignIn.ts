@@ -58,9 +58,6 @@ export function useSignIn() {
       }
 
       const data = await response.json();
-      console.log('Full API response:', JSON.stringify(data, null, 2));
-      console.log('coldWallet raw value:', data.data?.user?.coldWallet);
-      console.log('coldWallet type:', typeof data.data?.user?.coldWallet);
 
       if (!data.data?.user) {
         throw new Error('Backend did not return user data');
@@ -68,7 +65,6 @@ export function useSignIn() {
 
       // Handle both boolean and string "true"
       const isColdWallet = data.data.user.coldWallet === true || data.data.user.coldWallet === 'true';
-      console.log('isColdWallet resolved:', isColdWallet);
 
       const userData: UserData = {
         email: data.data.user.email,
