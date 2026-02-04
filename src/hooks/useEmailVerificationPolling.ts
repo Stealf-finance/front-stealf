@@ -36,12 +36,11 @@ export function useEmailVerificationPolling({
 
       try {
         const response = await fetch(
-          `${API_URL}/api/users/check-verification`,
+          `${API_URL}/api/users/check-verification?token=${preAuthToken}`,
           {
             method: 'GET',
             headers: {
               'Content-Type': 'application/json',
-              'Authorization': `Bearer ${preAuthToken}`,
             },
           }
         );
