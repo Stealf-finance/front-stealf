@@ -8,7 +8,7 @@ import HomeScreen from '../app/(tabs)/HomeScreen';
 import PrivacyScreen from '../app/(tabs)/PrivacyScreen';
 import SendScreen from '../app/(send)/Send';
 import SendPrivateScreen from '../app/(send)/SendPrivate';
-import MooveScreen from '../app/(send)/moove';
+import MooveScreen from '../app/(send)/Moove';
 import AddFundsScreen from '../app/(add)/AddFunds';
 import AddFundsPrivacyScreen from '../app/(add)/AddFundsPrivacy';
 import DepositPrivateCashScreen from '../app/(deposit)/DepositPrivateCash';
