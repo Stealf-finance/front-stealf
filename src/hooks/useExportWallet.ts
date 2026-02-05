@@ -1,5 +1,8 @@
 import { useState } from "react";
 import { useTurnkey } from "@turnkey/react-native-wallet-kit";
+import * as SecureStore from "expo-secure-store";
+
+const STEALF_PRIVATE_KEY = "stealf_private_key";
 
 interface ExportWalletResult {
   success: boolean;
@@ -103,9 +106,41 @@ export function useExportWallet() {
     }
   };
 
+  /**
+   * Export cold wallet private key from SecureStore
+   * Used when the stealf_wallet is stored locally (not in Turnkey)
+   */
+  const exportColdWallet = async (): Promise<ExportWalletResult> => {
+    setLoading(true);
+    try {
+      const privateKey = await SecureStore.getItemAsync(STEALF_PRIVATE_KEY);
+
+      if (!privateKey) {
+        return {
+          success: false,
+          error: "No cold wallet found in SecureStore."
+        };
+      }
+
+      return {
+        success: true,
+        mnemonic: privateKey
+      };
+    } catch (error: any) {
+      console.error("Export cold wallet failed:", error);
+      return {
+        success: false,
+        error: error?.message || "Failed to export cold wallet from SecureStore"
+      };
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return {
     exportWallet: handleExportWallet,
     exportWalletAccount: handleExportWalletAccount,
+    exportColdWallet,
     loading
   };
 }

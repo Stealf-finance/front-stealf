@@ -34,6 +34,7 @@ export default function AppNavigator() {
   const [previousPage, setPreviousPage] = useState<PageType>('home');
   const [transferType, setTransferType] = useState<'basic' | 'private'>('private');
   const [txHistoryWalletType, setTxHistoryWalletType] = useState<'cash' | 'privacy'>('cash');
+  const [infoSource, setInfoSource] = useState<'home' | 'privacy'>('home');
 
   const screenFadeAnim = useRef(new Animated.Value(1)).current;
   const screenSlideAnim = useRef(new Animated.Value(0)).current;
@@ -116,7 +117,13 @@ export default function AppNavigator() {
     handleNavigateToPage('profile');
   };
 
-  const handleOpenInfo = () => {
+  const handleOpenInfoFromHome = () => {
+    setInfoSource('home');
+    handleOpenScreen('info');
+  };
+
+  const handleOpenInfoFromPrivacy = () => {
+    setInfoSource('privacy');
     handleOpenScreen('info');
   };
 
@@ -186,6 +193,7 @@ export default function AppNavigator() {
                     onOpenAddFundsPrivacy={() => handleOpenScreen('addFundsPrivacy')}
                     onOpenDepositPrivateCash={handleOpenDepositPrivateCashFromPrivacy}
                     onOpenProfile={handleOpenProfile}
+                    onOpenInfo={handleOpenInfoFromPrivacy}
                     userEmail={userData?.email}
                     username={userData?.username}
                     currentPage={currentPage}
@@ -201,7 +209,7 @@ export default function AppNavigator() {
                     onOpenSend={() => handleOpenScreen('send')}
                     onOpenDepositPrivateCash={handleOpenDepositPrivateCashFromHome}
                     onOpenProfile={handleOpenProfile}
-                    onOpenInfo={handleOpenInfo}
+                    onOpenInfo={handleOpenInfoFromHome}
                     userEmail={userData?.email}
                     username={userData?.username}
                     currentPage={currentPage}
@@ -232,7 +240,7 @@ export default function AppNavigator() {
         {currentScreen === 'addFunds' && <AddFundsScreen onBack={handleBackToMain} />}
         {currentScreen === 'addFundsPrivacy' && <AddFundsPrivacyScreen onBack={handleBackToMain} />}
         {currentScreen === 'depositPrivateCash' && <DepositPrivateCashScreen onBack={handleBackToMain} walletType={depositWalletType} />}
-        {currentScreen === 'info' && <InfoScreen onBack={handleBackToMain} />}
+        {currentScreen === 'info' && <InfoScreen onBack={handleBackToMain} source={infoSource} />}
         {currentScreen === 'transactionHistory' && <TransactionHistoryScreen onClose={handleBackToMain} walletType={txHistoryWalletType} />}
       </View>
 

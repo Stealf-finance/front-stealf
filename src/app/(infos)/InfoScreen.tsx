@@ -4,15 +4,44 @@ import { Ionicons } from '@expo/vector-icons';
 import * as Clipboard from 'expo-clipboard';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useExportWallet } from '../../hooks/useExportWallet';
+import { useAuth } from '../../contexts/AuthContext';
+
+type InfoScreenSource = 'home' | 'privacy';
 
 interface InfoScreenProps {
   onBack: () => void;
+  source: InfoScreenSource;
 }
 
-export default function InfoScreen({ onBack }: InfoScreenProps) {
-  const { exportWallet, loading } = useExportWallet();
+export default function InfoScreen({ onBack, source }: InfoScreenProps) {
+  const { exportWalletAccount, exportColdWallet, loading } = useExportWallet();
+  const { userData } = useAuth();
   const [showMnemonic, setShowMnemonic] = useState(false);
   const [mnemonic, setMnemonic] = useState<string>('');
+
+  const handleExportPrivateKey = async () => {
+    if (source === 'home') {
+      // Cash wallet - always in Turnkey
+      if (!userData?.cash_wallet) {
+        return { success: false, error: 'Cash wallet not found' };
+      }
+      return exportWalletAccount(userData.cash_wallet);
+    } else {
+      // Privacy wallet - check if cold wallet (SecureStore) or Turnkey
+      if (userData?.coldWallet) {
+        return exportColdWallet();
+      } else {
+        if (!userData?.stealf_wallet) {
+          return { success: false, error: 'Stealf wallet not found' };
+        }
+        return exportWalletAccount(userData.stealf_wallet);
+      }
+    }
+  };
+
+  const getTitle = () => {
+    return source === 'home' ? 'Cash Wallet Backup' : 'Privacy Wallet Backup';
+  };
 
   return (
       <LinearGradient
@@ -27,7 +56,7 @@ export default function InfoScreen({ onBack }: InfoScreenProps) {
         <TouchableOpacity onPress={onBack} style={styles.backButton}>
           <Text style={styles.backIcon}>←</Text>
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Information</Text>
+        <Text style={styles.headerTitle}>{getTitle()}</Text>
         <View style={styles.placeholder} />
       </View>
 
@@ -42,14 +71,14 @@ export default function InfoScreen({ onBack }: InfoScreenProps) {
             <Text style={styles.sectionTitle}>Backup Wallet</Text>
           </View>
           <Text style={styles.sectionDescription}>
-            Export your recovery phrase to backup your wallet. Keep it safe and never share it with anyone.
+            Export your private key to backup your wallet. Keep it safe and never share it with anyone.
           </Text>
 
           {/* Warning Card */}
           <View style={styles.warningCard}>
             <Ionicons name="warning" size={20} color="#FFA500" />
             <Text style={styles.warningText}>
-              Your recovery phrase gives full access to your wallet. Store it securely offline.
+              Your private key gives full access to your wallet. Store it securely offline.
             </Text>
           </View>
 
@@ -59,20 +88,20 @@ export default function InfoScreen({ onBack }: InfoScreenProps) {
               style={styles.exportButton}
               onPress={async () => {
                 Alert.alert(
-                  'Export Recovery Phrase',
-                  'Are you sure you want to reveal your recovery phrase? Make sure no one is watching your screen.',
+                  'Export Private Key',
+                  'Are you sure you want to reveal your private key? Make sure no one is watching your screen.',
                   [
                     { text: 'Cancel', style: 'cancel' },
                     {
                       text: 'Continue',
                       style: 'destructive',
                       onPress: async () => {
-                        const result = await exportWallet();
+                        const result = await handleExportPrivateKey();
                         if (result.success && result.mnemonic) {
                           setMnemonic(result.mnemonic);
                           setShowMnemonic(true);
                         } else {
-                          Alert.alert('Error', result.error || 'Failed to export wallet');
+                          Alert.alert('Error', result.error || 'Failed to export private key');
                         }
                       }
                     }
@@ -86,7 +115,7 @@ export default function InfoScreen({ onBack }: InfoScreenProps) {
               ) : (
                 <>
                   <Ionicons name="eye-outline" size={20} color="white" />
-                  <Text style={styles.exportButtonText}>Reveal Recovery Phrase</Text>
+                  <Text style={styles.exportButtonText}>Reveal Private Key</Text>
                 </>
               )}
             </TouchableOpacity>
@@ -103,7 +132,7 @@ export default function InfoScreen({ onBack }: InfoScreenProps) {
                   style={styles.copyButton}
                   onPress={async () => {
                     await Clipboard.setStringAsync(mnemonic);
-                    Alert.alert('Copied', 'Recovery phrase copied to clipboard');
+                    Alert.alert('Copied', 'Private key copied to clipboard');
                   }}
                 >
                   <Ionicons name="copy-outline" size={18} color="white" />
