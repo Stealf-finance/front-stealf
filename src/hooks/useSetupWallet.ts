@@ -2,6 +2,8 @@ import { useState } from "react";
 import { Keypair } from "@solana/web3.js";
 import * as SecureStore from "expo-secure-store";
 import bs58 from "bs58";
+import * as bip39 from "bip39";
+import { derivePath } from "ed25519-hd-key";
 
 const SECURE_STORE_KEY = "stealf_private_key";
 
@@ -22,9 +24,6 @@ export function useSetupWallet() {
   const handleCreateWallet = async (): Promise<SetupWalletResult> => {
     setLoading(true);
     try {
-      const bip39 = require("bip39");
-      const { derivePath } = require("ed25519-hd-key");
-
       // Generate new mnemonic (24 words)
       const mnemonic = bip39.generateMnemonic(256);
 
@@ -55,8 +54,6 @@ export function useSetupWallet() {
   const handleImportWallet = async (mnemonic: string): Promise<SetupWalletResult> => {
     setLoading(true);
     try {
-      const bip39 = require("bip39");
-      const { derivePath } = require("ed25519-hd-key");
       const seed = await bip39.mnemonicToSeed(mnemonic);
       const seedHex = Buffer.from(seed).toString("hex");
       const { key } = derivePath("m/44'/501'/0'/0'", seedHex);
