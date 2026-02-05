@@ -28,18 +28,6 @@ export const CASH_WALLET_CONFIG = {
   ],
 };
 
-export const STEALF_WALLET_CONFIG = {
-  walletName: "STEALF Privacy Wallet",
-  walletAccounts: [
-    {
-      curve: "CURVE_ED25519" as const,
-      pathFormat: 'PATH_FORMAT_BIP32' as const,
-      path: "m/44'/501'/1'/0'",
-      addressFormat: "ADDRESS_FORMAT_SOLANA" as const,
-    },
-  ],
-};
-
 export const TURNKEY_CALLBACKS: TurnkeyCallbacks = {
   beforeSessionExpiry: () => {
     if (__DEV__) console.log("[Turnkey] Session nearing expiry");
