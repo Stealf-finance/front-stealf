@@ -16,13 +16,11 @@ import DepositIcon from '../../assets/buttons/deposit.svg';
 import ComebackIcon from '../../assets/buttons/comeback.svg';
 import { validateMnemonic } from '../../services/transactionsGuard';
 
-type SetupStep = 'choose' | 'createOptions' | 'importWallet' | 'importOptions' | 'coldWalletResult';
+type SetupStep = 'choose' | 'importWallet' | 'coldWalletResult';
 
 export type WalletSetupChoice =
-  | { mode: 'create'; storage: 'turnkey' }
   | { mode: 'create'; storage: 'cold' }
-  | { mode: 'import'; storage: 'turnkey'; mnemonic: string }
-  | { mode: 'import'; storage: 'skip'; mnemonic: string };
+  | { mode: 'import'; storage: 'cold'; mnemonic: string };
 
 interface WalletSetupScreenProps {
   onComplete: (choice: WalletSetupChoice) => void;
@@ -65,32 +63,18 @@ export default function WalletSetupScreen({ onComplete, loading, coldWalletPriva
     );
   };
 
-  const handleCreateNew = () => setStep('createOptions');
-  const handleImport = () => setStep('importWallet');
-
-  const handleColdWallet = () => {
+  const handleCreateNew = () => {
     onComplete({ mode: 'create', storage: 'cold' });
   };
 
-  const handleSaveInTurnkey = () => {
-    onComplete({ mode: 'create', storage: 'turnkey' });
-  };
+  const handleImport = () => setStep('importWallet');
 
-  const handleImportSaveInTurnkey = () => {
+  const handleImportComplete = () => {
     if (!importKey.trim()) {
       Alert.alert('Error', 'Please enter your seed phrase');
       return;
     }
-    onComplete({ mode: 'import', storage: 'turnkey', mnemonic: importKey.trim() });
-    setImportKey('');
-  };
-
-  const handleImportSkip = () => {
-    if (!importKey.trim()) {
-      Alert.alert('Error', 'Please enter your seed phrase');
-      return;
-    }
-    onComplete({ mode: 'import', storage: 'skip', mnemonic: importKey.trim() });
+    onComplete({ mode: 'import', storage: 'cold', mnemonic: importKey.trim() });
     setImportKey('');
   };
 
@@ -103,8 +87,8 @@ export default function WalletSetupScreen({ onComplete, loading, coldWalletPriva
         end={{ x: 0, y: 0 }}
         style={styles.background}
       >
-        {step !== 'choose' && step !== 'coldWalletResult' && (
-          <TouchableOpacity style={styles.backButton} onPress={() => setStep(step === 'importOptions' ? 'importWallet' : 'choose')}>
+        {step === 'importWallet' && (
+          <TouchableOpacity style={styles.backButton} onPress={() => setStep('choose')}>
             <ComebackIcon width={20} height={16} />
           </TouchableOpacity>
         )}
@@ -142,45 +126,7 @@ export default function WalletSetupScreen({ onComplete, loading, coldWalletPriva
                 </View>
                 <View style={styles.optionTextContainer}>
                   <Text style={styles.optionTitle}>Import wallet</Text>
-                  <Text style={styles.optionDescription}>Use an existing private key</Text>
-                </View>
-              </TouchableOpacity>
-            </>
-          )}
-
-          {step === 'createOptions' && (
-            <>
-              <Text style={styles.title}>Create Wallet</Text>
-              <Text style={styles.subtitle}>
-                Choose how to store your private wallet
-              </Text>
-
-              <TouchableOpacity
-                style={styles.optionCard}
-                onPress={handleColdWallet}
-                activeOpacity={0.7}
-                disabled={loading}
-              >
-
-                <View style={styles.optionTextContainer}>
-                  <Text style={styles.optionTitle}>Cold wallet</Text>
-                  <Text style={styles.optionDescription}>
-                    Your private key is returned to you.{'\n'}Stealf does not store it.
-                  </Text>
-                </View>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                style={styles.optionCard}
-                onPress={handleSaveInTurnkey}
-                activeOpacity={0.7}
-                disabled={loading}
-              >
-                <View style={styles.optionTextContainer}>
-                  <Text style={styles.optionTitle}>Save in Stealf</Text>
-                  <Text style={styles.optionDescription}>
-                    Secured by Turnkey infrastructure.{'\n'}Access with your passkey.
-                  </Text>
+                  <Text style={styles.optionDescription}>Use an existing seed phrase</Text>
                 </View>
               </TouchableOpacity>
 
@@ -221,7 +167,7 @@ export default function WalletSetupScreen({ onComplete, loading, coldWalletPriva
               ) : null}
 
               <TouchableOpacity
-                style={[styles.primaryButton, !importKey.trim() && styles.buttonDisabled]}
+                style={[styles.primaryButton, (!importKey.trim() || loading) && styles.buttonDisabled]}
                 onPress={() => {
                   const result = validateMnemonic(importKey.trim());
                   if (!result.valid) {
@@ -229,43 +175,16 @@ export default function WalletSetupScreen({ onComplete, loading, coldWalletPriva
                     return;
                   }
                   setImportError('');
-                  setStep('importOptions');
+                  handleImportComplete();
                 }}
                 activeOpacity={0.7}
-                disabled={!importKey.trim()}
-              >
-                <Text style={styles.primaryButtonText}>Import Wallet</Text>
-              </TouchableOpacity>
-            </>
-          )}
-
-          {step === 'importOptions' && (
-            <>
-              <Text style={styles.title}>Store your wallet</Text>
-              <Text style={styles.subtitle}>
-                Choose how to store your imported wallet
-              </Text>
-
-              <TouchableOpacity
-                style={[styles.primaryButton, loading && styles.buttonDisabled]}
-                onPress={handleImportSaveInTurnkey}
-                activeOpacity={0.7}
-                disabled={loading}
+                disabled={!importKey.trim() || loading}
               >
                 {loading ? (
                   <ActivityIndicator color="#000" />
                 ) : (
-                  <Text style={styles.primaryButtonText}>Save your private key in Stealf</Text>
+                  <Text style={styles.primaryButtonText}>Import Wallet</Text>
                 )}
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                style={[styles.secondaryButton, loading && styles.buttonDisabled]}
-                onPress={handleImportSkip}
-                activeOpacity={0.7}
-                disabled={loading}
-              >
-                <Text style={styles.secondaryButtonText}>Skip - Self managed</Text>
               </TouchableOpacity>
             </>
           )}

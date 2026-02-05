@@ -94,17 +94,15 @@ export function useAuthFlow() {
 
     try {
       let walletAddr = '';
-      const cold = choice.storage === 'cold' || choice.storage === 'skip';
-      setIsColdWallet(cold);
+      setIsColdWallet(true);
 
-      if (choice.mode === 'create' && choice.storage === 'cold') {
+      if (choice.mode === 'create') {
         const result = await setupWallet.handleCreateWallet();
         if (!result.success) throw new Error(result.error);
         walletAddr = result.walletAddress || '';
         setColdWalletPrivateKey(result.privateKey);
-      } 
-      else if (choice.mode === 'import' && choice.storage === 'skip') {
-        const result = await setupWallet.handleImportWallet(choice.mnemonic!);
+      } else if (choice.mode === 'import') {
+        const result = await setupWallet.handleImportWallet(choice.mnemonic);
         if (!result.success) throw new Error(result.error);
         walletAddr = result.walletAddress || '';
       }
@@ -121,7 +119,7 @@ export function useAuthFlow() {
           pseudo,
           cash_wallet: cashWallet,
           stealf_wallet: walletAddr,
-          coldWallet: cold,
+          coldWallet: true,
         }),
       });
 
@@ -133,7 +131,8 @@ export function useAuthFlow() {
       const data = await response.json();
       if (!data.data?.user) throw new Error('Backend did not return user data');
 
-      if (choice.mode === 'create' && choice.storage === 'cold') {
+      if (choice.mode === 'create') {
+        // Show private key for new cold wallet
         setPendingUser(data.data.user);
         setScreenState('showPrivateKey');
         setLoading(false);
@@ -145,8 +144,9 @@ export function useAuthFlow() {
         };
       }
 
-      finishAuth(data.data.user, pseudo, cold);
-      return { success: true, user: data.data.user, isColdWallet: cold };
+      // Import mode - no need to show private key
+      finishAuth(data.data.user, pseudo, true);
+      return { success: true, user: data.data.user, isColdWallet: true };
 
     } catch (err: any) {
       console.error('Wallet setup failed:', err);

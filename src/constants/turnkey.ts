@@ -28,7 +28,6 @@ export const CASH_WALLET_CONFIG = {
   ],
 };
 
-
 export const TURNKEY_CALLBACKS: TurnkeyCallbacks = {
   beforeSessionExpiry: () => {
     if (__DEV__) console.log("[Turnkey] Session nearing expiry");
