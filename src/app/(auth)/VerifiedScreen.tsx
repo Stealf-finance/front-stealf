@@ -21,7 +21,7 @@ export default function VerifiedScreen({ email, pseudo }: VerifiedScreenProps) {
     screenState,
     loading,
     error,
-    coldWalletPrivateKey,
+    coldWalletMnemonic,
     createPasskey,
     handleWalletChoice,
     handleColdWalletConfirmed,
@@ -73,12 +73,12 @@ export default function VerifiedScreen({ email, pseudo }: VerifiedScreenProps) {
     );
   }
 
-  if (screenState === 'walletSetup' || screenState === 'showPrivateKey') {
+  if (screenState === 'walletSetup' || screenState === 'showMnemonic') {
     return (
       <WalletSetupScreen
-        onComplete={screenState === 'showPrivateKey' ? onColdWalletConfirmed : onWalletChoice}
+        onComplete={screenState === 'showMnemonic' ? onColdWalletConfirmed : onWalletChoice}
         loading={loading}
-        coldWalletPrivateKey={coldWalletPrivateKey}
+        coldWalletMnemonic={coldWalletMnemonic}
       />
     );
   }

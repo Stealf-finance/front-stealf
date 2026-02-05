@@ -8,7 +8,7 @@ const SECURE_STORE_KEY = "stealf_private_key";
 interface SetupWalletResult {
   success: boolean;
   walletAddress?: string;
-  privateKey?: string;
+  mnemonic?: string;
   error?: string;
 }
 
@@ -16,18 +16,31 @@ export function useSetupWallet() {
   const [loading, setLoading] = useState(false);
 
   /**
-   * Create a new wallet locally and store the private key in SecureStore
+   * Create a new wallet with mnemonic and store the private key in SecureStore
+   * Returns the mnemonic (seed phrase) for user backup
    */
   const handleCreateWallet = async (): Promise<SetupWalletResult> => {
     setLoading(true);
     try {
-      const keypair = Keypair.generate();
+      const bip39 = require("bip39");
+      const { derivePath } = require("ed25519-hd-key");
+
+      // Generate new mnemonic (24 words)
+      const mnemonic = bip39.generateMnemonic(256);
+
+      // Derive keypair from mnemonic
+      const seed = await bip39.mnemonicToSeed(mnemonic);
+      const seedHex = Buffer.from(seed).toString("hex");
+      const { key } = derivePath("m/44'/501'/0'/0'", seedHex);
+      const keypair = Keypair.fromSeed(Uint8Array.from(key));
       const privateKey = bs58.encode(keypair.secretKey);
       const walletAddress = keypair.publicKey.toBase58();
 
+      // Store private key for signing transactions
       await SecureStore.setItemAsync(SECURE_STORE_KEY, privateKey);
 
-      return { success: true, walletAddress, privateKey };
+      // Return mnemonic for user to backup
+      return { success: true, walletAddress, mnemonic };
     } catch (error: any) {
       console.error("Create local wallet failed:", error);
       return { success: false, error: error?.message || "Failed to create wallet" };

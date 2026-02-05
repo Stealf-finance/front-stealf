@@ -16,7 +16,7 @@ interface UseAuthFlowParams {
   setShowLogoAnimation: (show: boolean) => void;
 }
 
-type ScreenState = 'passkey' | 'walletSetup' | 'creatingWallet' | 'showPrivateKey' | 'error';
+type ScreenState = 'passkey' | 'walletSetup' | 'creatingWallet' | 'showMnemonic' | 'error';
 
 interface PasskeyResult {
   success: boolean;
@@ -28,7 +28,8 @@ interface PasskeyResult {
 interface WalletChoiceResult {
   success: boolean;
   user?: any;
-  privateKey?: string;
+  mnemonic?: string;
+  isColdWallet?: boolean;
   error?: string;
 }
 
@@ -42,7 +43,7 @@ export function useAuthFlow() {
   const [error, setError] = useState('');
   const [sessionToken, setSessionToken] = useState<string | null>(null);
   const [cashWallet, setCashWallet] = useState<string>('');
-  const [coldWalletPrivateKey, setColdWalletPrivateKey] = useState<string | undefined>();
+  const [coldWalletMnemonic, setColdWalletMnemonic] = useState<string | undefined>();
   const [pendingUser, setPendingUser] = useState<any>(null);
   const [isColdWallet, setIsColdWallet] = useState(false);
 
@@ -99,7 +100,7 @@ export function useAuthFlow() {
         const result = await setupWallet.handleCreateWallet();
         if (!result.success) throw new Error(result.error);
         walletAddr = result.walletAddress || '';
-        setColdWalletPrivateKey(result.privateKey);
+        setColdWalletMnemonic(result.mnemonic);
       } else if (choice.mode === 'import') {
         const result = await setupWallet.handleImportWallet(choice.mnemonic);
         if (!result.success) throw new Error(result.error);
@@ -130,14 +131,15 @@ export function useAuthFlow() {
       if (!data.data?.user) throw new Error('Backend did not return user data');
 
       if (choice.mode === 'create') {
-        // Show private key for new cold wallet
+        // Show mnemonic for new cold wallet
         setPendingUser(data.data.user);
-        setScreenState('showPrivateKey');
+        setScreenState('showMnemonic');
         setLoading(false);
         return {
           success: true,
           user: data.data.user,
-          privateKey: coldWalletPrivateKey,
+          mnemonic: coldWalletMnemonic,
+          isColdWallet: true
         };
       }
 
@@ -155,13 +157,13 @@ export function useAuthFlow() {
     } finally {
       setLoading(false);
     }
-  }, [sessionToken, cashWallet, setupWallet, coldWalletPrivateKey]);
+  }, [sessionToken, cashWallet, setupWallet, coldWalletMnemonic]);
 
   /**
-   * Called after user confirms they saved their cold wallet private key
+   * Called after user confirms they saved their cold wallet mnemonic
    */
   const handleColdWalletConfirmed = useCallback((pseudo: string) => {
-    setColdWalletPrivateKey(undefined);
+    setColdWalletMnemonic(undefined);
     if (pendingUser) {
       finishAuth(pendingUser, pseudo, true);
     }
@@ -281,7 +283,7 @@ export function useAuthFlow() {
     setScreenState,
     loading,
     error,
-    coldWalletPrivateKey,
+    coldWalletMnemonic,
 
     // Actions
     createPasskey,
