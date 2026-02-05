@@ -16,7 +16,7 @@ import DepositIcon from '../../assets/buttons/deposit.svg';
 import ComebackIcon from '../../assets/buttons/comeback.svg';
 import { validateMnemonic } from '../../services/transactionsGuard';
 
-type SetupStep = 'choose' | 'importWallet' | 'coldWalletResult';
+type SetupStep = 'choose' | 'importWallet' | 'showMnemonic';
 
 export type WalletSetupChoice =
   | { mode: 'create'; storage: 'cold' }
@@ -25,11 +25,11 @@ export type WalletSetupChoice =
 interface WalletSetupScreenProps {
   onComplete: (choice: WalletSetupChoice) => void;
   loading: boolean;
-  coldWalletMnemonic?: string;
+  generatedMnemonic?: string;
 }
 
-export default function WalletSetupScreen({ onComplete, loading, coldWalletMnemonic }: WalletSetupScreenProps) {
-  const [step, setStep] = useState<SetupStep>(coldWalletMnemonic ? 'coldWalletResult' : 'choose');
+export default function WalletSetupScreen({ onComplete, loading, generatedMnemonic }: WalletSetupScreenProps) {
+  const [step, setStep] = useState<SetupStep>(generatedMnemonic ? 'showMnemonic' : 'choose');
   const [importKey, setImportKey] = useState('');
   const [importError, setImportError] = useState('');
   const [copied, setCopied] = useState(false);
@@ -45,9 +45,9 @@ export default function WalletSetupScreen({ onComplete, loading, coldWalletMnemo
   }, []);
 
   const handleCopyMnemonic = async () => {
-    if (!coldWalletMnemonic) return;
+    if (!generatedMnemonic) return;
 
-    await Clipboard.setStringAsync(coldWalletMnemonic);
+    await Clipboard.setStringAsync(generatedMnemonic);
     setCopied(true);
 
     // Clear clipboard after 60 seconds for security
@@ -189,7 +189,7 @@ export default function WalletSetupScreen({ onComplete, loading, coldWalletMnemo
             </>
           )}
 
-          {step === 'coldWalletResult' && coldWalletMnemonic && (
+          {step === 'showMnemonic' && generatedMnemonic && (
             <>
               <Text style={styles.title}>Your Recovery Phrase</Text>
               <Text style={styles.subtitle}>
@@ -201,7 +201,7 @@ export default function WalletSetupScreen({ onComplete, loading, coldWalletMnemo
               </Text>
 
               <View style={styles.keyContainer}>
-                <Text style={styles.keyText}>{coldWalletMnemonic}</Text>
+                <Text style={styles.keyText}>{generatedMnemonic}</Text>
               </View>
 
               <TouchableOpacity

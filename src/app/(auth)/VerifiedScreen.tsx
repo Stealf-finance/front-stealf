@@ -21,10 +21,10 @@ export default function VerifiedScreen({ email, pseudo }: VerifiedScreenProps) {
     screenState,
     loading,
     error,
-    coldWalletMnemonic,
+    generatedMnemonic,
     createPasskey,
     handleWalletChoice,
-    handleColdWalletConfirmed,
+    handleMnemonicConfirmed,
   } = useAuthFlow();
 
   // Step 1: Create passkey on mount
@@ -40,9 +40,9 @@ export default function VerifiedScreen({ email, pseudo }: VerifiedScreenProps) {
     }
   };
 
-  // Step 3: Cold wallet confirmed
-  const onColdWalletConfirmed = () => {
-    handleColdWalletConfirmed(pseudo);
+  // Step 3: Mnemonic confirmed
+  const onMnemonicConfirmed = () => {
+    handleMnemonicConfirmed(pseudo);
   };
 
   // --- RENDERS ---
@@ -76,9 +76,9 @@ export default function VerifiedScreen({ email, pseudo }: VerifiedScreenProps) {
   if (screenState === 'walletSetup' || screenState === 'showMnemonic') {
     return (
       <WalletSetupScreen
-        onComplete={screenState === 'showMnemonic' ? onColdWalletConfirmed : onWalletChoice}
+        onComplete={screenState === 'showMnemonic' ? onMnemonicConfirmed : onWalletChoice}
         loading={loading}
-        coldWalletMnemonic={coldWalletMnemonic}
+        generatedMnemonic={generatedMnemonic}
       />
     );
   }

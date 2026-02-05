@@ -67,7 +67,6 @@ export function useExportWallet() {
         };
       }
 
-      // Find the wallet containing this address
       let foundWallet = null;
       for (const wallet of wallets) {
         const account = wallet.accounts?.find(
@@ -86,7 +85,6 @@ export function useExportWallet() {
         };
       }
 
-      // Export the mnemonic for this wallet
       const mnemonic = await exportWallet({ walletId: foundWallet.walletId });
 
       if (!mnemonic) {

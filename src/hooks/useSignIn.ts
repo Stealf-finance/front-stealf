@@ -1,9 +1,12 @@
 import { useState } from 'react';
 import { useTurnkey } from "@turnkey/react-native-wallet-kit";
 import { useAuth as useAuthContext } from '../contexts/AuthContext';
-import { useSetupWallet } from './useSetupWallet';
+import { useSetupWallet } from './useInitPrivateWallet';
+import * as SecureStore from 'expo-secure-store';
 
 const API_URL = process.env.EXPO_PUBLIC_API_URL;
+const SECURE_STORE_KEY = "stealf_private_key";
+const MNEMONIC_STORE_KEY = "stealf_wallet_mnemonic";
 
 interface UserData {
   email: string;
@@ -11,7 +14,6 @@ interface UserData {
   cash_wallet: string;
   stealf_wallet: string;
   subOrgId: string;
-  coldWallet: boolean;
 }
 
 export function useSignIn() {
@@ -21,13 +23,13 @@ export function useSignIn() {
 
   const [loading, setLoading] = useState(false);
   const [showLogoAnimation, setShowLogoAnimation] = useState(false);
-  const [needsColdWalletImport, setNeedsColdWalletImport] = useState(false);
+  const [needsSeedImport, setNeedsSeedImport] = useState(false);
   const [pendingUserData, setPendingUserData] = useState<UserData | null>(null);
-  const [coldWalletImportError, setColdWalletImportError] = useState<string | null>(null);
+  const [importError, setImportError] = useState<string | null>(null);
 
   const signInWithPasskey = async () => {
     setLoading(true);
-    setColdWalletImportError(null);
+    setImportError(null);
 
     try {
       const authResult = await loginWithPasskey();
@@ -63,32 +65,30 @@ export function useSignIn() {
         throw new Error('Backend did not return user data');
       }
 
-      // Handle both boolean and string "true"
-      const isColdWallet = data.data.user.coldWallet === true || data.data.user.coldWallet === 'true';
-
       const userData: UserData = {
         email: data.data.user.email,
         username: data.data.user.username || data.data.user.pseudo,
         cash_wallet: data.data.user.cash_wallet,
         stealf_wallet: data.data.user.stealf_wallet,
         subOrgId: data.data.user.subOrgId,
-        coldWallet: isColdWallet,
       };
 
-      // Check if user has cold wallet - need to import it first
-      if (userData.coldWallet) {
-        setPendingUserData(userData);
-        setNeedsColdWalletImport(true);
-        setLoading(false);
-        return { success: true, needsColdWalletImport: true };
+      // Check if private key or mnemonic is already in SecureStore
+      const storedKey = await SecureStore.getItemAsync(SECURE_STORE_KEY);
+      const storedMnemonic = await SecureStore.getItemAsync(MNEMONIC_STORE_KEY);
+
+      if (storedKey || storedMnemonic) {
+        // Private key available locally - complete sign in
+        setUserData(userData);
+        setShowLogoAnimation(true);
+        return { success: true };
       }
 
-      // No cold wallet - complete sign in
-      setUserData(userData);
-      
-      setShowLogoAnimation(true);
-
-      return { success: true };
+      // No local key - prompt user to import seed phrase
+      setPendingUserData(userData);
+      setNeedsSeedImport(true);
+      setLoading(false);
+      return { success: true, needsSeedImport: true };
 
     } catch (error: any) {
       console.error('Error during sign in:', error);
@@ -104,16 +104,16 @@ export function useSignIn() {
   };
 
   /**
-   * Import cold wallet using mnemonic phrase
+   * Import wallet using mnemonic phrase
    * Called after user enters their recovery phrase
    */
-  const handleColdWalletImport = async (mnemonic: string) => {
+  const handleSeedImport = async (mnemonic: string) => {
     if (!pendingUserData) {
       return { success: false, error: 'No pending user data' };
     }
 
     setLoading(true);
-    setColdWalletImportError(null);
+    setImportError(null);
 
     try {
       const result = await setupWallet.handleImportWallet(mnemonic);
@@ -129,15 +129,15 @@ export function useSignIn() {
 
       // Complete sign in
       setUserData(pendingUserData);
-      setNeedsColdWalletImport(false);
+      setNeedsSeedImport(false);
       setPendingUserData(null);
       setShowLogoAnimation(true);
 
       return { success: true };
 
     } catch (error: any) {
-      console.error('Error importing cold wallet:', error);
-      setColdWalletImportError(error?.message || 'Failed to import wallet');
+      console.error('Error importing wallet:', error);
+      setImportError(error?.message || 'Failed to import wallet');
       return {
         success: false,
         error: error?.message || 'Failed to import wallet'
@@ -147,18 +147,6 @@ export function useSignIn() {
     }
   };
 
-  /**
-   * Skip cold wallet import - user can import later
-   */
-  const skipColdWalletImport = () => {
-    if (!pendingUserData) return;
-
-    setUserData(pendingUserData);
-    setNeedsColdWalletImport(false);
-    setPendingUserData(null);
-    setShowLogoAnimation(true);
-  };
-
   const handleAnimationComplete = () => {
     setShowLogoAnimation(false);
   };
@@ -166,11 +154,10 @@ export function useSignIn() {
   return {
     loading,
     showLogoAnimation,
-    needsColdWalletImport,
-    coldWalletImportError,
+    needsSeedImport,
+    importError,
     signInWithPasskey,
-    handleColdWalletImport,
-    skipColdWalletImport,
+    handleSeedImport,
     handleAnimationComplete,
   };
 }

@@ -1,7 +1,7 @@
 import { useState, useCallback } from "react";
 import { useTurnkey } from "@turnkey/react-native-wallet-kit";
 import { useAuth as useAuthContext } from "../contexts/AuthContext";
-import { useSetupWallet } from "./useSetupWallet";
+import { useSetupWallet } from "./useInitPrivateWallet";
 import { CASH_WALLET_CONFIG } from "../constants/turnkey";
 import type { WalletSetupChoice } from "../app/(auth)/WalletSetupScreen";
 
@@ -29,7 +29,6 @@ interface WalletChoiceResult {
   success: boolean;
   user?: any;
   mnemonic?: string;
-  isColdWallet?: boolean;
   error?: string;
 }
 
@@ -43,9 +42,8 @@ export function useAuthFlow() {
   const [error, setError] = useState('');
   const [sessionToken, setSessionToken] = useState<string | null>(null);
   const [cashWallet, setCashWallet] = useState<string>('');
-  const [coldWalletMnemonic, setColdWalletMnemonic] = useState<string | undefined>();
+  const [generatedMnemonic, setGeneratedMnemonic] = useState<string | undefined>();
   const [pendingUser, setPendingUser] = useState<any>(null);
-  const [isColdWallet, setIsColdWallet] = useState(false);
 
   /**
    * Step 1: Create passkey and cash wallet via Turnkey
@@ -94,13 +92,12 @@ export function useAuthFlow() {
 
     try {
       let walletAddr = '';
-      setIsColdWallet(true);
 
       if (choice.mode === 'create') {
         const result = await setupWallet.handleCreateWallet();
         if (!result.success) throw new Error(result.error);
         walletAddr = result.walletAddress || '';
-        setColdWalletMnemonic(result.mnemonic);
+        setGeneratedMnemonic(result.mnemonic);
       } else if (choice.mode === 'import') {
         const result = await setupWallet.handleImportWallet(choice.mnemonic);
         if (!result.success) throw new Error(result.error);
@@ -131,21 +128,20 @@ export function useAuthFlow() {
       if (!data.data?.user) throw new Error('Backend did not return user data');
 
       if (choice.mode === 'create') {
-        // Show mnemonic for new cold wallet
+        // Show mnemonic for user backup
         setPendingUser(data.data.user);
         setScreenState('showMnemonic');
         setLoading(false);
         return {
           success: true,
           user: data.data.user,
-          mnemonic: coldWalletMnemonic,
-          isColdWallet: true
+          mnemonic: generatedMnemonic,
         };
       }
 
-      // Import mode - no need to show private key
-      finishAuth(data.data.user, pseudo, true);
-      return { success: true, user: data.data.user};
+      // Import mode - no need to show mnemonic
+      finishAuth(data.data.user, pseudo);
+      return { success: true, user: data.data.user };
 
     } catch (err: any) {
       console.error('Wallet setup failed:', err);
@@ -157,22 +153,22 @@ export function useAuthFlow() {
     } finally {
       setLoading(false);
     }
-  }, [sessionToken, cashWallet, setupWallet, coldWalletMnemonic]);
+  }, [sessionToken, cashWallet, setupWallet, generatedMnemonic]);
 
   /**
-   * Called after user confirms they saved their cold wallet mnemonic
+   * Called after user confirms they saved their mnemonic
    */
-  const handleColdWalletConfirmed = useCallback((pseudo: string) => {
-    setColdWalletMnemonic(undefined);
+  const handleMnemonicConfirmed = useCallback((pseudo: string) => {
+    setGeneratedMnemonic(undefined);
     if (pendingUser) {
-      finishAuth(pendingUser, pseudo, true);
+      finishAuth(pendingUser, pseudo);
     }
   }, [pendingUser]);
 
   /**
    * Complete authentication by setting user data
    */
-  const finishAuth = (user: any, pseudo: string, coldWallet: boolean) => {
+  const finishAuth = (user: any, pseudo: string) => {
     setPendingUser(null);
     setUserData({
       email: user.email,
@@ -180,7 +176,6 @@ export function useAuthFlow() {
       cash_wallet: user.cash_wallet,
       stealf_wallet: user.stealf_wallet,
       subOrgId: user.subOrgId,
-      coldWallet: user.coldWallet ?? coldWallet,
     });
   };
 
@@ -283,12 +278,12 @@ export function useAuthFlow() {
     setScreenState,
     loading,
     error,
-    coldWalletMnemonic,
+    generatedMnemonic,
 
     // Actions
     createPasskey,
     handleWalletChoice,
-    handleColdWalletConfirmed,
+    handleMnemonicConfirmed,
     handleResendMagicLink,
     handleEmailSubmit,
   };

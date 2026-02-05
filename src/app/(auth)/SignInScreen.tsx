@@ -22,11 +22,10 @@ interface SignInScreenProps {
 export default function SignInScreen({ onSwitchToSignUp }: SignInScreenProps = {}) {
   const {
     loading,
-    needsColdWalletImport,
-    coldWalletImportError,
+    needsSeedImport,
+    importError,
     signInWithPasskey,
-    handleColdWalletImport,
-    skipColdWalletImport,
+    handleSeedImport,
   } = useSignIn();
 
   const [mnemonic, setMnemonic] = useState('');
@@ -45,26 +44,15 @@ export default function SignInScreen({ onSwitchToSignUp }: SignInScreenProps = {
       return;
     }
 
-    const result = await handleColdWalletImport(mnemonic.trim());
+    const result = await handleSeedImport(mnemonic.trim());
 
     if (!result.success) {
       Alert.alert('Import Failed', result.error || 'Failed to import wallet');
     }
   };
 
-  const handleSkip = () => {
-    Alert.alert(
-      'Skip Import?',
-      'You can import your privacy wallet later from settings. Some features will be limited.',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        { text: 'Skip', onPress: skipColdWalletImport },
-      ]
-    );
-  };
-
-  // Cold wallet import screen
-  if (needsColdWalletImport) {
+  // Seed import screen
+  if (needsSeedImport) {
     return (
       <View style={styles.container}>
         <LinearGradient
@@ -99,8 +87,8 @@ export default function SignInScreen({ onSwitchToSignUp }: SignInScreenProps = {
                   autoCorrect={false}
                 />
 
-                {coldWalletImportError && (
-                  <Text style={styles.errorText}>{coldWalletImportError}</Text>
+                {importError && (
+                  <Text style={styles.errorText}>{importError}</Text>
                 )}
 
                 <TouchableOpacity
@@ -115,13 +103,6 @@ export default function SignInScreen({ onSwitchToSignUp }: SignInScreenProps = {
                   )}
                 </TouchableOpacity>
 
-                <TouchableOpacity
-                  style={styles.skipButton}
-                  onPress={handleSkip}
-                  disabled={loading}
-                >
-                  <Text style={styles.skipButtonText}>Skip for now</Text>
-                </TouchableOpacity>
               </View>
             </ScrollView>
           </KeyboardAvoidingView>
@@ -267,14 +248,6 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontFamily: 'Sansation-Bold',
     color: '#000',
-  },
-  skipButton: {
-    paddingVertical: 12,
-  },
-  skipButtonText: {
-    fontSize: 14,
-    fontFamily: 'Sansation-Regular',
-    color: '#ffffff60',
   },
   footer: {
     flexDirection: 'row',
