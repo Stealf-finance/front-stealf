@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React from 'react';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { useFonts } from 'expo-font';
 import { Asset } from 'expo-asset';
@@ -18,14 +18,11 @@ const queryClient = new QueryClient({
   },
 });
 
-// Preload critical images at app startup
-const preloadImages = async () => {
-  const images = [
-    require('./src/assets/fond.png'),
-    require('./src/assets/logo-transparent.png'),
-  ];
-  await Asset.loadAsync(images);
-};
+// Preload critical images at module load (runs once, cached forever)
+Asset.loadAsync([
+  require('./src/assets/fond.png'),
+  require('./src/assets/logo-transparent.png'),
+]).catch(() => {});
 
 export default function App() {
   const [fontsLoaded] = useFonts({
@@ -35,13 +32,7 @@ export default function App() {
     'Sansation-Italic': require('./src/assets/font/Sansation/Sansation-Italic.ttf'),
   });
 
-  const [imagesLoaded, setImagesLoaded] = useState(false);
-
-  useEffect(() => {
-    preloadImages().then(() => setImagesLoaded(true));
-  }, []);
-
-  if (!fontsLoaded || !imagesLoaded) {
+  if (!fontsLoaded) {
     return null;
   }
 
