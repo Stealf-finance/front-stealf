@@ -3,7 +3,7 @@ import { Keypair } from "@solana/web3.js";
 import * as SecureStore from "expo-secure-store";
 import bs58 from "bs58";
 import * as bip39 from "bip39";
-import { derivePath } from "ed25519-hd-key";
+import * as ed25519 from "ed25519-hd-key";
 
 const SECURE_STORE_KEY = "stealf_private_key";
 
@@ -30,7 +30,7 @@ export function useSetupWallet() {
       // Derive keypair from mnemonic
       const seed = await bip39.mnemonicToSeed(mnemonic);
       const seedHex = Buffer.from(seed).toString("hex");
-      const { key } = derivePath("m/44'/501'/0'/0'", seedHex);
+      const { key } = ed25519.derivePath("m/44'/501'/0'/0'", seedHex);
       const keypair = Keypair.fromSeed(Uint8Array.from(key));
       const privateKey = bs58.encode(keypair.secretKey);
       const walletAddress = keypair.publicKey.toBase58();
@@ -56,7 +56,7 @@ export function useSetupWallet() {
     try {
       const seed = await bip39.mnemonicToSeed(mnemonic);
       const seedHex = Buffer.from(seed).toString("hex");
-      const { key } = derivePath("m/44'/501'/0'/0'", seedHex);
+      const { key } = ed25519.derivePath("m/44'/501'/0'/0'", seedHex);
       const keypair = Keypair.fromSeed(Uint8Array.from(key));
       const privateKey = bs58.encode(keypair.secretKey);
       const walletAddress = keypair.publicKey.toBase58();
