@@ -29,7 +29,6 @@ interface WalletChoiceResult {
   success: boolean;
   user?: any;
   privateKey?: string;
-  isColdWallet?: boolean;
   error?: string;
 }
 
@@ -119,7 +118,6 @@ export function useAuthFlow() {
           pseudo,
           cash_wallet: cashWallet,
           stealf_wallet: walletAddr,
-          coldWallet: true,
         }),
       });
 
@@ -140,13 +138,12 @@ export function useAuthFlow() {
           success: true,
           user: data.data.user,
           privateKey: coldWalletPrivateKey,
-          isColdWallet: true
         };
       }
 
       // Import mode - no need to show private key
       finishAuth(data.data.user, pseudo, true);
-      return { success: true, user: data.data.user, isColdWallet: true };
+      return { success: true, user: data.data.user};
 
     } catch (err: any) {
       console.error('Wallet setup failed:', err);
