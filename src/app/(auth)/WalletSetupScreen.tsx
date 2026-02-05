@@ -25,11 +25,11 @@ export type WalletSetupChoice =
 interface WalletSetupScreenProps {
   onComplete: (choice: WalletSetupChoice) => void;
   loading: boolean;
-  coldWalletPrivateKey?: string;
+  coldWalletMnemonic?: string;
 }
 
-export default function WalletSetupScreen({ onComplete, loading, coldWalletPrivateKey }: WalletSetupScreenProps) {
-  const [step, setStep] = useState<SetupStep>(coldWalletPrivateKey ? 'coldWalletResult' : 'choose');
+export default function WalletSetupScreen({ onComplete, loading, coldWalletMnemonic }: WalletSetupScreenProps) {
+  const [step, setStep] = useState<SetupStep>(coldWalletMnemonic ? 'coldWalletResult' : 'choose');
   const [importKey, setImportKey] = useState('');
   const [importError, setImportError] = useState('');
   const [copied, setCopied] = useState(false);
@@ -44,10 +44,10 @@ export default function WalletSetupScreen({ onComplete, loading, coldWalletPriva
     };
   }, []);
 
-  const handleCopyPrivateKey = async () => {
-    if (!coldWalletPrivateKey) return;
+  const handleCopyMnemonic = async () => {
+    if (!coldWalletMnemonic) return;
 
-    await Clipboard.setStringAsync(coldWalletPrivateKey);
+    await Clipboard.setStringAsync(coldWalletMnemonic);
     setCopied(true);
 
     // Clear clipboard after 60 seconds for security
@@ -58,7 +58,7 @@ export default function WalletSetupScreen({ onComplete, loading, coldWalletPriva
 
     Alert.alert(
       'Copied',
-      'Private key copied to clipboard. It will be automatically cleared in 60 seconds for security.',
+      'Recovery phrase copied to clipboard. It will be automatically cleared in 60 seconds for security.',
       [{ text: 'OK' }]
     );
   };
@@ -189,11 +189,11 @@ export default function WalletSetupScreen({ onComplete, loading, coldWalletPriva
             </>
           )}
 
-          {step === 'coldWalletResult' && coldWalletPrivateKey && (
+          {step === 'coldWalletResult' && coldWalletMnemonic && (
             <>
-              <Text style={styles.title}>Your Private Key</Text>
+              <Text style={styles.title}>Your Recovery Phrase</Text>
               <Text style={styles.subtitle}>
-                Save this key securely. Stealf will not store it.{'\n'}You will not be able to recover it.
+                Save these 24 words securely. Stealf will not store them.{'\n'}You will not be able to recover them.
               </Text>
 
               <Text style={styles.screenshotWarning}>
@@ -201,12 +201,12 @@ export default function WalletSetupScreen({ onComplete, loading, coldWalletPriva
               </Text>
 
               <View style={styles.keyContainer}>
-                <Text style={styles.keyText}>{coldWalletPrivateKey}</Text>
+                <Text style={styles.keyText}>{coldWalletMnemonic}</Text>
               </View>
 
               <TouchableOpacity
                 style={[styles.copyButton, copied && styles.copyButtonCopied]}
-                onPress={handleCopyPrivateKey}
+                onPress={handleCopyMnemonic}
                 activeOpacity={0.7}
               >
                 <Text style={styles.copyButtonText}>
@@ -215,14 +215,14 @@ export default function WalletSetupScreen({ onComplete, loading, coldWalletPriva
               </TouchableOpacity>
 
               <Text style={styles.warningText}>
-                Make sure you have saved this key before continuing.
+                Make sure you have saved your recovery phrase before continuing.
               </Text>
 
               <TouchableOpacity
                 style={styles.primaryButton}
                 onPress={() => Alert.alert(
                   'Confirm',
-                  'Have you saved your private key?',
+                  'Have you saved your recovery phrase?',
                   [
                     { text: 'No, go back', style: 'cancel' },
                     { text: 'Yes, continue', onPress: () => onComplete({ mode: 'create', storage: 'cold' }) },
@@ -230,7 +230,7 @@ export default function WalletSetupScreen({ onComplete, loading, coldWalletPriva
                 )}
                 activeOpacity={0.7}
               >
-                <Text style={styles.primaryButtonText}>I have saved my key</Text>
+                <Text style={styles.primaryButtonText}>I have saved my recovery phrase</Text>
               </TouchableOpacity>
             </>
           )}
