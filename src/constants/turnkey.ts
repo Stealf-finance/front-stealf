@@ -17,7 +17,7 @@ export const TURNKEY_CONFIG: TurnkeyProviderConfig = {
 };
 
 export const CASH_WALLET_CONFIG = {
-  walletName: "STEALF Cash Wallet",
+  walletName: "Cash Wallet",
   walletAccounts: [
     {
       curve: "CURVE_ED25519" as const,
