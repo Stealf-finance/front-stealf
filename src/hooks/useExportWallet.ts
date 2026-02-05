@@ -54,52 +54,57 @@ export function useExportWallet() {
   };
 
   /**
-   * Export a specific wallet account (returns private key)
-   * @param accountAddress - The address of the account to export (cash_wallet or stealf_wallet)
+   * Export wallet mnemonic by finding the wallet that contains the given address
+   * @param accountAddress - The address to search for (cash_wallet or stealf_wallet)
    */
-  const handleExportWalletAccount = async (accountAddress: string): Promise<ExportWalletResult> => {
+  const exportWalletByAddress = async (accountAddress: string): Promise<ExportWalletResult> => {
     setLoading(true);
     try {
-      const wallet = wallets?.[0];
-      if (!wallet) {
+      if (!wallets || wallets.length === 0) {
         return {
           success: false,
           error: "No wallet found."
         };
       }
 
-      const walletAccount = wallet.accounts?.find(
-        account => account.address === accountAddress
-      );
+      // Find the wallet containing this address
+      let foundWallet = null;
+      for (const wallet of wallets) {
+        const account = wallet.accounts?.find(
+          (acc: any) => acc.address === accountAddress
+        );
+        if (account) {
+          foundWallet = wallet;
+          break;
+        }
+      }
 
-      if (!walletAccount) {
+      if (!foundWallet) {
         return {
           success: false,
-          error: `Account not found for address: ${accountAddress}`
+          error: `Wallet not found for address: ${accountAddress}`
         };
       }
 
-      // Export the private key for this specific account
-      const privateKey = await exportWalletAccount({
-        address: walletAccount.address
-      });
+      // Export the mnemonic for this wallet
+      const mnemonic = await exportWallet({ walletId: foundWallet.walletId });
 
-      if (!privateKey) {
+      if (!mnemonic) {
         return {
           success: false,
-          error: "Failed to retrieve private key."
+          error: "Failed to retrieve wallet mnemonic."
         };
       }
 
       return {
         success: true,
-        mnemonic: privateKey
+        mnemonic
       };
     } catch (error: any) {
-      console.error("Export wallet account failed:", error);
+      console.error("Export wallet by address failed:", error);
       return {
         success: false,
-        error: error?.message || "Failed to export wallet account"
+        error: error?.message || "Failed to export wallet"
       };
     } finally {
       setLoading(false);
@@ -139,7 +144,7 @@ export function useExportWallet() {
 
   return {
     exportWallet: handleExportWallet,
-    exportWalletAccount: handleExportWalletAccount,
+    exportWalletByAddress,
     exportColdWallet,
     loading
   };
