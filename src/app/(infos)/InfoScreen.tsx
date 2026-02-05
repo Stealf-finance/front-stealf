@@ -27,15 +27,8 @@ export default function InfoScreen({ onBack, source }: InfoScreenProps) {
       }
       return exportWalletByAddress(userData.cash_wallet);
     } else {
-      // Privacy wallet - check if cold wallet (SecureStore) or Turnkey
-      if (userData?.coldWallet) {
-        return exportColdWallet();
-      } else {
-        if (!userData?.stealf_wallet) {
-          return { success: false, error: 'Stealf wallet not found' };
-        }
-        return exportWalletByAddress(userData.stealf_wallet);
-      }
+      // Privacy wallet - always stored locally
+      return exportColdWallet();
     }
   };
 
