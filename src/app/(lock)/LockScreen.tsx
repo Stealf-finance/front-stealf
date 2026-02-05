@@ -1,7 +1,11 @@
-import React, { useState } from 'react';
-import { View, Image, TouchableOpacity, Text, StyleSheet, Dimensions } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { View, Image, TouchableOpacity, Text, StyleSheet, Dimensions, ActivityIndicator } from 'react-native';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
+
+// Preload image at module level for instant display
+const LOCK_SCREEN_IMAGE = require('../../assets/fond.png');
+Image.prefetch(Image.resolveAssetSource(LOCK_SCREEN_IMAGE).uri).catch(() => {});
 
 interface LockScreenProps {
   onUnlock: () => Promise<{ success: boolean; error?: string }>;
@@ -11,6 +15,7 @@ interface LockScreenProps {
 export default function LockScreen({ onUnlock, username }: LockScreenProps) {
   const [isAuthenticating, setIsAuthenticating] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [imageLoaded, setImageLoaded] = useState(false);
 
   const handleUnlock = async () => {
     if (isAuthenticating) return;
@@ -35,12 +40,18 @@ export default function LockScreen({ onUnlock, username }: LockScreenProps) {
   return (
     <View style={styles.container}>
       <View style={styles.imageContainer}>
+        {!imageLoaded && (
+          <View style={styles.imagePlaceholder}>
+            <ActivityIndicator size="large" color="#FFFFFF" />
+          </View>
+        )}
         <Image
-          source={require('../../assets/fond.png')}
-          style={styles.image}
+          source={LOCK_SCREEN_IMAGE}
+          style={[styles.image, !imageLoaded && styles.imageHidden]}
           resizeMode="contain"
+          onLoad={() => setImageLoaded(true)}
         />
-        {username && (
+        {imageLoaded && username && (
           <Text style={styles.welcomeText}>Welcome back, {username}</Text>
         )}
       </View>
@@ -49,15 +60,17 @@ export default function LockScreen({ onUnlock, username }: LockScreenProps) {
         <Text style={styles.errorText}>{error}</Text>
       )}
 
-      <TouchableOpacity
-        style={[styles.unlockButton, isAuthenticating && styles.unlockButtonDisabled]}
-        onPress={handleUnlock}
-        disabled={isAuthenticating}
-      >
-        <Text style={styles.unlockText}>
-          {isAuthenticating ? 'Authenticating...' : 'Unlock with Face ID'}
-        </Text>
-      </TouchableOpacity>
+      {imageLoaded && (
+        <TouchableOpacity
+          style={[styles.unlockButton, isAuthenticating && styles.unlockButtonDisabled]}
+          onPress={handleUnlock}
+          disabled={isAuthenticating}
+        >
+          <Text style={styles.unlockText}>
+            {isAuthenticating ? 'Authenticating...' : 'Unlock with Face ID'}
+          </Text>
+        </TouchableOpacity>
+      )}
     </View>
   );
 }
@@ -77,6 +90,17 @@ const styles = StyleSheet.create({
   image: {
     width: '100%',
     height: '100%',
+    borderRadius: 20,
+  },
+  imageHidden: {
+    opacity: 0,
+    position: 'absolute',
+  },
+  imagePlaceholder: {
+    ...StyleSheet.absoluteFillObject,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#111111',
     borderRadius: 20,
   },
   welcomeText: {
