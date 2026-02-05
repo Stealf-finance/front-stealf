@@ -1,6 +1,5 @@
-import React, { useEffect, useState } from 'react';
-import { View, Image, TouchableOpacity, Text, StyleSheet, Dimensions, Alert } from 'react-native';
-import * as LocalAuthentication from 'expo-local-authentication';
+import React, { useState } from 'react';
+import { View, Image, TouchableOpacity, Text, StyleSheet, Dimensions } from 'react-native';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
@@ -9,71 +8,54 @@ interface LockScreenProps {
   username?: string;
 }
 
-export default function LockScreen({ onUnlock }: LockScreenProps) {
-  const [biometricAvailable, setBiometricAvailable] = useState(false);
+export default function LockScreen({ onUnlock, username }: LockScreenProps) {
   const [isAuthenticating, setIsAuthenticating] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    checkBiometricAvailability();
-  }, []);
-
-  const checkBiometricAvailability = async () => {
-    const compatible = await LocalAuthentication.hasHardwareAsync();
-    const enrolled = await LocalAuthentication.isEnrolledAsync();
-    setBiometricAvailable(compatible && enrolled);
-  };
-
-  const handleBiometricAuth = async () => {
+  const handleUnlock = async () => {
     if (isAuthenticating) return;
 
     setIsAuthenticating(true);
-    try {
-      const result = await LocalAuthentication.authenticateAsync({
-        promptMessage: 'Authenticate to access Stealf',
-        cancelLabel: 'Cancel',
-        disableDeviceFallback: false,
-      });
+    setError(null);
 
-      if (result.success) {
-        onUnlock();
-      } else {
-        const failedResult = result as { success: false; error: string };
-        if (failedResult.error !== 'user_cancel') {
-          Alert.alert('Authentication Failed', 'Please try again.');
-        }
-        // User cancelled - do nothing
+    try {
+      // Delegate biometric auth to SessionContext's unlockWithAuth
+      const result = await onUnlock();
+
+      if (!result.success && result.error) {
+        setError(result.error);
       }
-    } catch (error) {
-      if (__DEV__) console.error('Biometric auth error:', error);
-      Alert.alert('Error', 'Authentication failed. Please try again.');
+    } catch (err: any) {
+      setError(err?.message || 'Authentication failed');
     } finally {
       setIsAuthenticating(false);
     }
   };
 
-  const handleUnlock = () => {
-    if (biometricAvailable) {
-      handleBiometricAuth();
-    } else {
-      // Fallback for devices without biometrics
-      onUnlock();
-    }
-  };
-
   return (
     <View style={styles.container}>
-      <Image
-        source={require('../../assets/fond.png')}
-        style={styles.image}
-        resizeMode="contain"
-      />
+      <View style={styles.imageContainer}>
+        <Image
+          source={require('../../assets/fond.png')}
+          style={styles.image}
+          resizeMode="contain"
+        />
+        {username && (
+          <Text style={styles.welcomeText}>Welcome back, {username}</Text>
+        )}
+      </View>
+
+      {error && (
+        <Text style={styles.errorText}>{error}</Text>
+      )}
+
       <TouchableOpacity
         style={[styles.unlockButton, isAuthenticating && styles.unlockButtonDisabled]}
         onPress={handleUnlock}
         disabled={isAuthenticating}
       >
         <Text style={styles.unlockText}>
-          {isAuthenticating ? 'Authenticating...' : biometricAvailable ? 'Unlock with Face ID' : 'Log in'}
+          {isAuthenticating ? 'Authenticating...' : 'Unlock with Face ID'}
         </Text>
       </TouchableOpacity>
     </View>
@@ -125,7 +107,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   unlockButtonDisabled: {
-    opacity: 0.7,
+    opacity: 0.6,
   },
   unlockText: {
     color: '#000000',
