@@ -60,19 +60,26 @@ export function useExportWallet() {
   const handleExportWalletAccount = async (accountAddress: string): Promise<ExportWalletResult> => {
     setLoading(true);
     try {
-      const wallet = wallets?.[0];
-      if (!wallet) {
+      if (!wallets || wallets.length === 0) {
         return {
           success: false,
           error: "No wallet found."
         };
       }
 
-      const walletAccount = wallet.accounts?.find(
-        account => account.address === accountAddress
-      );
+      // Search across all wallets for the account
+      let foundAccount = null;
+      for (const wallet of wallets) {
+        const account = wallet.accounts?.find(
+          (acc: any) => acc.address === accountAddress
+        );
+        if (account) {
+          foundAccount = account;
+          break;
+        }
+      }
 
-      if (!walletAccount) {
+      if (!foundAccount) {
         return {
           success: false,
           error: `Account not found for address: ${accountAddress}`
@@ -81,7 +88,7 @@ export function useExportWallet() {
 
       // Export the private key for this specific account
       const privateKey = await exportWalletAccount({
-        address: walletAccount.address
+        address: foundAccount.address
       });
 
       if (!privateKey) {
