@@ -14,12 +14,14 @@ interface PrivacyBalanceCardProps {
   onTopUp?: () => void;
   onWithdraw?: () => void;
   onExchange?: () => void;
+  onMore?: () => void;
 }
 
 export default function BalanceCardPrivacy({
   onTopUp,
   onWithdraw,
-  onExchange
+  onExchange,
+  onMore
 }: PrivacyBalanceCardProps) {
 
   const { userData } = useAuth();
@@ -83,7 +85,7 @@ export default function BalanceCardPrivacy({
 
         <TouchableOpacity
           style={styles.actionButton}
-          onPress={() => console.log('More')}
+          onPress={onMore}
           activeOpacity={0.7}
         >
           <View style={styles.iconContainer}>

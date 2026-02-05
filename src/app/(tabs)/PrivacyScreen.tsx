@@ -16,6 +16,7 @@ interface PrivacyScreenProps {
   onOpenAddFundsPrivacy: () => void;
   onOpenDepositPrivateCash: () => void;
   onOpenProfile: () => void;
+  onOpenInfo: () => void;
   userEmail?: string;
   username?: string;
   currentPage?: PageType;
@@ -28,6 +29,7 @@ export default function PrivacyScreen({
   onOpenAddFundsPrivacy,
   onOpenDepositPrivateCash,
   onOpenProfile,
+  onOpenInfo,
   userEmail,
   username,
   currentPage = 'privacy',
@@ -95,6 +97,7 @@ export default function PrivacyScreen({
               onWithdraw={handleSendPress}
               onTopUp={handleAddFundsPress}
               onExchange={onOpenMoove}
+              onMore={onOpenInfo}
             />
           </View>
 
