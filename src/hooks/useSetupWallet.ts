@@ -4,7 +4,6 @@ import { Keypair } from "@solana/web3.js";
 import * as SecureStore from "expo-secure-store";
 import bs58 from "bs58";
 
-import { STEALF_WALLET_CONFIG } from "../constants/turnkey";
 
 const SECURE_STORE_KEY = "stealf_private_key";
 
@@ -19,48 +18,48 @@ export function useSetupWallet() {
   const { importWallet, refreshWallets, createWallet } = useTurnkey();
   const [loading, setLoading] = useState(false);
 
-  const handleImportAndStoreWallet = async (mnemonic: string): Promise<SetupWalletResult> => {
-    setLoading(true);
-    try {
-      await importWallet({
-        mnemonic,
-        walletName: STEALF_WALLET_CONFIG.walletName,
-        accounts: STEALF_WALLET_CONFIG.walletAccounts,
-      });
+//   const handleImportAndStoreWallet = async (mnemonic: string): Promise<SetupWalletResult> => {
+//     setLoading(true);
+//     try {
+//       await importWallet({
+//         mnemonic,
+//         walletName: STEALF_WALLET_CONFIG.walletName,
+//         accounts: STEALF_WALLET_CONFIG.walletAccounts,
+//       });
 
-      const wallets = await refreshWallets();
-      const stealfWallet = wallets?.find((w: any) => w.walletName === STEALF_WALLET_CONFIG.walletName);
-      const walletAddress = stealfWallet?.accounts?.[0]?.address;
+//       const wallets = await refreshWallets();
+//       const stealfWallet = wallets?.find((w: any) => w.walletName === STEALF_WALLET_CONFIG.walletName);
+//       const walletAddress = stealfWallet?.accounts?.[0]?.address;
 
-      return { success: true, walletAddress };
-    } catch (error: any) {
-      console.error("Import wallet failed:", error);
-      return { success: false, error: error?.message || "Failed to import wallet" };
-    } finally {
-      setLoading(false);
-    }
-  };
+//       return { success: true, walletAddress };
+//     } catch (error: any) {
+//       console.error("Import wallet failed:", error);
+//       return { success: false, error: error?.message || "Failed to import wallet" };
+//     } finally {
+//       setLoading(false);
+//     }
+//   };
 
-  const handleCreateAndStoreWallet = async (): Promise<SetupWalletResult> => {
-    setLoading(true);
-    try {
-      await createWallet({
-        walletName: STEALF_WALLET_CONFIG.walletName,
-        accounts: STEALF_WALLET_CONFIG.walletAccounts,
-      });
+  // const handleCreateAndStoreWallet = async (): Promise<SetupWalletResult> => {
+  //   setLoading(true);
+  //   try {
+  //     await createWallet({
+  //       walletName: STEALF_WALLET_CONFIG.walletName,
+  //       accounts: STEALF_WALLET_CONFIG.walletAccounts,
+  //     });
 
-      const wallets = await refreshWallets();
-      const stealfWallet = wallets?.find((w: any) => w.walletName === STEALF_WALLET_CONFIG.walletName);
-      const walletAddress = stealfWallet?.accounts?.[0]?.address;
+  //     const wallets = await refreshWallets();
+  //     const stealfWallet = wallets?.find((w: any) => w.walletName === STEALF_WALLET_CONFIG.walletName);
+  //     const walletAddress = stealfWallet?.accounts?.[0]?.address;
 
-      return { success: true, walletAddress };
-    } catch (error: any) {
-      console.error("Create wallet failed:", error);
-      return { success: false, error: error?.message || "Failed to create wallet" };
-    } finally {
-      setLoading(false);
-    }
-  };
+  //     return { success: true, walletAddress };
+  //   } catch (error: any) {
+  //     console.error("Create wallet failed:", error);
+  //     return { success: false, error: error?.message || "Failed to create wallet" };
+  //   } finally {
+  //     setLoading(false);
+  //   }
+  // };
 
   /**
    * Create a new wallet locally and store the private key in SecureStore
@@ -110,8 +109,6 @@ export function useSetupWallet() {
   };
 
   return {
-    handleImportAndStoreWallet,
-    handleCreateAndStoreWallet,
     handleCreateWallet,
     handleImportWallet,
     loading,

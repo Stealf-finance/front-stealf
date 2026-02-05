@@ -97,20 +97,13 @@ export function useAuthFlow() {
       const cold = choice.storage === 'cold' || choice.storage === 'skip';
       setIsColdWallet(cold);
 
-      if (choice.mode === 'create' && choice.storage === 'turnkey') {
-        const result = await setupWallet.handleCreateAndStoreWallet();
-        if (!result.success) throw new Error(result.error);
-        walletAddr = result.walletAddress || '';
-      } else if (choice.mode === 'create' && choice.storage === 'cold') {
+      if (choice.mode === 'create' && choice.storage === 'cold') {
         const result = await setupWallet.handleCreateWallet();
         if (!result.success) throw new Error(result.error);
         walletAddr = result.walletAddress || '';
         setColdWalletPrivateKey(result.privateKey);
-      } else if (choice.mode === 'import' && choice.storage === 'turnkey') {
-        const result = await setupWallet.handleImportAndStoreWallet(choice.mnemonic!);
-        if (!result.success) throw new Error(result.error);
-        walletAddr = result.walletAddress || '';
-      } else if (choice.mode === 'import' && choice.storage === 'skip') {
+      } 
+      else if (choice.mode === 'import' && choice.storage === 'skip') {
         const result = await setupWallet.handleImportWallet(choice.mnemonic!);
         if (!result.success) throw new Error(result.error);
         walletAddr = result.walletAddress || '';
