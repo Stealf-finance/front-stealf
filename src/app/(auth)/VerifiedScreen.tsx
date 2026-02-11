@@ -2,10 +2,12 @@ import React, { useEffect } from 'react';
 import {
   View,
   Text,
+  TouchableOpacity,
   StyleSheet,
   ActivityIndicator,
   Alert,
 } from 'react-native';
+import ComebackIcon from '../../assets/buttons/comeback.svg';
 
 import WalletSetupScreen, { WalletSetupChoice } from './WalletSetupScreen';
 import { useAuthFlow } from '../../hooks/useSignUp';
@@ -14,9 +16,10 @@ import { LinearGradient } from 'expo-linear-gradient';
 interface VerifiedScreenProps {
   email: string;
   pseudo: string;
+  onBack?: () => void;
 }
 
-export default function VerifiedScreen({ email, pseudo }: VerifiedScreenProps) {
+export default function VerifiedScreen({ email, pseudo, onBack }: VerifiedScreenProps) {
   const {
     screenState,
     loading,
@@ -97,6 +100,11 @@ export default function VerifiedScreen({ email, pseudo }: VerifiedScreenProps) {
         end={{ x: 0, y: 0 }}
         style={styles.background}
       >
+        {onBack && (
+          <TouchableOpacity style={styles.backButton} onPress={onBack}>
+            <ComebackIcon width={20} height={16} />
+          </TouchableOpacity>
+        )}
         <View style={styles.content}>
           <View style={styles.errorIconContainer}>
             <Text style={styles.errorIcon}>⚠️</Text>
@@ -112,6 +120,13 @@ export default function VerifiedScreen({ email, pseudo }: VerifiedScreenProps) {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#000' },
   background: { flex: 1 },
+  backButton: {
+    position: 'absolute',
+    top: 60,
+    left: 24,
+    zIndex: 10,
+    padding: 8,
+  },
   content: {
     flex: 1,
     justifyContent: 'center',
