@@ -147,6 +147,12 @@ export function useSignIn() {
     }
   };
 
+  const cancelSeedImport = () => {
+    setNeedsSeedImport(false);
+    setPendingUserData(null);
+    setImportError(null);
+  };
+
   const handleAnimationComplete = () => {
     setShowLogoAnimation(false);
   };
@@ -158,6 +164,7 @@ export function useSignIn() {
     importError,
     signInWithPasskey,
     handleSeedImport,
+    cancelSeedImport,
     handleAnimationComplete,
   };
 }

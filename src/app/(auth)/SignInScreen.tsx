@@ -14,6 +14,7 @@ import {
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useSignIn } from '../../hooks/useSignIn';
+import ComebackIcon from '../../assets/buttons/comeback.svg';
 
 interface SignInScreenProps {
   onSwitchToSignUp?: () => void;
@@ -26,6 +27,7 @@ export default function SignInScreen({ onSwitchToSignUp }: SignInScreenProps = {
     importError,
     signInWithPasskey,
     handleSeedImport,
+    cancelSeedImport,
   } = useSignIn();
 
   const [mnemonic, setMnemonic] = useState('');
@@ -62,6 +64,9 @@ export default function SignInScreen({ onSwitchToSignUp }: SignInScreenProps = {
           end={{ x: 0, y: 0 }}
           style={styles.background}
         >
+          <TouchableOpacity style={styles.backButton} onPress={cancelSeedImport}>
+            <ComebackIcon width={20} height={16} />
+          </TouchableOpacity>
           <KeyboardAvoidingView
             behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
             style={styles.keyboardView}
@@ -168,6 +173,13 @@ const styles = StyleSheet.create({
   },
   background: {
     flex: 1,
+  },
+  backButton: {
+    position: 'absolute',
+    top: 60,
+    left: 24,
+    zIndex: 10,
+    padding: 8,
   },
   keyboardView: {
     flex: 1,
