@@ -137,33 +137,41 @@ export default function MooveScreen({ onBack }: MooveScreenProps) {
     setLoading(true);
     try {
       // 1. Create order via backend (Jupiter)
+      console.log('[Moove] Creating order...');
       const orderResponse = await order({
         inputMint,
         amount: amountInSmallestUnit,
         taker: userData.stealf_wallet,
         receiver: userData.cash_wallet,
       });
+      console.log('[Moove] Order created, requestId:', orderResponse.requestId);
 
       // 2. Get privacy wallet keypair from SecureStore
+      console.log('[Moove] Getting privacy keypair...');
       const keypair = await getPrivacyKeypair();
+      console.log('[Moove] Keypair loaded, pubkey:', keypair.publicKey.toBase58());
 
       // 3. Deserialize, sign, and re-serialize the transaction
+      console.log('[Moove] Signing transaction...');
       const txBuffer = Buffer.from(orderResponse.transaction, 'base64');
       const transaction = VersionedTransaction.deserialize(new Uint8Array(txBuffer));
       transaction.sign([keypair]);
       const signedBytes = transaction.serialize();
       const signedTxBase64 = Buffer.from(signedBytes).toString('base64');
+      console.log('[Moove] Transaction signed');
 
       // 4. Execute the signed swap
+      console.log('[Moove] Executing swap...');
       const executeResponse = await execute({
         requestId: orderResponse.requestId,
         signedTransaction: signedTxBase64,
       });
+      console.log('[Moove] Execute response:', JSON.stringify(executeResponse));
 
       Alert.alert('Success', `Swap complete! ${amount} ${selectedToken.tokenSymbol} moved to Cash`);
       setAmount('');
     } catch (error: any) {
-      console.error('Swap failed:', error);
+      console.error('[Moove] Swap failed:', error);
       Alert.alert('Error', error?.message || 'Failed to execute swap');
     } finally {
       setLoading(false);
