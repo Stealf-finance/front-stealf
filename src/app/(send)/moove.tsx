@@ -132,7 +132,7 @@ export default function MooveScreen({ onBack }: MooveScreenProps) {
       return;
     }
 
-    const inputMint = selectedToken.tokenMint || 'So11111111111111111111111111111111';
+    const inputMint = selectedToken.tokenMint || 'So11111111111111111111111111111111111111112';
     const amountInSmallestUnit = Math.floor(amountNum * Math.pow(10, selectedToken.tokenDecimals)).toString();
 
     setLoading(true);
