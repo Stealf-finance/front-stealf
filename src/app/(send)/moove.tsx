@@ -14,9 +14,56 @@ import { useAuth } from '../../contexts/AuthContext';
 import { usePrivacyBalance } from '../../hooks/usePrivacyBalance';
 import { useWalletInfos } from '../../hooks/useWalletInfos';
 import { useSwapApi } from '../../services/swapService';
+import { Keypair, VersionedTransaction } from '@solana/web3.js';
+import * as SecureStore from 'expo-secure-store';
+import bs58 from 'bs58';
+import * as bip39 from 'bip39';
+import { hmac } from '@noble/hashes/hmac';
+import { sha512 } from '@noble/hashes/sha512';
 
 import ArrowIcon from '../../assets/buttons/arrow.svg';
 import ComebackIcon from '../../assets/buttons/comeback.svg';
+
+const SECURE_STORE_KEY = 'stealf_private_key';
+const MNEMONIC_STORE_KEY = 'stealf_wallet_mnemonic';
+const HARDENED_OFFSET = 0x80000000;
+
+function derivePath(path: string, seed: Uint8Array): { key: Uint8Array } {
+  const I = hmac(sha512, 'ed25519 seed', seed);
+  let key = I.slice(0, 32);
+  let chainCode = I.slice(32);
+  const segments = path.split('/').slice(1);
+  for (const segment of segments) {
+    const isHardened = segment.endsWith("'");
+    const index = parseInt(isHardened ? segment.slice(0, -1) : segment, 10);
+    const hardenedIndex = isHardened ? index + HARDENED_OFFSET : index;
+    const data = new Uint8Array(1 + 32 + 4);
+    data[0] = 0x00;
+    data.set(key, 1);
+    new DataView(data.buffer).setUint32(33, hardenedIndex, false);
+    const child = hmac(sha512, chainCode, data);
+    key = child.slice(0, 32);
+    chainCode = child.slice(32);
+  }
+  return { key };
+}
+
+async function getPrivacyKeypair(): Promise<Keypair> {
+  const storedKey = await SecureStore.getItemAsync(SECURE_STORE_KEY);
+  if (storedKey) {
+    const secretKey = bs58.decode(storedKey);
+    return Keypair.fromSecretKey(secretKey);
+  }
+
+  const storedMnemonic = await SecureStore.getItemAsync(MNEMONIC_STORE_KEY);
+  if (storedMnemonic) {
+    const seed = await bip39.mnemonicToSeed(storedMnemonic);
+    const { key } = derivePath("m/44'/501'/0'/0'", new Uint8Array(seed));
+    return Keypair.fromSeed(key);
+  }
+
+  throw new Error('No privacy wallet key found');
+}
 
 interface MooveScreenProps {
   onBack: () => void;
@@ -31,7 +78,7 @@ export default function MooveScreen({ onBack }: MooveScreenProps) {
   const { userData } = useAuth();
   const { usdcBalance: cashUsdcBalance } = usePrivacyBalance();
   const { tokens: privacyTokens } = useWalletInfos(userData?.stealf_wallet || '');
-  const { order } = useSwapApi();
+  const { order, execute } = useSwapApi();
   const selectedToken = privacyTokens[selectedTokenIndex] || null;
 
   useEffect(() => {
@@ -89,18 +136,34 @@ export default function MooveScreen({ onBack }: MooveScreenProps) {
 
     setLoading(true);
     try {
-      const response = await order({
+      // 1. Create order via backend (Jupiter)
+      const orderResponse = await order({
         inputMint,
         amount: amountInSmallestUnit,
         taker: userData.stealf_wallet,
         receiver: userData.cash_wallet,
       });
 
-      Alert.alert('Success', `Order created: moving ${amount} ${selectedToken.tokenSymbol} from Privacy to Cash`);
+      // 2. Get privacy wallet keypair from SecureStore
+      const keypair = await getPrivacyKeypair();
+
+      // 3. Deserialize, sign, and re-serialize the transaction
+      const txBuffer = Buffer.from(orderResponse.transaction, 'base64');
+      const transaction = VersionedTransaction.deserialize(txBuffer);
+      transaction.sign([keypair]);
+      const signedTxBase64 = Buffer.from(transaction.serialize()).toString('base64');
+
+      // 4. Execute the signed swap
+      const executeResponse = await execute({
+        requestId: orderResponse.requestId,
+        signedTransaction: signedTxBase64,
+      });
+
+      Alert.alert('Success', `Swap complete! ${amount} ${selectedToken.tokenSymbol} moved to Cash`);
       setAmount('');
     } catch (error: any) {
-      console.error('Order failed:', error);
-      Alert.alert('Error', error?.message || 'Failed to create order');
+      console.error('Swap failed:', error);
+      Alert.alert('Error', error?.message || 'Failed to execute swap');
     } finally {
       setLoading(false);
     }
