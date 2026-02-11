@@ -109,6 +109,7 @@ export default function MooveScreen({ onBack }: MooveScreenProps) {
   };
 
   const handleMove = async () => {
+    console.log('[Moove] handleMove called, amount:', amount);
     if (!amount || amount.trim() === '' || isNaN(parseFloat(amount)) || parseFloat(amount) <= 0) {
       Alert.alert('Error', 'Please enter a valid amount');
       return;
