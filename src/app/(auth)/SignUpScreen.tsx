@@ -79,7 +79,7 @@ export default function SignUpScreen({ onSwitchToSignIn }: SignUpScreenProps = {
   };
 
   if (step === 'verified' && email && pseudo) {
-    return <VerifiedScreen email={email} pseudo={pseudo} />;
+    return <VerifiedScreen email={email} pseudo={pseudo} onBack={() => setStep('email')} />;
   }
 
   return (
