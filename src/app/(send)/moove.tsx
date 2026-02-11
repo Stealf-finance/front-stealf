@@ -1,11 +1,11 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
   StyleSheet,
   TouchableOpacity,
   Alert,
-  Animated,
+  ScrollView,
 } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -13,6 +13,7 @@ import { useFonts } from 'expo-font';
 import { useAuth } from '../../contexts/AuthContext';
 import { usePrivacyBalance } from '../../hooks/usePrivacyBalance';
 import { useWalletInfos } from '../../hooks/useWalletInfos';
+import { useSwapApi } from '../../services/swapService';
 
 import ArrowIcon from '../../assets/buttons/arrow.svg';
 import ComebackIcon from '../../assets/buttons/comeback.svg';
@@ -23,13 +24,21 @@ interface MooveScreenProps {
 
 export default function MooveScreen({ onBack }: MooveScreenProps) {
   const [amount, setAmount] = useState('');
-  const [direction, setDirection] = useState<'wealthToCash' | 'cashToWealth'>('wealthToCash');
-  const rotateAnim = useRef(new Animated.Value(0)).current;
+  const [selectedTokenIndex, setSelectedTokenIndex] = useState(0);
+  const [tokenMenuOpen, setTokenMenuOpen] = useState(false);
+  const [loading, setLoading] = useState(false);
 
   const { userData } = useAuth();
   const { usdcBalance: cashUsdcBalance } = usePrivacyBalance();
-  const { tokens: wealthTokens } = useWalletInfos(userData?.stealf_wallet || '');
-  const wealthUsdcBalance = wealthTokens.find(t => t.tokenSymbol === 'USDC')?.balance || 0;
+  const { tokens: privacyTokens } = useWalletInfos(userData?.stealf_wallet || '');
+  const { order } = useSwapApi();
+  const selectedToken = privacyTokens[selectedTokenIndex] || null;
+
+  useEffect(() => {
+    if (selectedTokenIndex >= privacyTokens.length && privacyTokens.length > 0) {
+      setSelectedTokenIndex(0);
+    }
+  }, [privacyTokens.length, selectedTokenIndex]);
 
   const [fontsLoaded] = useFonts({
     'Sansation-Regular': require('../../assets/font/Sansation/Sansation-Regular.ttf'),
@@ -43,6 +52,8 @@ export default function MooveScreen({ onBack }: MooveScreenProps) {
 
   const handleNumberPress = (num: string) => {
     if (num === '.' && amount.includes('.')) return;
+    const digits = amount.replace('.', '');
+    if (num !== '.' && digits.length >= 8) return;
     setAmount(prev => prev + num);
   };
 
@@ -50,36 +61,49 @@ export default function MooveScreen({ onBack }: MooveScreenProps) {
     setAmount(prev => prev.slice(0, -1));
   };
 
-  const toggleDirection = () => {
-    Animated.timing(rotateAnim, {
-      toValue: direction === 'wealthToCash' ? 1 : 0,
-      duration: 300,
-      useNativeDriver: true,
-    }).start();
-    setDirection(prev => prev === 'wealthToCash' ? 'cashToWealth' : 'wealthToCash');
-  };
-
-  const arrowRotation = rotateAnim.interpolate({
-    inputRange: [0, 1],
-    outputRange: ['0deg', '180deg'],
-  });
-
-  const handleMove = () => {
+  const handleMove = async () => {
     if (!amount || amount.trim() === '' || isNaN(parseFloat(amount)) || parseFloat(amount) <= 0) {
       Alert.alert('Error', 'Please enter a valid amount');
       return;
     }
 
-    const amountNum = parseFloat(amount);
-    const sourceBalance = direction === 'wealthToCash' ? (wealthUsdcBalance || 0) : cashUsdcBalance;
+    if (!selectedToken) {
+      Alert.alert('Error', 'No token selected');
+      return;
+    }
 
-    if (amountNum > sourceBalance) {
+    const amountNum = parseFloat(amount);
+
+    if (amountNum > selectedToken.balance) {
       Alert.alert('Error', 'Insufficient balance');
       return;
     }
 
-    Alert.alert('Success', `Moving ${amount} SOL from ${direction === 'wealthToCash' ? 'Wealth' : 'Cash'} to ${direction === 'wealthToCash' ? 'Cash' : 'Wealth'}`);
-    setAmount('');
+    if (!userData?.stealf_wallet || !userData?.cash_wallet) {
+      Alert.alert('Error', 'Wallets not found');
+      return;
+    }
+
+    const inputMint = selectedToken.tokenMint || 'So11111111111111111111111111111111';
+    const amountInSmallestUnit = Math.floor(amountNum * Math.pow(10, selectedToken.tokenDecimals)).toString();
+
+    setLoading(true);
+    try {
+      const response = await order({
+        inputMint,
+        amount: amountInSmallestUnit,
+        taker: userData.stealf_wallet,
+        receiver: userData.cash_wallet,
+      });
+
+      Alert.alert('Success', `Order created: moving ${amount} ${selectedToken.tokenSymbol} from Privacy to Cash`);
+      setAmount('');
+    } catch (error: any) {
+      console.error('Order failed:', error);
+      Alert.alert('Error', error?.message || 'Failed to create order');
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -104,33 +128,76 @@ export default function MooveScreen({ onBack }: MooveScreenProps) {
 
         {/* Balance Cards */}
         <View style={styles.balancesContainer}>
-          {/* Wealth Card */}
+          {/* Privacy Card (source) */}
           <View style={styles.balanceCard}>
             <View style={styles.cardRow}>
               <View style={styles.cardLeft}>
-                <Text style={styles.cardLabel}>Wealth</Text>
-                <Text style={styles.balanceSubtext}>
-                  {(wealthUsdcBalance || 0).toFixed(3)} usdc
-                </Text>
+                <Text style={styles.cardLabel}>Privacy</Text>
+                <TouchableOpacity
+                  style={styles.tokenDropdown}
+                  onPress={() => setTokenMenuOpen(prev => !prev)}
+                  activeOpacity={0.7}
+                >
+                  <Text style={styles.tokenDropdownText}>
+                    {selectedToken ? `${selectedToken.balance.toFixed(3)} ${selectedToken.tokenSymbol}` : '—'}
+                  </Text>
+                  <Text style={[styles.tokenDropdownChevron, tokenMenuOpen && styles.tokenDropdownChevronOpen]}>
+                    {'\u25BE'}
+                  </Text>
+                </TouchableOpacity>
               </View>
               <Text style={[styles.cardAmountRight, amount ? styles.cardAmountActive : null]}>
-                {direction === 'wealthToCash' ? '+' : '-'}{amount || '0'}
+                -{amount || '0'}
               </Text>
+            </View>
+
+            {/* Token Menu */}
+            {tokenMenuOpen && (
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={styles.tokenSelectorContainer}
+                style={styles.tokenSelector}
+              >
+                {privacyTokens.map((token, index) => (
+                  <TouchableOpacity
+                    key={token.tokenMint || token.tokenSymbol}
+                    style={[
+                      styles.tokenChip,
+                      index === selectedTokenIndex && styles.tokenChipSelected,
+                    ]}
+                    onPress={() => {
+                      setSelectedTokenIndex(index);
+                      setTokenMenuOpen(false);
+                    }}
+                    activeOpacity={0.7}
+                  >
+                    <Text style={[
+                      styles.tokenChipSymbol,
+                      index === selectedTokenIndex && styles.tokenChipSymbolSelected,
+                    ]}>
+                      {token.tokenSymbol}
+                    </Text>
+                    <Text style={[
+                      styles.tokenChipBalance,
+                      index === selectedTokenIndex && styles.tokenChipBalanceSelected,
+                    ]}>
+                      {token.balance.toFixed(3)}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </ScrollView>
+            )}
+          </View>
+
+          {/* Static Arrow */}
+          <View style={styles.arrowButton}>
+            <View style={{ transform: [{ rotate: '180deg' }] }}>
+              <ArrowIcon width={24} height={24}/>
             </View>
           </View>
 
-          {/* Arrow Button */}
-          <TouchableOpacity
-            style={styles.arrowButton}
-            onPress={toggleDirection}
-            activeOpacity={1}
-          >
-            <Animated.View style={{ transform: [{ rotate: arrowRotation }] }}>
-              <ArrowIcon width={24} height={24} />
-            </Animated.View>
-          </TouchableOpacity>
-
-          {/* Cash Card */}
+          {/* Cash Card (destination) */}
           <View style={styles.balanceCard}>
             <View style={styles.cardRow}>
               <View style={styles.cardLeft}>
@@ -140,7 +207,7 @@ export default function MooveScreen({ onBack }: MooveScreenProps) {
                 </Text>
               </View>
               <Text style={[styles.cardAmountRight, amount ? styles.cardAmountActive : null]}>
-                {direction === 'wealthToCash' ? '-' : '+'}{amount || '0'}
+                +{amount || '0'}
               </Text>
             </View>
           </View>
@@ -151,11 +218,12 @@ export default function MooveScreen({ onBack }: MooveScreenProps) {
 
         {/* Move Button */}
         <TouchableOpacity
-          style={styles.moveButton}
+          style={[styles.moveButton, loading && styles.moveButtonDisabled]}
           onPress={handleMove}
           activeOpacity={0.8}
+          disabled={loading}
         >
-          <Text style={styles.moveButtonText}>Move</Text>
+          <Text style={styles.moveButtonText}>{loading ? 'Moving...' : 'Move'}</Text>
         </TouchableOpacity>
 
         {/* Custom Keyboard */}
@@ -250,17 +318,56 @@ const styles = StyleSheet.create({
   placeholder: {
     width: 40,
   },
+  tokenSelector: {
+    maxHeight: 44,
+    marginTop: 12,
+  },
+  tokenSelectorContainer: {
+    gap: 8,
+  },
+  tokenChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 20,
+    backgroundColor: 'rgba(45, 45, 45, 0.6)',
+    borderWidth: 1,
+    borderColor: 'transparent',
+  },
+  tokenChipSelected: {
+    backgroundColor: 'rgba(255, 255, 255, 0.12)',
+    borderColor: 'rgba(255, 255, 255, 0.3)',
+  },
+  tokenChipSymbol: {
+    fontSize: 14,
+    color: 'rgba(255, 255, 255, 0.5)',
+    fontFamily: 'Sansation-Bold',
+    fontWeight: '600',
+  },
+  tokenChipSymbolSelected: {
+    color: '#ffffff',
+  },
+  tokenChipBalance: {
+    fontSize: 13,
+    color: 'rgba(255, 255, 255, 0.3)',
+    fontFamily: 'Sansation-Regular',
+  },
+  tokenChipBalanceSelected: {
+    color: 'rgba(255, 255, 255, 0.6)',
+  },
   balancesContainer: {
     paddingHorizontal: 40,
-    marginTop: 20,
+    marginTop: 8,
     marginBottom: 20,
   },
   balanceCard: {
     backgroundColor: 'rgba(45, 45, 45, 0.6)',
     borderRadius: 16,
-    padding: 12,
+    padding: 18,
     marginBottom: 12,
-    minHeight: 80,
+    minHeight: 100,
   },
   sourceCard: {
     backgroundColor: 'rgba(45, 45, 45, 0.6)',
@@ -316,6 +423,31 @@ const styles = StyleSheet.create({
     color: 'rgba(255, 255, 255, 0.5)',
     fontFamily: 'Sansation-Regular',
   },
+  tokenDropdown: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    alignSelf: 'flex-start',
+    gap: 6,
+    marginTop: 6,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 20,
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.15)',
+  },
+  tokenDropdownText: {
+    fontSize: 14,
+    color: 'rgba(255, 255, 255, 0.7)',
+    fontFamily: 'Sansation-Bold',
+  },
+  tokenDropdownChevron: {
+    fontSize: 12,
+    color: 'rgba(255, 255, 255, 0.5)',
+  },
+  tokenDropdownChevronOpen: {
+    transform: [{ rotate: '180deg' }],
+  },
   arrowButton: {
     width: 48,
     height: 48,
@@ -355,6 +487,9 @@ const styles = StyleSheet.create({
     borderRadius: 30,
     alignItems: 'center',
     marginBottom: 20,
+  },
+  moveButtonDisabled: {
+    opacity: 0.5,
   },
   moveButtonText: {
     fontSize: 17,

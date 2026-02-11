@@ -42,7 +42,7 @@ export default function BalanceCardPrivacy({
         {isLoadingBalance ? (
           <ActivityIndicator size="small" color="#ffffff" />
         ) : balanceError ? (
-          <Text style={styles.totalAmount}>Error</Text>
+          <Text style={styles.totalAmount}>0</Text>
         ) : (
           <Text style={styles.totalAmount}>{totalUSD.toFixed(0)} USD</Text>
         )}
