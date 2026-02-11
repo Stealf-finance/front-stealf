@@ -7,6 +7,8 @@ import {
   StyleSheet,
   ActivityIndicator,
   ScrollView,
+  KeyboardAvoidingView,
+  Platform,
   Alert,
 } from 'react-native';
 import * as Clipboard from 'expo-clipboard';
@@ -92,6 +94,10 @@ export default function WalletSetupScreen({ onComplete, loading, generatedMnemon
             <ComebackIcon width={20} height={16} />
           </TouchableOpacity>
         )}
+        <KeyboardAvoidingView
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          style={styles.keyboardView}
+        >
         <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
           {step === 'choose' && (
             <>
@@ -235,6 +241,7 @@ export default function WalletSetupScreen({ onComplete, loading, generatedMnemon
             </>
           )}
         </ScrollView>
+        </KeyboardAvoidingView>
       </LinearGradient>
     </View>
   );
@@ -245,6 +252,9 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   background: {
+    flex: 1,
+  },
+  keyboardView: {
     flex: 1,
   },
   content: {
