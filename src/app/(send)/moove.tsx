@@ -138,7 +138,12 @@ export default function MooveScreen({ onBack }: MooveScreenProps) {
     setLoading(true);
     try {
       // 1. Create order via backend (Jupiter)
-      console.log('[Moove] Creating order...');
+      console.log('[Moove] Creating order...', {
+        inputMint,
+        amount: amountInSmallestUnit,
+        taker: userData.stealf_wallet,
+        receiver: userData.cash_wallet,
+      });
       const orderResponse = await order({
         inputMint,
         amount: amountInSmallestUnit,
@@ -173,7 +178,7 @@ export default function MooveScreen({ onBack }: MooveScreenProps) {
       Alert.alert('Success', `Swap complete! ${amount} ${selectedToken.tokenSymbol} moved to Cash`);
       setAmount('');
     } catch (error: any) {
-      console.error('[Moove] Swap failed:', error);
+      console.error('[Moove] Swap failed:', error?.message, error?.response, JSON.stringify(error));
       Alert.alert('Error', error?.message || 'Failed to execute swap');
     } finally {
       setLoading(false);
