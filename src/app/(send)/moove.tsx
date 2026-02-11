@@ -136,7 +136,7 @@ export default function MooveScreen({ onBack }: MooveScreenProps) {
 
     setLoading(true);
     try {
-      // 1. Create order via backend (Jupiter)
+      
       const orderResponse = await order({
         inputMint,
         amount: amountInSmallestUnit,
@@ -144,17 +144,15 @@ export default function MooveScreen({ onBack }: MooveScreenProps) {
         receiver: userData.cash_wallet,
       });
 
-      // 2. Get privacy wallet keypair from SecureStore
       const keypair = await getPrivacyKeypair();
 
-      // 3. Deserialize, sign, and re-serialize the transaction
       const txBuffer = Buffer.from(orderResponse.transaction, 'base64');
       const transaction = VersionedTransaction.deserialize(new Uint8Array(txBuffer));
+
       transaction.sign([keypair]);
       const signedBytes = transaction.serialize();
       const signedTxBase64 = Buffer.from(signedBytes).toString('base64');
 
-      // 4. Execute the signed swap
       const executeResponse = await execute({
         requestId: orderResponse.requestId,
         signedTransaction: signedTxBase64,
