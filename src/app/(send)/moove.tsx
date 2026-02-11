@@ -149,9 +149,10 @@ export default function MooveScreen({ onBack }: MooveScreenProps) {
 
       // 3. Deserialize, sign, and re-serialize the transaction
       const txBuffer = Buffer.from(orderResponse.transaction, 'base64');
-      const transaction = VersionedTransaction.deserialize(txBuffer);
+      const transaction = VersionedTransaction.deserialize(new Uint8Array(txBuffer));
       transaction.sign([keypair]);
-      const signedTxBase64 = Buffer.from(transaction.serialize()).toString('base64');
+      const signedBytes = transaction.serialize();
+      const signedTxBase64 = Buffer.from(signedBytes).toString('base64');
 
       // 4. Execute the signed swap
       const executeResponse = await execute({
