@@ -155,6 +155,7 @@ export default function MooveScreen({ onBack }: MooveScreenProps) {
       console.log('[Moove] Signing transaction...');
       const txBuffer = Buffer.from(orderResponse.transaction, 'base64');
       const transaction = VersionedTransaction.deserialize(new Uint8Array(txBuffer));
+
       transaction.sign([keypair]);
       const signedBytes = transaction.serialize();
       const signedTxBase64 = Buffer.from(signedBytes).toString('base64');
