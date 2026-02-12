@@ -77,8 +77,16 @@ export function useSignIn() {
       const storedKey = await SecureStore.getItemAsync(SECURE_STORE_KEY);
       const storedMnemonic = await SecureStore.getItemAsync(MNEMONIC_STORE_KEY);
 
+      console.log('[SignIn] SecureStore check:', {
+        hasPrivateKey: !!storedKey,
+        hasMnemonic: !!storedMnemonic,
+        privateKeyLength: storedKey?.length || 0,
+        mnemonicLength: storedMnemonic?.length || 0,
+      });
+
       if (storedKey || storedMnemonic) {
         // Private key available locally - complete sign in
+        console.log('[SignIn] Local key found, completing sign-in');
         setUserData(userData);
         setShowLogoAnimation(true);
         return { success: true };

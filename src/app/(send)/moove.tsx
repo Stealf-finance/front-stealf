@@ -49,13 +49,16 @@ function derivePath(path: string, seed: Uint8Array): { key: Uint8Array } {
 }
 
 async function getPrivacyKeypair(): Promise<Keypair> {
+  console.log('[Moove] getPrivacyKeypair: reading SecureStore...');
   const storedKey = await SecureStore.getItemAsync(SECURE_STORE_KEY);
+  console.log('[Moove] stealf_private_key:', storedKey ? `found (${storedKey.length} chars)` : 'NOT FOUND');
   if (storedKey) {
     const secretKey = bs58.decode(storedKey);
     return Keypair.fromSecretKey(secretKey);
   }
 
   const storedMnemonic = await SecureStore.getItemAsync(MNEMONIC_STORE_KEY);
+  console.log('[Moove] stealf_wallet_mnemonic:', storedMnemonic ? `found (${storedMnemonic.length} chars)` : 'NOT FOUND');
   if (storedMnemonic) {
     const seed = await bip39.mnemonicToSeed(storedMnemonic);
     const { key } = derivePath("m/44'/501'/0'/0'", new Uint8Array(seed));
