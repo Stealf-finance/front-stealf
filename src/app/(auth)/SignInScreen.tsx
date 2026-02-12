@@ -14,8 +14,6 @@ import {
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useSignIn } from '../../hooks/useSignIn';
-import { useMWAAvailability } from '../../hooks/useMWAAvailability';
-import { useWalletAuth } from '../../hooks/useWalletAuth';
 import ComebackIcon from '../../assets/buttons/comeback.svg';
 
 interface SignInScreenProps {
@@ -32,8 +30,6 @@ export default function SignInScreen({ onSwitchToSignUp }: SignInScreenProps = {
     cancelSeedImport,
   } = useSignIn();
 
-  const { isMWAAvailable } = useMWAAvailability();
-  const walletAuth = useWalletAuth();
   const [mnemonic, setMnemonic] = useState('');
 
   const handleSignIn = async () => {
@@ -41,25 +37,6 @@ export default function SignInScreen({ onSwitchToSignUp }: SignInScreenProps = {
 
     if (!result.success) {
       Alert.alert(result.message || 'Error', result.description || 'An error occurred');
-    }
-  };
-
-  const handleWalletSignIn = async () => {
-    const result = await walletAuth.signInWithWallet();
-
-    if (!result.success) {
-      if (result.notFound) {
-        Alert.alert(
-          'No Account Found',
-          'No account is linked to this wallet. Would you like to sign up?',
-          [
-            { text: 'Cancel', style: 'cancel' },
-            { text: 'Sign Up', onPress: onSwitchToSignUp },
-          ]
-        );
-      } else if (result.error) {
-        Alert.alert('Error', result.error);
-      }
     }
   };
 
@@ -177,30 +154,6 @@ export default function SignInScreen({ onSwitchToSignUp }: SignInScreenProps = {
             )}
           </TouchableOpacity>
 
-          {/* Wallet Sign In Button */}
-          {isMWAAvailable && (
-            <>
-              <View style={styles.dividerContainer}>
-                <View style={styles.dividerLine} />
-                <Text style={styles.dividerText}>or</Text>
-                <View style={styles.dividerLine} />
-              </View>
-
-              <TouchableOpacity
-                style={[styles.walletButton, walletAuth.loading && styles.buttonDisabled]}
-                onPress={handleWalletSignIn}
-                disabled={walletAuth.loading}
-                activeOpacity={0.8}
-              >
-                {walletAuth.loading ? (
-                  <ActivityIndicator color="rgba(240, 235, 220, 0.95)" />
-                ) : (
-                  <Text style={styles.walletButtonText}>Sign in with Wallet</Text>
-                )}
-              </TouchableOpacity>
-            </>
-          )}
-
           {/* Sign Up Link */}
           <View style={styles.footer}>
             <Text style={styles.footerText}>Don't have an account? </Text>
@@ -307,40 +260,6 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontFamily: 'Sansation-Bold',
     color: '#000',
-  },
-  dividerContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 24,
-    width: '100%',
-  },
-  dividerLine: {
-    flex: 1,
-    height: 1,
-    backgroundColor: 'rgba(255, 255, 255, 0.1)',
-  },
-  dividerText: {
-    fontSize: 13,
-    color: 'rgba(255, 255, 255, 0.4)',
-    fontFamily: 'Sansation-Regular',
-    marginHorizontal: 16,
-  },
-  walletButton: {
-    backgroundColor: 'rgba(255, 255, 255, 0.05)',
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.15)',
-    paddingVertical: 16,
-    paddingHorizontal: 32,
-    borderRadius: 12,
-    width: '100%',
-    alignItems: 'center',
-    marginBottom: 24,
-  },
-  walletButtonText: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: 'rgba(240, 235, 220, 0.95)',
-    fontFamily: 'Sansation-Bold',
   },
   footer: {
     flexDirection: 'row',
