@@ -84,32 +84,24 @@ export default function SignUpScreen({ onSwitchToSignIn }: SignUpScreenProps = {
   };
 
   const onWalletConnect = async () => {
+    console.log('[SignUpScreen] onWalletConnect called');
     const result = await walletAuth.connectWallet();
+    console.log('[SignUpScreen] connectWallet result:', JSON.stringify(result));
     if (result.success && result.address && result.publicKeyHex && result.authToken) {
-      setWalletData({
-        address: result.address,
+      // Signup directly — no form needed for wallet users
+      console.log('[SignUpScreen] Wallet connected, signing up directly...');
+      const signupResult = await walletAuth.signUpWithWallet({
         publicKeyHex: result.publicKeyHex,
+        walletAddress: result.address,
         authToken: result.authToken,
+        label: result.label,
       });
-      setStep('wallet-form');
+
+      if (!signupResult.success) {
+        Alert.alert('Error', signupResult.error || 'Failed to sign up with wallet');
+      }
     } else if (result.error) {
       Alert.alert('Error', result.error);
-    }
-  };
-
-  const onWalletSignUp = async () => {
-    if (!walletData) return;
-
-    const result = await walletAuth.signUpWithWallet({
-      email,
-      pseudo,
-      publicKeyHex: walletData.publicKeyHex,
-      walletAddress: walletData.address,
-      authToken: walletData.authToken,
-    });
-
-    if (!result.success) {
-      Alert.alert('Error', result.error || 'Failed to sign up with wallet');
     }
   };
 
@@ -226,75 +218,6 @@ export default function SignUpScreen({ onSwitchToSignIn }: SignUpScreenProps = {
                       <Text style={styles.footerLink}>Sign In</Text>
                     </TouchableOpacity>
                   </View>
-                </>
-              ) : step === 'wallet-form' ? (
-                <>
-                  {/* Wallet Connected - Complete Profile */}
-                  <View style={styles.walletConnectedBadge}>
-                    <Text style={styles.walletConnectedText}>
-                      Wallet connected: {walletData?.address.slice(0, 4)}...{walletData?.address.slice(-4)}
-                    </Text>
-                  </View>
-
-                  {/* Pseudo Input */}
-                  <View style={styles.inputGroup}>
-                    <Text style={styles.label}>Pseudo</Text>
-                    <TextInput
-                      style={styles.input}
-                      placeholder="Enter your pseudo"
-                      placeholderTextColor="rgba(255, 255, 255, 0.3)"
-                      value={pseudo}
-                      onChangeText={setPseudo}
-                      autoCapitalize="none"
-                      autoCorrect={false}
-                      editable={!walletAuth.loading}
-                    />
-                  </View>
-
-                  {/* Email Input */}
-                  <View style={styles.inputGroup}>
-                    <Text style={styles.label}>Email</Text>
-                    <TextInput
-                      style={styles.input}
-                      placeholder="Enter your email"
-                      placeholderTextColor="rgba(255, 255, 255, 0.3)"
-                      value={email}
-                      onChangeText={setEmail}
-                      keyboardType="email-address"
-                      autoCapitalize="none"
-                      autoCorrect={false}
-                      editable={!walletAuth.loading}
-                    />
-                  </View>
-
-                  {/* Wallet Error */}
-                  {walletAuth.error && <Text style={styles.errorText}>{walletAuth.error}</Text>}
-
-                  {/* Sign Up Button */}
-                  <TouchableOpacity
-                    style={[styles.button, (walletAuth.loading || !email || !pseudo) && styles.buttonDisabled]}
-                    onPress={onWalletSignUp}
-                    disabled={walletAuth.loading || !email || !pseudo}
-                    activeOpacity={0.8}
-                  >
-                    {walletAuth.loading ? (
-                      <ActivityIndicator color="#000" />
-                    ) : (
-                      <Text style={styles.buttonText}>Create Account</Text>
-                    )}
-                  </TouchableOpacity>
-
-                  {/* Back Button */}
-                  <TouchableOpacity
-                    style={styles.changeEmailButton}
-                    onPress={() => {
-                      setWalletData(null);
-                      setStep('email');
-                    }}
-                    activeOpacity={0.7}
-                  >
-                    <Text style={styles.changeEmailText}>Use email instead</Text>
-                  </TouchableOpacity>
                 </>
               ) : (
                 <>

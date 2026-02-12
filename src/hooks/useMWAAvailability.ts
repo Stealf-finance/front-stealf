@@ -1,6 +1,5 @@
 import { useState, useEffect, useRef } from "react";
 import { Platform } from "react-native";
-import { transact } from "@solana-mobile/mobile-wallet-adapter-protocol-web3js";
 
 interface MWAAvailabilityState {
   isMWAAvailable: boolean;
@@ -12,8 +11,8 @@ let cachedResult: boolean | null = null;
 
 /**
  * Hook to detect if Mobile Wallet Adapter is available on the device.
- * Only available on Android devices with a compatible wallet (Seed Vault).
- * Result is cached for the session duration.
+ * On Android, checks if the MWA protocol module can be loaded.
+ * Does NOT open the Seed Vault — just checks module availability.
  */
 export function useMWAAvailability(): MWAAvailabilityState {
   const [isMWAAvailable, setIsMWAAvailable] = useState(cachedResult ?? false);
@@ -39,36 +38,21 @@ export function useMWAAvailability(): MWAAvailabilityState {
       return;
     }
 
-    const checkAvailability = async () => {
-      try {
-        await transact(async (wallet) => {
-          // Just authorize to check if a wallet is available
-          // This will throw if no wallet app is installed
-          await wallet.authorize({
-            chain: "solana:mainnet",
-            identity: {
-              name: "Stealf",
-              uri: "https://stealf.xyz" as `${string}://${string}`,
-              icon: "favicon.ico",
-            },
-          });
-          // Immediately deauthorize - we just wanted to check availability
-          await wallet.deauthorize({
-            auth_token: "",
-          });
-        });
-        cachedResult = true;
-        setIsMWAAvailable(true);
-      } catch {
-        // Any error means MWA is not available - fail silently
-        cachedResult = false;
-        setIsMWAAvailable(false);
-      } finally {
-        setIsChecking(false);
-      }
-    };
-
-    checkAvailability();
+    // On Android, check if the MWA module is importable
+    // The transact function existing means the native module is linked
+    try {
+      const mwa = require("@solana-mobile/mobile-wallet-adapter-protocol-web3js");
+      const available = typeof mwa.transact === "function";
+      console.log("[useMWAAvailability] MWA module available:", available);
+      cachedResult = available;
+      setIsMWAAvailable(available);
+    } catch {
+      console.log("[useMWAAvailability] MWA module not available");
+      cachedResult = false;
+      setIsMWAAvailable(false);
+    } finally {
+      setIsChecking(false);
+    }
   }, []);
 
   return { isMWAAvailable, isChecking };

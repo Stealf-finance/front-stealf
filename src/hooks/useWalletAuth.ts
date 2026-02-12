@@ -12,7 +12,7 @@ const STEALF_IDENTITY = {
   icon: "favicon.ico" as const,
 };
 
-const SOLANA_CHAIN = "solana:mainnet" as const;
+const SOLANA_CHAIN = "solana:devnet" as const;
 
 // SecureStore keys for wallet auth
 const MWA_AUTH_TOKEN_KEY = "mwa_auth_token";
@@ -24,6 +24,7 @@ interface ConnectWalletResult {
   address?: string; // base58
   publicKeyHex?: string;
   authToken?: string;
+  label?: string; // wallet display name (e.g. "stealf.skr")
   error?: string;
 }
 
@@ -65,15 +66,19 @@ export function useWalletAuth() {
     setError(null);
 
     try {
+      console.log("[useWalletAuth] Starting transact()...");
       const result = await transact(async (wallet: Web3MobileWallet) => {
+        console.log("[useWalletAuth] Inside transact, calling authorize...");
         const auth = await wallet.authorize({
           chain: SOLANA_CHAIN,
           identity: STEALF_IDENTITY,
         });
+        console.log("[useWalletAuth] Authorize success, accounts:", auth.accounts?.length);
 
         return {
           // MWA returns addresses in base64
           addressBase64: auth.accounts[0].address,
+          label: auth.accounts[0].label || "",
           authToken: auth.auth_token,
         };
       });
@@ -96,19 +101,21 @@ export function useWalletAuth() {
         address: addressBase58,
         publicKeyHex,
         authToken: result.authToken,
+        label: result.label,
       };
     } catch (err: any) {
+      console.error("[useWalletAuth] connectWallet error:", err);
       const errorMsg = err?.message || "Failed to connect wallet";
+      setLoading(false);
+
       // Check if user cancelled the authorization
       const isCancelled =
         errorMsg.includes("cancel") ||
         errorMsg.includes("declined") ||
         errorMsg.includes("rejected");
 
-      setLoading(false);
-
       if (isCancelled) {
-        // Silent return for user cancellation
+        console.log("[useWalletAuth] User cancelled authorization");
         return { success: false };
       }
 
@@ -123,27 +130,37 @@ export function useWalletAuth() {
    */
   const signUpWithWallet = useCallback(
     async (params: {
-      email: string;
-      pseudo: string;
       publicKeyHex: string;
       walletAddress: string;
       authToken: string;
+      label?: string;
     }): Promise<SignUpResult> => {
       setLoading(true);
       setError(null);
 
       try {
+        // Use wallet label as pseudo, generate placeholder email from address
+        const pseudo = params.label || params.walletAddress.slice(0, 8);
+        const email = `${params.walletAddress.slice(0, 8)}@wallet.stealf.xyz`;
+
+        console.log("[useWalletAuth] signUpWithWallet called with:", {
+          pseudo,
+          email,
+          publicKeyHex: params.publicKeyHex,
+        });
         const response = await fetch(`${API_URL}/api/users/wallet-signup`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            email: params.email,
-            pseudo: params.pseudo,
+            email,
+            pseudo,
             publicKeyHex: params.publicKeyHex,
           }),
         });
 
+        console.log("[useWalletAuth] wallet-signup response status:", response.status);
         const data = await response.json();
+        console.log("[useWalletAuth] wallet-signup response data:", JSON.stringify(data));
 
         if (!response.ok) {
           if (response.status === 409) {
@@ -178,6 +195,7 @@ export function useWalletAuth() {
         setLoading(false);
         return { success: true };
       } catch (err: any) {
+        console.error("[useWalletAuth] signUpWithWallet error:", err);
         const errorMsg = err?.message || "Failed to sign up with wallet";
         setError(errorMsg);
         setLoading(false);
@@ -208,6 +226,8 @@ export function useWalletAuth() {
       }
 
       // Step 2: Send publicKeyHex to backend for user lookup
+      console.log("[useWalletAuth] Calling wallet-login with publicKeyHex:", connectResult.publicKeyHex);
+      console.log("[useWalletAuth] API_URL:", API_URL);
       const response = await fetch(`${API_URL}/api/users/wallet-login`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -216,7 +236,9 @@ export function useWalletAuth() {
         }),
       });
 
+      console.log("[useWalletAuth] wallet-login response status:", response.status);
       const data = await response.json();
+      console.log("[useWalletAuth] wallet-login response data:", JSON.stringify(data));
 
       if (!response.ok) {
         if (response.status === 404) {
@@ -252,6 +274,7 @@ export function useWalletAuth() {
       setLoading(false);
       return { success: true };
     } catch (err: any) {
+      console.error("[useWalletAuth] signInWithWallet error:", err);
       const errorMsg = err?.message || "Failed to sign in with wallet";
       setError(errorMsg);
       setLoading(false);
