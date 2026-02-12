@@ -61,11 +61,19 @@ export function SessionProvider({ children }: SessionProviderProps) {
   });
 
   /**
-   * Refresh Turnkey session (without prompting for passkey)
-   * Returns TStampLoginResponse | undefined
+   * Refresh Turnkey session (without prompting for passkey).
+   * For wallet auth users, the session is managed differently -
+   * the biometric unlock is sufficient since the Seed Vault handles signing.
    */
   const refreshTurnkeySession = useCallback(async () => {
     try {
+      // For wallet auth, no Turnkey session to refresh
+      // Biometric unlock is sufficient; signing uses MWA transact()
+      if (userData?.authMethod === 'wallet') {
+        console.log('[Session] Wallet auth - biometric unlock sufficient');
+        return true;
+      }
+
       const result = await refreshSession();
       if (result) {
         console.log('[Session] Turnkey session refreshed successfully');
@@ -76,7 +84,7 @@ export function SessionProvider({ children }: SessionProviderProps) {
       console.error('[Session] Failed to refresh Turnkey session:', error);
       return false;
     }
-  }, [refreshSession]);
+  }, [refreshSession, userData?.authMethod]);
 
   /**
    * Unlock with biometric authentication (FaceID/TouchID)

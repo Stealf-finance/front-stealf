@@ -1,0 +1,274 @@
+import { useState, useCallback } from "react";
+import { transact, Web3MobileWallet } from "@solana-mobile/mobile-wallet-adapter-protocol-web3js";
+import * as SecureStore from "expo-secure-store";
+import bs58 from "bs58";
+import { useAuth as useAuthContext } from "../contexts/AuthContext";
+
+const API_URL = process.env.EXPO_PUBLIC_API_URL;
+
+const STEALF_IDENTITY = {
+  name: "Stealf",
+  uri: "https://stealf.xyz" as `${string}://${string}`,
+  icon: "favicon.ico" as const,
+};
+
+const SOLANA_CHAIN = "solana:mainnet" as const;
+
+// SecureStore keys for wallet auth
+const MWA_AUTH_TOKEN_KEY = "mwa_auth_token";
+const MWA_WALLET_ADDRESS_KEY = "mwa_wallet_address";
+const AUTH_METHOD_KEY = "auth_method";
+
+interface ConnectWalletResult {
+  success: boolean;
+  address?: string; // base58
+  publicKeyHex?: string;
+  authToken?: string;
+  error?: string;
+}
+
+interface SignUpResult {
+  success: boolean;
+  error?: string;
+}
+
+interface SignInResult {
+  success: boolean;
+  error?: string;
+  notFound?: boolean;
+}
+
+interface WalletAuthState {
+  loading: boolean;
+  error: string | null;
+  walletConnected: boolean;
+  connectedAddress: string | null;
+}
+
+/**
+ * Hook that orchestrates signup and signin flows using the Seeker Seed Vault
+ * via Mobile Wallet Adapter.
+ */
+export function useWalletAuth() {
+  const { setUserData } = useAuthContext();
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [walletConnected, setWalletConnected] = useState(false);
+  const [connectedAddress, setConnectedAddress] = useState<string | null>(null);
+
+  /**
+   * Task 5.1: Connect to the Seed Vault via MWA.
+   * Opens a transact() session, authorizes, extracts address and auth_token.
+   */
+  const connectWallet = useCallback(async (): Promise<ConnectWalletResult> => {
+    setLoading(true);
+    setError(null);
+
+    try {
+      const result = await transact(async (wallet: Web3MobileWallet) => {
+        const auth = await wallet.authorize({
+          chain: SOLANA_CHAIN,
+          identity: STEALF_IDENTITY,
+        });
+
+        return {
+          // MWA returns addresses in base64
+          addressBase64: auth.accounts[0].address,
+          authToken: auth.auth_token,
+        };
+      });
+
+      // Convert base64 address to base58 (Solana standard format)
+      const addressBytes = Buffer.from(result.addressBase64, "base64");
+      const addressBase58 = bs58.encode(addressBytes);
+      const publicKeyHex = addressBytes.toString("hex");
+
+      // Store auth_token and address in SecureStore
+      await SecureStore.setItemAsync(MWA_AUTH_TOKEN_KEY, result.authToken);
+      await SecureStore.setItemAsync(MWA_WALLET_ADDRESS_KEY, addressBase58);
+
+      setWalletConnected(true);
+      setConnectedAddress(addressBase58);
+      setLoading(false);
+
+      return {
+        success: true,
+        address: addressBase58,
+        publicKeyHex,
+        authToken: result.authToken,
+      };
+    } catch (err: any) {
+      const errorMsg = err?.message || "Failed to connect wallet";
+      // Check if user cancelled the authorization
+      const isCancelled =
+        errorMsg.includes("cancel") ||
+        errorMsg.includes("declined") ||
+        errorMsg.includes("rejected");
+
+      setLoading(false);
+
+      if (isCancelled) {
+        // Silent return for user cancellation
+        return { success: false };
+      }
+
+      setError(errorMsg);
+      return { success: false, error: errorMsg };
+    }
+  }, []);
+
+  /**
+   * Task 5.2: Sign up a new user using the connected Seeker wallet.
+   * Sends publicKeyHex to backend which creates a Turnkey sub-org + Cash Wallet.
+   */
+  const signUpWithWallet = useCallback(
+    async (params: {
+      email: string;
+      pseudo: string;
+      publicKeyHex: string;
+      walletAddress: string;
+      authToken: string;
+    }): Promise<SignUpResult> => {
+      setLoading(true);
+      setError(null);
+
+      try {
+        const response = await fetch(`${API_URL}/api/users/wallet-signup`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            email: params.email,
+            pseudo: params.pseudo,
+            publicKeyHex: params.publicKeyHex,
+          }),
+        });
+
+        const data = await response.json();
+
+        if (!response.ok) {
+          if (response.status === 409) {
+            setError(data.error || "Email already registered");
+            return {
+              success: false,
+              error: data.error || "Email already registered. Sign in instead?",
+            };
+          }
+          throw new Error(data.error || "Signup failed");
+        }
+
+        if (!data.data?.user) {
+          throw new Error("Backend did not return user data");
+        }
+
+        const user = data.data.user;
+
+        // Store auth method in SecureStore
+        await SecureStore.setItemAsync(AUTH_METHOD_KEY, "wallet");
+
+        // Update AuthContext with user data and wallet auth method
+        setUserData({
+          email: user.email,
+          username: user.pseudo,
+          cash_wallet: user.cash_wallet || data.data.cashWallet,
+          stealf_wallet: user.stealf_wallet || params.walletAddress,
+          subOrgId: data.data.subOrgId,
+          authMethod: "wallet",
+        });
+
+        setLoading(false);
+        return { success: true };
+      } catch (err: any) {
+        const errorMsg = err?.message || "Failed to sign up with wallet";
+        setError(errorMsg);
+        setLoading(false);
+        return { success: false, error: errorMsg };
+      }
+    },
+    [setUserData]
+  );
+
+  /**
+   * Task 5.3: Sign in an existing user with their Seeker wallet.
+   * Connects wallet, sends publicKeyHex to backend for lookup.
+   */
+  const signInWithWallet = useCallback(async (): Promise<SignInResult> => {
+    setLoading(true);
+    setError(null);
+
+    try {
+      // Step 1: Connect wallet (authorize via Seed Vault)
+      const connectResult = await connectWallet();
+
+      if (!connectResult.success) {
+        setLoading(false);
+        return {
+          success: false,
+          error: connectResult.error,
+        };
+      }
+
+      // Step 2: Send publicKeyHex to backend for user lookup
+      const response = await fetch(`${API_URL}/api/users/wallet-login`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          publicKeyHex: connectResult.publicKeyHex,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        if (response.status === 404) {
+          setLoading(false);
+          return {
+            success: false,
+            notFound: true,
+            error: "No account found for this wallet",
+          };
+        }
+        throw new Error(data.error || "Login failed");
+      }
+
+      if (!data.data?.user) {
+        throw new Error("Backend did not return user data");
+      }
+
+      const user = data.data.user;
+
+      // Store auth method in SecureStore
+      await SecureStore.setItemAsync(AUTH_METHOD_KEY, "wallet");
+
+      // Update AuthContext
+      setUserData({
+        email: user.email,
+        username: user.pseudo,
+        cash_wallet: user.cash_wallet,
+        stealf_wallet: user.stealf_wallet,
+        subOrgId: user.turnkey_subOrgId,
+        authMethod: "wallet",
+      });
+
+      setLoading(false);
+      return { success: true };
+    } catch (err: any) {
+      const errorMsg = err?.message || "Failed to sign in with wallet";
+      setError(errorMsg);
+      setLoading(false);
+      return { success: false, error: errorMsg };
+    }
+  }, [connectWallet, setUserData]);
+
+  return {
+    // State
+    loading,
+    error,
+    walletConnected,
+    connectedAddress,
+
+    // Actions
+    connectWallet,
+    signUpWithWallet,
+    signInWithWallet,
+  };
+}
