@@ -19,8 +19,6 @@ import { useFonts } from 'expo-font';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useSendTransaction } from '../../hooks/useSendSimpleTransaction';
 import { useAuth } from '../../contexts/AuthContext';
-import { useAuthenticatedApi } from '../../services/clientStealf';
-import { createGetSolPriceUSD } from '../../services/fetchWalletInfos';
 
 interface SendConfirmationProps {
   amount: string;
@@ -32,7 +30,6 @@ interface SendConfirmationProps {
 export default function SendConfirmation({ amount, onBack, onClose, onSuccess }: SendConfirmationProps) {
   const { userData } = useAuth();
   const { sendTransaction, loading } = useSendTransaction();
-  const api = useAuthenticatedApi();
 
   const [externalAddress, setExternalAddress] = useState('');
   const [showSuccessModal, setShowSuccessModal] = useState(false);
@@ -57,19 +54,17 @@ export default function SendConfirmation({ amount, onBack, onClose, onSuccess }:
         throw new Error('Invalid destination address');
       }
 
-      const getSolPrice = createGetSolPriceUSD(api);
-      const priceData = await getSolPrice();
-      const solPrice = priceData?.price_usd || priceData?.price || 0;
+      // USDC transfer (amount entered = USDC amount)
+      const USDC_MINT = 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v';
+      const USDC_DECIMALS = 6;
+      const amountUSDC = parseFloat(amount);
 
-      if (solPrice === 0) {
-        throw new Error('Unable to fetch SOL price. Please try again.');
-      }
-
-      const amountSOL = Math.floor((parseFloat(amount) / solPrice) * 1e9) / 1e9;
       const signature = await sendTransaction(
         userData.cash_wallet,
         externalAddress,
-        amountSOL
+        amountUSDC,
+        USDC_MINT,
+        USDC_DECIMALS,
       );
 
       setTransactionSignature(signature);
@@ -153,7 +148,7 @@ export default function SendConfirmation({ amount, onBack, onClose, onSuccess }:
           {/* Amount */}
           <View style={styles.section}>
             <Text style={styles.label}>Amount</Text>
-            <Text style={styles.value}>{amount} USD</Text>
+            <Text style={styles.value}>{amount} USDC</Text>
           </View>
 
           {/* Network */}
