@@ -65,7 +65,7 @@ export default function SendConfirmation({ amount, onBack, onClose, onSuccess }:
         throw new Error('Unable to fetch SOL price. Please try again.');
       }
 
-      const amountSOL = parseFloat(amount) / solPrice;
+      const amountSOL = Math.floor((parseFloat(amount) / solPrice) * 1e9) / 1e9;
       const signature = await sendTransaction(
         userData.cash_wallet,
         externalAddress,
