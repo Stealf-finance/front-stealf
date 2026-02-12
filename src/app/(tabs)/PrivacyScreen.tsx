@@ -1,5 +1,5 @@
 import React, { useRef, useEffect, useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Animated, Easing } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Animated, Easing, ScrollView } from 'react-native';
 import BalanceCardPrivacy from '../../components/features/PrivacyBalanceCard';
 import TransactionHistory from '../../components/TransactionHistory';
 import AddFundsPrivacyModal from '../../components/AddFundsPrivacyModal';
@@ -88,6 +88,10 @@ export default function PrivacyScreen({
 
   return (
     <View style={styles.container}>
+      <ScrollView
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
+      >
           {/* Header Spacer */}
           <View style={styles.headerSpacer} />
 
@@ -122,6 +126,7 @@ export default function PrivacyScreen({
             </View>
             <TransactionHistory limit={2} walletType="privacy" />
           </Animated.View>
+      </ScrollView>
 
           {/* Add Funds Modal */}
           <AddFundsPrivacyModal
@@ -148,8 +153,10 @@ export default function PrivacyScreen({
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    paddingBottom: 10,
     backgroundColor: 'transparent',
+  },
+  scrollContent: {
+    paddingBottom: 40,
   },
   headerSpacer: {
     height: 110,
