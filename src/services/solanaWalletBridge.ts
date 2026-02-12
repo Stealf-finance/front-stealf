@@ -72,12 +72,13 @@ export function createSeedVaultWallet(
           bs58.decode(publicKeyBase58)
         ).toString("base64");
 
-        const { signed_payloads } = await wallet.signMessages({
+        const signResult = await (wallet as any).signMessages({
           addresses: [addressBase64],
           payloads: [encoded],
         });
+        const signedPayloads = signResult.signed_payloads || signResult;
 
-        return Buffer.from(signed_payloads[0]).toString("hex");
+        return Buffer.from(signedPayloads[0]).toString("hex");
       });
     },
 
@@ -91,11 +92,12 @@ export function createSeedVaultWallet(
 
         const txBase64 = Buffer.from(serializedTx).toString("base64");
 
-        const { signed_payloads } = await wallet.signTransactions({
+        const signResult = await (wallet as any).signTransactions({
           payloads: [txBase64],
         });
+        const signedPayloads = signResult.signed_payloads || signResult;
 
-        return new Uint8Array(Buffer.from(signed_payloads[0], "base64"));
+        return new Uint8Array(Buffer.from(signedPayloads[0], "base64"));
       });
     },
 
@@ -112,12 +114,13 @@ export function createSeedVaultWallet(
 
         const txBase64 = Buffer.from(serializedTx).toString("base64");
 
-        const { signatures } = await wallet.signAndSendTransactions({
+        const sendResult = await (wallet as any).signAndSendTransactions({
           payloads: [txBase64],
           options: {
             commitment: "confirmed",
           },
         });
+        const signatures = sendResult.signatures || sendResult;
 
         return signatures[0];
       });

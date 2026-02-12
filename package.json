@@ -7,7 +7,9 @@
     "android": "expo run:android",
     "ios": "expo run:ios",
     "web": "expo start --web",
-    "postinstall": "patch-package"
+    "postinstall": "patch-package",
+    "test": "jest --passWithNoTests",
+    "test:watch": "jest --watch"
   },
   "dependencies": {
     "@coral-xyz/anchor": "^0.32.1",
@@ -62,10 +64,13 @@
     "socket.io-client": "^4.8.3"
   },
   "devDependencies": {
+    "@types/jest": "^30.0.0",
     "@types/react": "~19.1.10",
     "babel-preset-expo": "^54.0.4",
+    "jest": "^30.2.0",
     "patch-package": "^8.0.1",
     "react-native-svg-transformer": "^1.5.3",
+    "ts-jest": "^29.4.6",
     "typescript": "~5.9.2"
   },
   "private": true

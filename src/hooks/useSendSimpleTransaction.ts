@@ -2,7 +2,10 @@ import { useState } from 'react';
 import { useTurnkey } from '@turnkey/react-native-wallet-kit';
 import { Connection, Transaction, SystemProgram, PublicKey, LAMPORTS_PER_SOL } from "@solana/web3.js";
 import { getAssociatedTokenAddress, createTransferInstruction, createAssociatedTokenAccountInstruction, getAccount } from "@solana/spl-token";
+import * as SecureStore from 'expo-secure-store';
 import { guardTransaction } from '../services/transactionsGuard';
+import { useAuth } from '../contexts/AuthContext';
+import { createSeedVaultWallet } from '../services/solanaWalletBridge';
 
 const RPC_ENDPOINT = process.env.EXPO_PUBLIC_SOLANA_RPC_URL || "";
 const connection = new Connection(RPC_ENDPOINT, "confirmed");
@@ -11,6 +14,7 @@ export function useSendTransaction() {
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const { signAndSendTransaction, wallets } = useTurnkey();
+    const { isWalletAuth } = useAuth();
 
     const sendTransaction = async (
         fromAddress: string,
@@ -36,14 +40,17 @@ export function useSendTransaction() {
                 throw err;
             }
 
-            const wallet = wallets?.[0];
+            // For passkey auth, find the Turnkey wallet account
+            let walletAccount: any = null;
+            if (!isWalletAuth) {
+                const wallet = wallets?.[0];
+                walletAccount = wallet?.accounts?.find(
+                    (account: any) => account.address === fromAddress
+                );
 
-            const walletAccount = wallet?.accounts?.find(
-                account => account.address === fromAddress
-            );
-
-            if (!walletAccount) {
-                throw new Error(`Wallet account not found for address: ${fromAddress}`);
+                if (!walletAccount) {
+                    throw new Error(`Wallet account not found for address: ${fromAddress}`);
+                }
             }
 
             const fromPubkey = new PublicKey(fromAddress);
@@ -101,14 +108,30 @@ export function useSendTransaction() {
                 requireAllSignatures: false,
                 verifySignatures: false,
             });
-            const hexTx = serializedTx.toString('hex');
 
-            const txId = await signAndSendTransaction({
-                walletAccount,
-                unsignedTransaction: hexTx,
-                transactionType: "TRANSACTION_TYPE_SOLANA",
-                rpcUrl: RPC_ENDPOINT,
-            });
+            let txId: string;
+
+            if (isWalletAuth) {
+                // Wallet auth: sign and send via MWA Seed Vault
+                const authToken = await SecureStore.getItemAsync('mwa_auth_token');
+                if (!authToken) {
+                    throw new Error('MWA auth token not found. Please reconnect your wallet.');
+                }
+                const bridge = createSeedVaultWallet(fromAddress, authToken);
+                txId = await bridge.signAndSendTransaction(
+                    new Uint8Array(serializedTx),
+                    RPC_ENDPOINT
+                );
+            } else {
+                // Passkey auth: sign via Turnkey
+                const hexTx = serializedTx.toString('hex');
+                txId = await signAndSendTransaction({
+                    walletAccount,
+                    unsignedTransaction: hexTx,
+                    transactionType: "TRANSACTION_TYPE_SOLANA",
+                    rpcUrl: RPC_ENDPOINT,
+                });
+            }
 
             return txId;
         } catch (error: any){
