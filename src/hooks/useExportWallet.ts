@@ -41,7 +41,7 @@ export function useExportWallet() {
         mnemonic
       };
     } catch (error: any) {
-      console.error("Export wallet failed:", error);
+      if (__DEV__) console.error("Export wallet failed:", error);
       return {
         success: false,
         error: error?.message || "Failed to export wallet"
@@ -97,7 +97,7 @@ export function useExportWallet() {
         mnemonic
       };
     } catch (error: any) {
-      console.error("Export wallet by address failed:", error);
+      if (__DEV__) console.error("Export wallet by address failed:", error);
       return {
         success: false,
         error: error?.message || "Failed to export wallet"
@@ -113,27 +113,20 @@ export function useExportWallet() {
   const exportColdWallet = async (): Promise<ExportWalletResult> => {
     setLoading(true);
     try {
-      console.log('[ExportWallet] Reading wallet keys (cache → SecureStore)...');
-
-      const mnemonic = await walletKeyCache.getMnemonic();
-      console.log('[ExportWallet] mnemonic:', mnemonic ? `found (${mnemonic.split(' ').length} words)` : 'null');
+      const mnemonic = walletKeyCache.getMnemonic();
       if (mnemonic) {
         return { success: true, mnemonic };
       }
 
       const privateKey = await walletKeyCache.getPrivateKey();
-      console.log('[ExportWallet] privateKey:', privateKey ? `found (${privateKey.length} chars)` : 'null');
       if (privateKey) {
         return { success: true, mnemonic: privateKey };
       }
-
-      console.log('[ExportWallet] No wallet key found in cache or SecureStore');
       return {
         success: false,
         error: "No cold wallet found."
       };
     } catch (error: any) {
-      console.error("[ExportWallet] Unexpected error:", error);
       return {
         success: false,
         error: error?.message || "Failed to export cold wallet"

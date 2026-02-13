@@ -71,7 +71,7 @@ export function useSetupWallet() {
 
       return { success: true, walletAddress, mnemonic };
     } catch (error: any) {
-      console.error("Create local wallet failed:", error);
+      if (__DEV__) console.error("Create local wallet failed:", error);
       return { success: false, error: error?.message || "Failed to create wallet" };
     } finally {
       setLoading(false);
@@ -95,13 +95,11 @@ export function useSetupWallet() {
       const privateKey = bs58.encode(keypair.secretKey);
       const walletAddress = keypair.publicKey.toBase58();
 
-      console.log('[ImportWallet] Storing private key for address:', walletAddress);
       await walletKeyCache.store(privateKey, mnemonic);
-      console.log('[ImportWallet] Stored in cache + SecureStore');
 
       return { success: true, walletAddress };
     } catch (error: any) {
-      console.error("Import wallet from mnemonic failed:", error);
+      if (__DEV__) console.error("Import wallet from mnemonic failed:", error);
       return { success: false, error: error?.message || "Failed to import wallet" };
     } finally {
       setLoading(false);
