@@ -100,10 +100,14 @@ export function useSetupWallet() {
       console.log('[ImportWallet] Storing private key for address:', walletAddress);
       console.log('[ImportWallet] Key length:', privateKey.length);
       await SecureStore.setItemAsync(SECURE_STORE_KEY, privateKey);
+      // Also store mnemonic for redundancy
+      await SecureStore.setItemAsync(MNEMONIC_STORE_KEY, mnemonic);
 
-      // Verify the key was stored correctly
-      const readBack = await SecureStore.getItemAsync(SECURE_STORE_KEY);
-      console.log('[ImportWallet] Read-back check:', readBack ? `OK (${readBack.length} chars)` : 'FAILED - key not found!');
+      // Verify both keys were stored correctly
+      const readBackKey = await SecureStore.getItemAsync(SECURE_STORE_KEY);
+      const readBackMnemonic = await SecureStore.getItemAsync(MNEMONIC_STORE_KEY);
+      console.log('[ImportWallet] Read-back private key:', readBackKey ? `OK (${readBackKey.length} chars)` : 'FAILED');
+      console.log('[ImportWallet] Read-back mnemonic:', readBackMnemonic ? `OK (${readBackMnemonic.split(' ').length} words)` : 'FAILED');
 
       return { success: true, walletAddress };
     } catch (error: any) {
