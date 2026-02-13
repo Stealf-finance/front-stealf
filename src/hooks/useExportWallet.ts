@@ -117,23 +117,37 @@ export function useExportWallet() {
   const exportColdWallet = async (): Promise<ExportWalletResult> => {
     setLoading(true);
     try {
-      // Try mnemonic first (stored during wallet creation), fall back to private key (stored during import)
-      const mnemonic = await SecureStore.getItemAsync(MNEMONIC_STORE_KEY);
+      console.log('[ExportWallet] Reading SecureStore keys...');
+
+      let mnemonic: string | null = null;
+      try {
+        mnemonic = await SecureStore.getItemAsync(MNEMONIC_STORE_KEY);
+        console.log('[ExportWallet] stealf_wallet_mnemonic:', mnemonic ? `found (${mnemonic.length} chars)` : 'null');
+      } catch (e: any) {
+        console.error('[ExportWallet] ERROR reading mnemonic:', e?.message);
+      }
       if (mnemonic) {
         return { success: true, mnemonic };
       }
 
-      const privateKey = await SecureStore.getItemAsync(SECURE_STORE_KEY);
+      let privateKey: string | null = null;
+      try {
+        privateKey = await SecureStore.getItemAsync(SECURE_STORE_KEY);
+        console.log('[ExportWallet] stealf_private_key:', privateKey ? `found (${privateKey.length} chars)` : 'null');
+      } catch (e: any) {
+        console.error('[ExportWallet] ERROR reading private key:', e?.message);
+      }
       if (privateKey) {
         return { success: true, mnemonic: privateKey };
       }
 
+      console.log('[ExportWallet] Neither key found in SecureStore');
       return {
         success: false,
         error: "No cold wallet found in SecureStore."
       };
     } catch (error: any) {
-      console.error("Export cold wallet failed:", error);
+      console.error("[ExportWallet] Unexpected error:", error);
       return {
         success: false,
         error: error?.message || "Failed to export cold wallet from SecureStore"
