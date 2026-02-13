@@ -6,6 +6,7 @@ import * as LocalAuthentication from 'expo-local-authentication';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useExportWallet } from '../../hooks/useExportWallet';
 import { useAuth } from '../../contexts/AuthContext';
+import { useSession } from '../../contexts/SessionContext';
 
 type InfoScreenSource = 'home' | 'privacy';
 
@@ -17,6 +18,7 @@ interface InfoScreenProps {
 export default function InfoScreen({ onBack, source }: InfoScreenProps) {
   const { exportWalletByAddress, exportColdWallet, loading } = useExportWallet();
   const { userData } = useAuth();
+  const { setSuppressLock } = useSession();
   const [showMnemonic, setShowMnemonic] = useState(false);
   const [mnemonic, setMnemonic] = useState<string>('');
 
@@ -81,14 +83,18 @@ export default function InfoScreen({ onBack, source }: InfoScreenProps) {
             <TouchableOpacity
               style={styles.exportButton}
               onPress={async () => {
-                // FaceID gating before revealing sensitive data
-                const authResult = await LocalAuthentication.authenticateAsync({
-                  promptMessage: 'Authenticate to reveal recovery phrase',
-                  cancelLabel: 'Cancel',
-                  disableDeviceFallback: false,
-                });
-
-                if (!authResult.success) return;
+                // Suppress lock screen while FaceID dialog is active
+                setSuppressLock(true);
+                try {
+                  const authResult = await LocalAuthentication.authenticateAsync({
+                    promptMessage: 'Authenticate to reveal recovery phrase',
+                    cancelLabel: 'Cancel',
+                    disableDeviceFallback: false,
+                  });
+                  if (!authResult.success) return;
+                } finally {
+                  setSuppressLock(false);
+                }
 
                 Alert.alert(
                   'Export Recovery Phrase',

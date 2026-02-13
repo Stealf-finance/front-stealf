@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useCallback, useEffect, ReactNode } from 'react';
+import React, { createContext, useContext, useState, useCallback, useEffect, useRef, ReactNode } from 'react';
 import * as LocalAuthentication from 'expo-local-authentication';
 import { useTurnkey } from '@turnkey/react-native-wallet-kit';
 import { sessionHandler } from '../services/sessionHandler';
@@ -11,6 +11,7 @@ interface SessionContextType {
   isLocked: boolean;
   unlockWithAuth: () => Promise<{ success: boolean; error?: string }>;
   lockApp: () => void;
+  setSuppressLock: (suppress: boolean) => void;
 }
 
 const SessionContext = createContext<SessionContextType | undefined>(undefined);
@@ -21,6 +22,7 @@ interface SessionProviderProps {
 
 export function SessionProvider({ children }: SessionProviderProps) {
   const [isLocked, setIsLocked] = useState(false);
+  const suppressLockRef = useRef(false);
   const { refreshSession } = useTurnkey();
   const { isAuthenticated, userData } = useAuth();
 
@@ -45,7 +47,7 @@ export function SessionProvider({ children }: SessionProviderProps) {
   // Handle app state changes
   useAppState({
     onForeground: useCallback(() => {
-      if (isAuthenticated) {
+      if (isAuthenticated && !suppressLockRef.current) {
         sessionHandler.handleForeground();
         if (sessionHandler.shouldLock()) {
           setIsLocked(true);
@@ -53,7 +55,7 @@ export function SessionProvider({ children }: SessionProviderProps) {
       }
     }, [isAuthenticated]),
     onBackground: useCallback(() => {
-      if (isAuthenticated) {
+      if (isAuthenticated && !suppressLockRef.current) {
         sessionHandler.handleBackground();
         setIsLocked(true);
       }
@@ -121,10 +123,15 @@ export function SessionProvider({ children }: SessionProviderProps) {
     setIsLocked(true);
   }, []);
 
+  const setSuppressLock = useCallback((suppress: boolean) => {
+    suppressLockRef.current = suppress;
+  }, []);
+
   const value: SessionContextType = {
     isLocked,
     unlockWithAuth,
     lockApp,
+    setSuppressLock,
   };
 
   return (
