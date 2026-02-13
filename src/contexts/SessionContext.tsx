@@ -67,13 +67,9 @@ export function SessionProvider({ children }: SessionProviderProps) {
   const refreshTurnkeySession = useCallback(async () => {
     try {
       const result = await refreshSession();
-      if (result) {
-        console.log('[Session] Turnkey session refreshed successfully');
-        return true;
-      }
-      return false;
+      return !!result;
     } catch (error) {
-      console.error('[Session] Failed to refresh Turnkey session:', error);
+      if (__DEV__) console.error('[Session] Failed to refresh Turnkey session:', error);
       return false;
     }
   }, [refreshSession]);
@@ -112,7 +108,7 @@ export function SessionProvider({ children }: SessionProviderProps) {
       return { success: false, error: 'Biometric authentication failed' };
 
     } catch (error: any) {
-      console.error('[Session] Unlock error:', error);
+      if (__DEV__) console.error('[Session] Unlock error:', error);
       return { success: false, error: error?.message || 'Authentication failed' };
     }
   }, [refreshTurnkeySession]);

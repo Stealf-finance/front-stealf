@@ -89,7 +89,7 @@ export function useSignIn() {
       return { success: true, needsSeedImport: true };
 
     } catch (error: any) {
-      console.error('Error during sign in:', error);
+      if (__DEV__) console.error('Error during sign in:', error);
 
       return {
         success: false,
@@ -134,7 +134,7 @@ export function useSignIn() {
       return { success: true };
 
     } catch (error: any) {
-      console.error('Error importing wallet:', error);
+      if (__DEV__) console.error('Error importing wallet:', error);
       setImportError(error?.message || 'Failed to import wallet');
       return {
         success: false,

@@ -71,7 +71,7 @@ export function useAuthFlow() {
 
       return { success: true, sessionToken: token, cashWallet: cashAddr };
     } catch (err: any) {
-      console.error('Passkey creation failed:', err);
+      if (__DEV__) console.error('Passkey creation failed:', err);
       const errorMsg = err?.message || 'Failed to create passkey';
       setError(errorMsg);
       setScreenState('error');
@@ -144,7 +144,7 @@ export function useAuthFlow() {
       return { success: true, user: data.data.user };
 
     } catch (err: any) {
-      console.error('Wallet setup failed:', err);
+      if (__DEV__) console.error('Wallet setup failed:', err);
       const errorMsg = err?.message || 'Failed to set up wallet';
       setError(errorMsg);
       setScreenState('error');
@@ -199,7 +199,7 @@ export function useAuthFlow() {
 
       return { success: true, message: 'Magic link sent! Check your email.' };
     } catch (error: any) {
-      console.error('Error resending magic link:', error);
+      if (__DEV__) console.error('Error resending magic link:', error);
       return { success: false, message: 'Failed to resend magic link' };
     } finally {
       setLoadingParam(false);
@@ -265,7 +265,7 @@ export function useAuthFlow() {
       };
 
     } catch (error: any) {
-      console.error('Error during email submit:', error);
+      if (__DEV__) console.error('Error during email submit:', error);
       return { success: false, message: error?.message || 'An error occurred' };
     } finally {
       setLoadingParam(false);
