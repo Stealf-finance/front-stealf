@@ -4,6 +4,31 @@ const SECURE_STORE_KEY = 'stealf_private_key';
 const MNEMONIC_STORE_KEY = 'stealf_wallet_mnemonic';
 
 /**
+ * Single set of options used for ALL SecureStore operations (set, get, delete).
+ * This guarantees we always hit the same iOS Keychain namespace/service.
+ */
+const KEYCHAIN_OPTIONS: SecureStore.SecureStoreOptions = {
+  keychainService: 'com.stealf.wallet',
+  keychainAccessible: SecureStore.AFTER_FIRST_UNLOCK,
+};
+
+/**
+ * Consistent SecureStore wrappers — same options on every call.
+ */
+async function secureSet(key: string, value: string): Promise<void> {
+  try { await SecureStore.deleteItemAsync(key, KEYCHAIN_OPTIONS); } catch (_) {}
+  await SecureStore.setItemAsync(key, value, KEYCHAIN_OPTIONS);
+}
+
+async function secureGet(key: string): Promise<string | null> {
+  return SecureStore.getItemAsync(key, KEYCHAIN_OPTIONS);
+}
+
+async function secureDel(key: string): Promise<void> {
+  await SecureStore.deleteItemAsync(key, KEYCHAIN_OPTIONS);
+}
+
+/**
  * In-memory cache for wallet keys.
  *
  * iOS Keychain becomes inaccessible after certain app state transitions
@@ -25,16 +50,9 @@ export const walletKeyCache = {
     cachedPrivateKey = privateKey;
     if (mnemonic) cachedMnemonic = mnemonic;
 
-    try { await SecureStore.deleteItemAsync(SECURE_STORE_KEY); } catch (_) {}
-    await SecureStore.setItemAsync(SECURE_STORE_KEY, privateKey, {
-      keychainAccessible: SecureStore.AFTER_FIRST_UNLOCK,
-    });
-
+    await secureSet(SECURE_STORE_KEY, privateKey);
     if (mnemonic) {
-      try { await SecureStore.deleteItemAsync(MNEMONIC_STORE_KEY); } catch (_) {}
-      await SecureStore.setItemAsync(MNEMONIC_STORE_KEY, mnemonic, {
-        keychainAccessible: SecureStore.AFTER_FIRST_UNLOCK,
-      });
+      await secureSet(MNEMONIC_STORE_KEY, mnemonic);
     }
   },
 
@@ -45,7 +63,7 @@ export const walletKeyCache = {
     if (cachedPrivateKey) return cachedPrivateKey;
 
     try {
-      const val = await SecureStore.getItemAsync(SECURE_STORE_KEY);
+      const val = await secureGet(SECURE_STORE_KEY);
       if (val) {
         cachedPrivateKey = val;
         return val;
@@ -62,7 +80,7 @@ export const walletKeyCache = {
     if (cachedMnemonic) return cachedMnemonic;
 
     try {
-      const val = await SecureStore.getItemAsync(MNEMONIC_STORE_KEY);
+      const val = await secureGet(MNEMONIC_STORE_KEY);
       if (val) {
         cachedMnemonic = val;
         return val;
@@ -79,20 +97,30 @@ export const walletKeyCache = {
   async warmup(): Promise<void> {
     if (!cachedPrivateKey) {
       try {
-        const key = await SecureStore.getItemAsync(SECURE_STORE_KEY);
+        const key = await secureGet(SECURE_STORE_KEY);
         if (key) cachedPrivateKey = key;
       } catch (_) {}
     }
     if (!cachedMnemonic) {
       try {
-        const mnemonic = await SecureStore.getItemAsync(MNEMONIC_STORE_KEY);
+        const mnemonic = await secureGet(MNEMONIC_STORE_KEY);
         if (mnemonic) cachedMnemonic = mnemonic;
       } catch (_) {}
     }
   },
 
   /**
-   * Clear in-memory cache (call on logout)
+   * Clear in-memory cache + SecureStore (call on logout)
+   */
+  async clearAll(): Promise<void> {
+    cachedPrivateKey = null;
+    cachedMnemonic = null;
+    try { await secureDel(SECURE_STORE_KEY); } catch (_) {}
+    try { await secureDel(MNEMONIC_STORE_KEY); } catch (_) {}
+  },
+
+  /**
+   * Clear in-memory cache only (without touching SecureStore)
    */
   clear(): void {
     cachedPrivateKey = null;
@@ -100,7 +128,7 @@ export const walletKeyCache = {
   },
 
   /**
-   * Check if keys are available (in memory or SecureStore)
+   * Check if keys are available (in memory)
    */
   hasKeys(): boolean {
     return !!(cachedPrivateKey || cachedMnemonic);
