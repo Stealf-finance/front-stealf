@@ -66,7 +66,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       await turnkeyLogout();
       await authStorage.clearUserData();
-      walletKeyCache.clear();
+      await walletKeyCache.clearAll();
       setUserDataState(null);
       socketService.disconnect();
     } catch (error) {
