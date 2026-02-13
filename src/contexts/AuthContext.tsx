@@ -2,6 +2,7 @@ import React, { createContext, useContext, useState, useEffect, ReactNode } from
 import { useTurnkey } from '@turnkey/react-native-wallet-kit';
 import { authStorage } from '../services/authStorage';
 import { socketService } from '../services/socketService';
+import { walletKeyCache } from '../services/walletKeyCache';
 
 interface UserData {
   email?: string;
@@ -65,6 +66,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       await turnkeyLogout();
       await authStorage.clearUserData();
+      walletKeyCache.clear();
       setUserDataState(null);
       socketService.disconnect();
     } catch (error) {

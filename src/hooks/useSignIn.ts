@@ -2,11 +2,9 @@ import { useState } from 'react';
 import { useTurnkey } from "@turnkey/react-native-wallet-kit";
 import { useAuth as useAuthContext } from '../contexts/AuthContext';
 import { useSetupWallet } from './useInitPrivateWallet';
-import * as SecureStore from 'expo-secure-store';
+import { walletKeyCache } from '../services/walletKeyCache';
 
 const API_URL = process.env.EXPO_PUBLIC_API_URL;
-const SECURE_STORE_KEY = "stealf_private_key";
-const MNEMONIC_STORE_KEY = "stealf_wallet_mnemonic";
 
 interface UserData {
   email: string;
@@ -73,18 +71,17 @@ export function useSignIn() {
         subOrgId: data.data.user.subOrgId,
       };
 
-      // Check if private key or mnemonic is already in SecureStore
-      const storedKey = await SecureStore.getItemAsync(SECURE_STORE_KEY);
-      const storedMnemonic = await SecureStore.getItemAsync(MNEMONIC_STORE_KEY);
+      // Load wallet keys from SecureStore into memory cache
+      await walletKeyCache.warmup();
+      const hasKey = await walletKeyCache.getPrivateKey();
+      const hasMnemonic = await walletKeyCache.getMnemonic();
 
       console.log('[SignIn] SecureStore check:', {
-        hasPrivateKey: !!storedKey,
-        hasMnemonic: !!storedMnemonic,
-        privateKeyLength: storedKey?.length || 0,
-        mnemonicLength: storedMnemonic?.length || 0,
+        hasPrivateKey: !!hasKey,
+        hasMnemonic: !!hasMnemonic,
       });
 
-      if (storedKey || storedMnemonic) {
+      if (hasKey || hasMnemonic) {
         // Private key available locally - complete sign in
         console.log('[SignIn] Local key found, completing sign-in');
         setUserData(userData);

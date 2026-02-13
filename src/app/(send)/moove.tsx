@@ -15,17 +15,15 @@ import { usePrivacyBalance } from '../../hooks/usePrivacyBalance';
 import { useWalletInfos } from '../../hooks/useWalletInfos';
 import { useSwapApi } from '../../services/swapService';
 import { Keypair, VersionedTransaction } from '@solana/web3.js';
-import * as SecureStore from 'expo-secure-store';
 import bs58 from 'bs58';
 import * as bip39 from 'bip39';
 import { hmac } from '@noble/hashes/hmac';
 import { sha512 } from '@noble/hashes/sha512';
+import { walletKeyCache } from '../../services/walletKeyCache';
 
 import ArrowIcon from '../../assets/buttons/arrow.svg';
 import ComebackIcon from '../../assets/buttons/comeback.svg';
 
-const SECURE_STORE_KEY = 'stealf_private_key';
-const MNEMONIC_STORE_KEY = 'stealf_wallet_mnemonic';
 const HARDENED_OFFSET = 0x80000000;
 
 function derivePath(path: string, seed: Uint8Array): { key: Uint8Array } {
@@ -48,32 +46,18 @@ function derivePath(path: string, seed: Uint8Array): { key: Uint8Array } {
   return { key };
 }
 
-/**
- * Read a SecureStore key with retry (iOS Keychain can briefly return null during state transitions).
- */
-async function secureGet(key: string, retries = 3, delayMs = 300): Promise<string | null> {
-  for (let i = 0; i < retries; i++) {
-    const val = await SecureStore.getItemAsync(key);
-    if (val) return val;
-    if (i < retries - 1) {
-      console.log(`[SecureGet] ${key} null, retry ${i + 1}/${retries - 1} in ${delayMs}ms`);
-      await new Promise(r => setTimeout(r, delayMs));
-    }
-  }
-  return null;
-}
-
 async function getPrivacyKeypair(): Promise<Keypair> {
-  console.log('[Moove] getPrivacyKeypair: reading SecureStore...');
-  const storedKey = await secureGet(SECURE_STORE_KEY);
-  console.log('[Moove] stealf_private_key:', storedKey ? `found (${storedKey.length} chars)` : 'NOT FOUND');
+  console.log('[Moove] getPrivacyKeypair: reading from cache...');
+
+  const storedKey = await walletKeyCache.getPrivateKey();
+  console.log('[Moove] privateKey:', storedKey ? `found (${storedKey.length} chars)` : 'NOT FOUND');
   if (storedKey) {
     const secretKey = bs58.decode(storedKey);
     return Keypair.fromSecretKey(secretKey);
   }
 
-  const storedMnemonic = await secureGet(MNEMONIC_STORE_KEY);
-  console.log('[Moove] stealf_wallet_mnemonic:', storedMnemonic ? `found (${storedMnemonic.length} chars)` : 'NOT FOUND');
+  const storedMnemonic = await walletKeyCache.getMnemonic();
+  console.log('[Moove] mnemonic:', storedMnemonic ? 'found' : 'NOT FOUND');
   if (storedMnemonic) {
     const seed = await bip39.mnemonicToSeed(storedMnemonic);
     const { key } = derivePath("m/44'/501'/0'/0'", new Uint8Array(seed));
