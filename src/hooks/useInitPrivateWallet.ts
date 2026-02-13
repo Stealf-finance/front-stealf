@@ -101,6 +101,7 @@ export function useSetupWallet() {
 
       console.log('[ImportWallet] Storing private key for address:', walletAddress);
       console.log('[ImportWallet] Key length:', privateKey.length);
+      console.log('[ImportWallet] keychainAccessible: AFTER_FIRST_UNLOCK_THIS_DEVICE_ONLY =', SecureStore.AFTER_FIRST_UNLOCK_THIS_DEVICE_ONLY);
       await SecureStore.setItemAsync(SECURE_STORE_KEY, privateKey, {
         keychainAccessible: SecureStore.AFTER_FIRST_UNLOCK_THIS_DEVICE_ONLY,
       });
