@@ -70,7 +70,7 @@ export function useSetupWallet() {
       const walletAddress = keypair.publicKey.toBase58();
 
       await SecureStore.setItemAsync(MNEMONIC_STORE_KEY, mnemonic, {
-        keychainAccessible: SecureStore.AFTER_FIRST_UNLOCK_THIS_DEVICE_ONLY,
+        keychainAccessible: SecureStore.AFTER_FIRST_UNLOCK,
       });
 
       return { success: true, walletAddress, mnemonic };
@@ -101,9 +101,8 @@ export function useSetupWallet() {
 
       console.log('[ImportWallet] Storing private key for address:', walletAddress);
       console.log('[ImportWallet] Key length:', privateKey.length);
-      console.log('[ImportWallet] keychainAccessible: AFTER_FIRST_UNLOCK_THIS_DEVICE_ONLY =', SecureStore.AFTER_FIRST_UNLOCK_THIS_DEVICE_ONLY);
       await SecureStore.setItemAsync(SECURE_STORE_KEY, privateKey, {
-        keychainAccessible: SecureStore.AFTER_FIRST_UNLOCK_THIS_DEVICE_ONLY,
+        keychainAccessible: SecureStore.AFTER_FIRST_UNLOCK,
       });
 
       // Verify the key was stored correctly
