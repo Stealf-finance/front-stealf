@@ -1,25 +1,6 @@
 import { useState } from "react";
 import { useTurnkey } from "@turnkey/react-native-wallet-kit";
-import * as SecureStore from "expo-secure-store";
-
-const SECURE_STORE_KEY = "stealf_private_key";
-const MNEMONIC_STORE_KEY = "stealf_wallet_mnemonic";
-
-/**
- * Read a SecureStore key with retry.
- * iOS Keychain can briefly return null during inactive→active transitions.
- */
-async function secureGet(key: string, retries = 3, delayMs = 300): Promise<string | null> {
-  for (let i = 0; i < retries; i++) {
-    const val = await SecureStore.getItemAsync(key);
-    if (val) return val;
-    if (i < retries - 1) {
-      console.log(`[SecureGet] ${key} returned null, retry ${i + 1}/${retries - 1} in ${delayMs}ms`);
-      await new Promise(r => setTimeout(r, delayMs));
-    }
-  }
-  return null;
-}
+import { walletKeyCache } from "../services/walletKeyCache";
 
 interface ExportWalletResult {
   success: boolean;
@@ -127,46 +108,35 @@ export function useExportWallet() {
   };
 
   /**
-   * Export cold wallet private key from SecureStore
-   * Used when the stealf_wallet is stored locally (not in Turnkey)
+   * Export cold wallet private key — uses in-memory cache with SecureStore fallback
    */
   const exportColdWallet = async (): Promise<ExportWalletResult> => {
     setLoading(true);
     try {
-      console.log('[ExportWallet] Reading SecureStore keys...');
+      console.log('[ExportWallet] Reading wallet keys (cache → SecureStore)...');
 
-      let mnemonic: string | null = null;
-      try {
-        mnemonic = await secureGet(MNEMONIC_STORE_KEY);
-        console.log('[ExportWallet] stealf_wallet_mnemonic:', mnemonic ? `found (${mnemonic.length} chars)` : 'null');
-      } catch (e: any) {
-        console.error('[ExportWallet] ERROR reading mnemonic:', e?.message);
-      }
+      const mnemonic = await walletKeyCache.getMnemonic();
+      console.log('[ExportWallet] mnemonic:', mnemonic ? `found (${mnemonic.split(' ').length} words)` : 'null');
       if (mnemonic) {
         return { success: true, mnemonic };
       }
 
-      let privateKey: string | null = null;
-      try {
-        privateKey = await secureGet(SECURE_STORE_KEY);
-        console.log('[ExportWallet] stealf_private_key:', privateKey ? `found (${privateKey.length} chars)` : 'null');
-      } catch (e: any) {
-        console.error('[ExportWallet] ERROR reading private key:', e?.message);
-      }
+      const privateKey = await walletKeyCache.getPrivateKey();
+      console.log('[ExportWallet] privateKey:', privateKey ? `found (${privateKey.length} chars)` : 'null');
       if (privateKey) {
         return { success: true, mnemonic: privateKey };
       }
 
-      console.log('[ExportWallet] Neither key found in SecureStore');
+      console.log('[ExportWallet] No wallet key found in cache or SecureStore');
       return {
         success: false,
-        error: "No cold wallet found in SecureStore."
+        error: "No cold wallet found."
       };
     } catch (error: any) {
       console.error("[ExportWallet] Unexpected error:", error);
       return {
         success: false,
-        error: error?.message || "Failed to export cold wallet from SecureStore"
+        error: error?.message || "Failed to export cold wallet"
       };
     } finally {
       setLoading(false);

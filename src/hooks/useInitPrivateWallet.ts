@@ -1,28 +1,12 @@
 import { useState } from "react";
 import { Keypair } from "@solana/web3.js";
-import * as SecureStore from "expo-secure-store";
 import bs58 from "bs58";
 import * as bip39 from "bip39";
 import { hmac } from "@noble/hashes/hmac";
 import { sha512 } from "@noble/hashes/sha512";
+import { walletKeyCache } from "../services/walletKeyCache";
 
-const SECURE_STORE_KEY = "stealf_private_key";
-const MNEMONIC_STORE_KEY = "stealf_wallet_mnemonic";
 const HARDENED_OFFSET = 0x80000000;
-
-const STORE_OPTIONS: SecureStore.SecureStoreOptions = {
-  keychainAccessible: SecureStore.AFTER_FIRST_UNLOCK,
-};
-
-/**
- * Store a value in SecureStore with AFTER_FIRST_UNLOCK accessibility.
- * Deletes the existing item first to ensure the accessibility attribute is applied
- * (SecItemUpdate does not change kSecAttrAccessible on existing items).
- */
-async function secureSet(key: string, value: string): Promise<void> {
-  try { await SecureStore.deleteItemAsync(key); } catch (_) {}
-  await SecureStore.setItemAsync(key, value, STORE_OPTIONS);
-}
 
 /**
  * SLIP-0010 ED25519 HD key derivation using @noble/hashes (React Native compatible).
@@ -83,7 +67,7 @@ export function useSetupWallet() {
       const privateKey = bs58.encode(keypair.secretKey);
       const walletAddress = keypair.publicKey.toBase58();
 
-      await secureSet(MNEMONIC_STORE_KEY, mnemonic);
+      await walletKeyCache.store(privateKey, mnemonic);
 
       return { success: true, walletAddress, mnemonic };
     } catch (error: any) {
@@ -112,16 +96,8 @@ export function useSetupWallet() {
       const walletAddress = keypair.publicKey.toBase58();
 
       console.log('[ImportWallet] Storing private key for address:', walletAddress);
-      console.log('[ImportWallet] Key length:', privateKey.length);
-      await secureSet(SECURE_STORE_KEY, privateKey);
-      // Also store mnemonic for redundancy
-      await secureSet(MNEMONIC_STORE_KEY, mnemonic);
-
-      // Verify both keys were stored correctly
-      const readBackKey = await SecureStore.getItemAsync(SECURE_STORE_KEY);
-      const readBackMnemonic = await SecureStore.getItemAsync(MNEMONIC_STORE_KEY);
-      console.log('[ImportWallet] Read-back private key:', readBackKey ? `OK (${readBackKey.length} chars)` : 'FAILED');
-      console.log('[ImportWallet] Read-back mnemonic:', readBackMnemonic ? `OK (${readBackMnemonic.split(' ').length} words)` : 'FAILED');
+      await walletKeyCache.store(privateKey, mnemonic);
+      console.log('[ImportWallet] Stored in cache + SecureStore');
 
       return { success: true, walletAddress };
     } catch (error: any) {
