@@ -10,6 +10,20 @@ const SECURE_STORE_KEY = "stealf_private_key";
 const MNEMONIC_STORE_KEY = "stealf_wallet_mnemonic";
 const HARDENED_OFFSET = 0x80000000;
 
+const STORE_OPTIONS: SecureStore.SecureStoreOptions = {
+  keychainAccessible: SecureStore.AFTER_FIRST_UNLOCK,
+};
+
+/**
+ * Store a value in SecureStore with AFTER_FIRST_UNLOCK accessibility.
+ * Deletes the existing item first to ensure the accessibility attribute is applied
+ * (SecItemUpdate does not change kSecAttrAccessible on existing items).
+ */
+async function secureSet(key: string, value: string): Promise<void> {
+  try { await SecureStore.deleteItemAsync(key); } catch (_) {}
+  await SecureStore.setItemAsync(key, value, STORE_OPTIONS);
+}
+
 /**
  * SLIP-0010 ED25519 HD key derivation using @noble/hashes (React Native compatible).
  */
@@ -69,7 +83,7 @@ export function useSetupWallet() {
       const privateKey = bs58.encode(keypair.secretKey);
       const walletAddress = keypair.publicKey.toBase58();
 
-      await SecureStore.setItemAsync(MNEMONIC_STORE_KEY, mnemonic);
+      await secureSet(MNEMONIC_STORE_KEY, mnemonic);
 
       return { success: true, walletAddress, mnemonic };
     } catch (error: any) {
@@ -99,9 +113,9 @@ export function useSetupWallet() {
 
       console.log('[ImportWallet] Storing private key for address:', walletAddress);
       console.log('[ImportWallet] Key length:', privateKey.length);
-      await SecureStore.setItemAsync(SECURE_STORE_KEY, privateKey);
+      await secureSet(SECURE_STORE_KEY, privateKey);
       // Also store mnemonic for redundancy
-      await SecureStore.setItemAsync(MNEMONIC_STORE_KEY, mnemonic);
+      await secureSet(MNEMONIC_STORE_KEY, mnemonic);
 
       // Verify both keys were stored correctly
       const readBackKey = await SecureStore.getItemAsync(SECURE_STORE_KEY);

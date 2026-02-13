@@ -48,16 +48,31 @@ function derivePath(path: string, seed: Uint8Array): { key: Uint8Array } {
   return { key };
 }
 
+/**
+ * Read a SecureStore key with retry (iOS Keychain can briefly return null during state transitions).
+ */
+async function secureGet(key: string, retries = 3, delayMs = 300): Promise<string | null> {
+  for (let i = 0; i < retries; i++) {
+    const val = await SecureStore.getItemAsync(key);
+    if (val) return val;
+    if (i < retries - 1) {
+      console.log(`[SecureGet] ${key} null, retry ${i + 1}/${retries - 1} in ${delayMs}ms`);
+      await new Promise(r => setTimeout(r, delayMs));
+    }
+  }
+  return null;
+}
+
 async function getPrivacyKeypair(): Promise<Keypair> {
   console.log('[Moove] getPrivacyKeypair: reading SecureStore...');
-  const storedKey = await SecureStore.getItemAsync(SECURE_STORE_KEY);
+  const storedKey = await secureGet(SECURE_STORE_KEY);
   console.log('[Moove] stealf_private_key:', storedKey ? `found (${storedKey.length} chars)` : 'NOT FOUND');
   if (storedKey) {
     const secretKey = bs58.decode(storedKey);
     return Keypair.fromSecretKey(secretKey);
   }
 
-  const storedMnemonic = await SecureStore.getItemAsync(MNEMONIC_STORE_KEY);
+  const storedMnemonic = await secureGet(MNEMONIC_STORE_KEY);
   console.log('[Moove] stealf_wallet_mnemonic:', storedMnemonic ? `found (${storedMnemonic.length} chars)` : 'NOT FOUND');
   if (storedMnemonic) {
     const seed = await bip39.mnemonicToSeed(storedMnemonic);

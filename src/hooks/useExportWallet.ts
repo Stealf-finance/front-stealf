@@ -5,6 +5,22 @@ import * as SecureStore from "expo-secure-store";
 const SECURE_STORE_KEY = "stealf_private_key";
 const MNEMONIC_STORE_KEY = "stealf_wallet_mnemonic";
 
+/**
+ * Read a SecureStore key with retry.
+ * iOS Keychain can briefly return null during inactive→active transitions.
+ */
+async function secureGet(key: string, retries = 3, delayMs = 300): Promise<string | null> {
+  for (let i = 0; i < retries; i++) {
+    const val = await SecureStore.getItemAsync(key);
+    if (val) return val;
+    if (i < retries - 1) {
+      console.log(`[SecureGet] ${key} returned null, retry ${i + 1}/${retries - 1} in ${delayMs}ms`);
+      await new Promise(r => setTimeout(r, delayMs));
+    }
+  }
+  return null;
+}
+
 interface ExportWalletResult {
   success: boolean;
   mnemonic?: string;
@@ -121,7 +137,7 @@ export function useExportWallet() {
 
       let mnemonic: string | null = null;
       try {
-        mnemonic = await SecureStore.getItemAsync(MNEMONIC_STORE_KEY);
+        mnemonic = await secureGet(MNEMONIC_STORE_KEY);
         console.log('[ExportWallet] stealf_wallet_mnemonic:', mnemonic ? `found (${mnemonic.length} chars)` : 'null');
       } catch (e: any) {
         console.error('[ExportWallet] ERROR reading mnemonic:', e?.message);
@@ -132,7 +148,7 @@ export function useExportWallet() {
 
       let privateKey: string | null = null;
       try {
-        privateKey = await SecureStore.getItemAsync(SECURE_STORE_KEY);
+        privateKey = await secureGet(SECURE_STORE_KEY);
         console.log('[ExportWallet] stealf_private_key:', privateKey ? `found (${privateKey.length} chars)` : 'null');
       } catch (e: any) {
         console.error('[ExportWallet] ERROR reading private key:', e?.message);

@@ -50,9 +50,11 @@ export function SessionProvider({ children }: SessionProviderProps) {
         // Diagnostic: check SecureStore on foreground
         const key = await SecureStore.getItemAsync('stealf_private_key');
         const mnemonic = await SecureStore.getItemAsync('stealf_wallet_mnemonic');
+        const userData = await SecureStore.getItemAsync('user_data');
         console.log('[Session] onForeground SecureStore check:', {
           privateKey: key ? `found (${key.length})` : 'NULL',
           mnemonic: mnemonic ? `found` : 'NULL',
+          userData: userData ? `found (${userData.length})` : 'NULL',
         });
         sessionHandler.handleForeground();
         if (sessionHandler.shouldLock()) {
