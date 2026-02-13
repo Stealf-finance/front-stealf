@@ -47,17 +47,13 @@ function derivePath(path: string, seed: Uint8Array): { key: Uint8Array } {
 }
 
 async function getPrivacyKeypair(): Promise<Keypair> {
-  console.log('[Moove] getPrivacyKeypair: reading from cache...');
-
   const storedKey = await walletKeyCache.getPrivateKey();
-  console.log('[Moove] privateKey:', storedKey ? `found (${storedKey.length} chars)` : 'NOT FOUND');
   if (storedKey) {
     const secretKey = bs58.decode(storedKey);
     return Keypair.fromSecretKey(secretKey);
   }
 
-  const storedMnemonic = await walletKeyCache.getMnemonic();
-  console.log('[Moove] mnemonic:', storedMnemonic ? 'found' : 'NOT FOUND');
+  const storedMnemonic = walletKeyCache.getMnemonic();
   if (storedMnemonic) {
     const seed = await bip39.mnemonicToSeed(storedMnemonic);
     const { key } = derivePath("m/44'/501'/0'/0'", new Uint8Array(seed));
@@ -168,6 +164,7 @@ export default function MooveScreen({ onBack }: MooveScreenProps) {
       const signedBytes = transaction.serialize();
       const signedTxBase64 = Buffer.from(signedBytes).toString('base64');
       console.log('[Moove] Transaction signed');
+      walletKeyCache.touch();
 
       // 4. Execute the signed swap
       console.log('[Moove] Executing swap...');

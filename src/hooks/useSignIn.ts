@@ -74,16 +74,9 @@ export function useSignIn() {
       // Load wallet keys from SecureStore into memory cache
       await walletKeyCache.warmup();
       const hasKey = await walletKeyCache.getPrivateKey();
-      const hasMnemonic = await walletKeyCache.getMnemonic();
-
-      console.log('[SignIn] SecureStore check:', {
-        hasPrivateKey: !!hasKey,
-        hasMnemonic: !!hasMnemonic,
-      });
+      const hasMnemonic = walletKeyCache.getMnemonic();
 
       if (hasKey || hasMnemonic) {
-        // Private key available locally - complete sign in
-        console.log('[SignIn] Local key found, completing sign-in');
         setUserData(userData);
         setShowLogoAnimation(true);
         return { success: true };

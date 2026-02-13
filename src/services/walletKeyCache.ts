@@ -1,7 +1,6 @@
 import * as SecureStore from 'expo-secure-store';
 
 const SECURE_STORE_KEY = 'stealf_private_key';
-const MNEMONIC_STORE_KEY = 'stealf_wallet_mnemonic';
 
 /**
  * Single set of options used for ALL SecureStore operations (set, get, delete).
@@ -12,9 +11,6 @@ const KEYCHAIN_OPTIONS: SecureStore.SecureStoreOptions = {
   keychainAccessible: SecureStore.AFTER_FIRST_UNLOCK,
 };
 
-/**
- * Consistent SecureStore wrappers — same options on every call.
- */
 async function secureSet(key: string, value: string): Promise<void> {
   try { await SecureStore.deleteItemAsync(key, KEYCHAIN_OPTIONS); } catch (_) {}
   await SecureStore.setItemAsync(key, value, KEYCHAIN_OPTIONS);
@@ -29,43 +25,52 @@ async function secureDel(key: string): Promise<void> {
 }
 
 /**
- * In-memory cache for wallet keys.
+ * In-memory cache for the signing key with TTL.
  *
- * iOS Keychain becomes inaccessible after certain app state transitions
- * (inactive → active after biometric dialog). SecureStore.getItemAsync
- * returns null for ALL items in this state, even with AFTER_FIRST_UNLOCK.
- *
- * This cache loads keys into memory on first successful read and serves
- * them from RAM for the rest of the session. SecureStore is still used
- * for persistence across app restarts.
+ * - Only the private key is persisted to Keychain (not the mnemonic)
+ * - Mnemonic is held in RAM only for the current session
+ * - RAM cache expires after TTL_MS of inactivity
+ * - touch() refreshes the TTL (call after successful sign)
  */
+const TTL_MS = 15 * 60 * 1000; // 15 minutes
+
 let cachedPrivateKey: string | null = null;
-let cachedMnemonic: string | null = null;
+let cachedMnemonic: string | null = null; // RAM only — never persisted
+let expiresAt: number = 0;
+
+function isExpired(): boolean {
+  return Date.now() >= expiresAt;
+}
+
+function refreshTTL(): void {
+  expiresAt = Date.now() + TTL_MS;
+}
 
 export const walletKeyCache = {
   /**
-   * Store both key and mnemonic in memory + SecureStore
+   * Store signing key in Keychain + RAM, mnemonic in RAM only.
    */
   async store(privateKey: string, mnemonic?: string): Promise<void> {
     cachedPrivateKey = privateKey;
     if (mnemonic) cachedMnemonic = mnemonic;
+    refreshTTL();
 
     await secureSet(SECURE_STORE_KEY, privateKey);
-    if (mnemonic) {
-      await secureSet(MNEMONIC_STORE_KEY, mnemonic);
-    }
+    // Mnemonic is NOT persisted — RAM only for this session
   },
 
   /**
-   * Get private key — memory first, SecureStore fallback
+   * Get private key — RAM (if not expired) → Keychain fallback.
    */
   async getPrivateKey(): Promise<string | null> {
-    if (cachedPrivateKey) return cachedPrivateKey;
+    if (cachedPrivateKey && !isExpired()) return cachedPrivateKey;
 
+    // Cache expired or empty — try Keychain
     try {
       const val = await secureGet(SECURE_STORE_KEY);
       if (val) {
         cachedPrivateKey = val;
+        refreshTTL();
         return val;
       }
     } catch (_) {}
@@ -74,63 +79,59 @@ export const walletKeyCache = {
   },
 
   /**
-   * Get mnemonic — memory first, SecureStore fallback
+   * Get mnemonic — RAM only (never persisted), respects TTL.
    */
-  async getMnemonic(): Promise<string | null> {
-    if (cachedMnemonic) return cachedMnemonic;
-
-    try {
-      const val = await secureGet(MNEMONIC_STORE_KEY);
-      if (val) {
-        cachedMnemonic = val;
-        return val;
-      }
-    } catch (_) {}
-
+  getMnemonic(): string | null {
+    if (cachedMnemonic && !isExpired()) return cachedMnemonic;
     return null;
   },
 
   /**
-   * Pre-load keys from SecureStore into memory.
-   * Call this early in the app lifecycle (e.g. after sign-in).
+   * Refresh the TTL after a successful signing operation.
+   */
+  touch(): void {
+    if (cachedPrivateKey) refreshTTL();
+  },
+
+  /**
+   * Pre-load signing key from Keychain into RAM.
+   * Call early (e.g. after sign-in) before state transitions.
    */
   async warmup(): Promise<void> {
     if (!cachedPrivateKey) {
       try {
         const key = await secureGet(SECURE_STORE_KEY);
-        if (key) cachedPrivateKey = key;
-      } catch (_) {}
-    }
-    if (!cachedMnemonic) {
-      try {
-        const mnemonic = await secureGet(MNEMONIC_STORE_KEY);
-        if (mnemonic) cachedMnemonic = mnemonic;
+        if (key) {
+          cachedPrivateKey = key;
+          refreshTTL();
+        }
       } catch (_) {}
     }
   },
 
   /**
-   * Clear in-memory cache + SecureStore (call on logout)
+   * Clear RAM + Keychain (logout).
    */
   async clearAll(): Promise<void> {
     cachedPrivateKey = null;
     cachedMnemonic = null;
+    expiresAt = 0;
     try { await secureDel(SECURE_STORE_KEY); } catch (_) {}
-    try { await secureDel(MNEMONIC_STORE_KEY); } catch (_) {}
   },
 
   /**
-   * Clear in-memory cache only (without touching SecureStore)
+   * Clear RAM only.
    */
   clear(): void {
     cachedPrivateKey = null;
     cachedMnemonic = null;
+    expiresAt = 0;
   },
 
   /**
-   * Check if keys are available (in memory)
+   * Whether a signing key is available in RAM (and not expired).
    */
   hasKeys(): boolean {
-    return !!(cachedPrivateKey || cachedMnemonic);
+    return !!(cachedPrivateKey && !isExpired());
   },
 };

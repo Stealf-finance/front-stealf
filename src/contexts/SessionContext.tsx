@@ -1,6 +1,5 @@
 import React, { createContext, useContext, useState, useCallback, useEffect, ReactNode } from 'react';
 import * as LocalAuthentication from 'expo-local-authentication';
-import * as SecureStore from 'expo-secure-store';
 import { useTurnkey } from '@turnkey/react-native-wallet-kit';
 import { sessionHandler } from '../services/sessionHandler';
 import { useAppState } from '../hooks/useAppState';
@@ -45,32 +44,16 @@ export function SessionProvider({ children }: SessionProviderProps) {
 
   // Handle app state changes
   useAppState({
-    onForeground: useCallback(async () => {
+    onForeground: useCallback(() => {
       if (isAuthenticated) {
-        // Diagnostic: check SecureStore on foreground
-        const key = await SecureStore.getItemAsync('stealf_private_key');
-        const mnemonic = await SecureStore.getItemAsync('stealf_wallet_mnemonic');
-        const userData = await SecureStore.getItemAsync('user_data');
-        console.log('[Session] onForeground SecureStore check:', {
-          privateKey: key ? `found (${key.length})` : 'NULL',
-          mnemonic: mnemonic ? `found` : 'NULL',
-          userData: userData ? `found (${userData.length})` : 'NULL',
-        });
         sessionHandler.handleForeground();
         if (sessionHandler.shouldLock()) {
           setIsLocked(true);
         }
       }
     }, [isAuthenticated]),
-    onBackground: useCallback(async () => {
+    onBackground: useCallback(() => {
       if (isAuthenticated) {
-        // Diagnostic: check SecureStore on background
-        const key = await SecureStore.getItemAsync('stealf_private_key');
-        const mnemonic = await SecureStore.getItemAsync('stealf_wallet_mnemonic');
-        console.log('[Session] onBackground SecureStore check:', {
-          privateKey: key ? `found (${key.length})` : 'NULL',
-          mnemonic: mnemonic ? `found` : 'NULL',
-        });
         sessionHandler.handleBackground();
         setIsLocked(true);
       }
@@ -115,28 +98,7 @@ export function SessionProvider({ children }: SessionProviderProps) {
       });
 
       if (biometricResult.success) {
-        // Diagnostic: check SecureStore BEFORE session refresh
-        const keyBefore = await SecureStore.getItemAsync('stealf_private_key');
-        const mnemonicBefore = await SecureStore.getItemAsync('stealf_wallet_mnemonic');
-        const userDataBefore = await SecureStore.getItemAsync('user_data');
-        console.log('[Session] SecureStore BEFORE refresh:', {
-          privateKey: keyBefore ? `found (${keyBefore.length})` : 'NULL',
-          mnemonic: mnemonicBefore ? `found (${mnemonicBefore.split(' ').length} words)` : 'NULL',
-          userData: userDataBefore ? `found (${userDataBefore.length})` : 'NULL',
-        });
-
         await refreshTurnkeySession();
-
-        // Diagnostic: check SecureStore AFTER session refresh
-        const keyAfter = await SecureStore.getItemAsync('stealf_private_key');
-        const mnemonicAfter = await SecureStore.getItemAsync('stealf_wallet_mnemonic');
-        const userDataAfter = await SecureStore.getItemAsync('user_data');
-        console.log('[Session] SecureStore AFTER refresh:', {
-          privateKey: keyAfter ? `found (${keyAfter.length})` : 'NULL',
-          mnemonic: mnemonicAfter ? `found (${mnemonicAfter.split(' ').length} words)` : 'NULL',
-          userData: userDataAfter ? `found (${userDataAfter.length})` : 'NULL',
-        });
-
         sessionHandler.unlock();
         setIsLocked(false);
         return { success: true };
