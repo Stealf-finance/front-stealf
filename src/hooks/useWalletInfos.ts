@@ -55,7 +55,8 @@ export function useWalletInfos(address: string) {
       const result = await createGetBalance(api, address)();
       return result;
     },
-    staleTime: Infinity,
+    staleTime: 5000,
+    refetchInterval: 10000,
     enabled: !!address,
   });
 
@@ -66,7 +67,8 @@ export function useWalletInfos(address: string) {
   } = useQuery<HistoryResponse>({
     queryKey: ['wallet-history', address],
     queryFn: createGetTransactionsHistory(api, address),
-    staleTime: Infinity,
+    staleTime: 5000,
+    refetchInterval: 15000,
     enabled: !!address,
   });
 

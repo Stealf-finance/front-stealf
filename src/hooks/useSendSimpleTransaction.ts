@@ -5,6 +5,8 @@ import { getAssociatedTokenAddress, createTransferInstruction, createAssociatedT
 import * as SecureStore from 'expo-secure-store';
 import { guardTransaction } from '../services/transactionsGuard';
 import { useAuth } from '../contexts/AuthContext';
+import { useSession } from '../contexts/SessionContext';
+import { useAuthenticatedApi } from '../services/clientStealf';
 import { createSeedVaultWallet } from '../services/solanaWalletBridge';
 
 const RPC_ENDPOINT = process.env.EXPO_PUBLIC_SOLANA_RPC_URL || "";
@@ -14,7 +16,9 @@ export function useSendTransaction() {
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const { signAndSendTransaction, wallets } = useTurnkey();
-    const { isWalletAuth } = useAuth();
+    const { isWalletAuth, userData } = useAuth();
+    const { setMWAInProgress } = useSession();
+    const api = useAuthenticatedApi();
 
     const sendTransaction = async (
         fromAddress: string,
@@ -104,24 +108,50 @@ export function useSendTransaction() {
                 );
             }
 
+            console.log('[useSendTransaction] Transaction built, serializing...');
             const serializedTx = transaction.serialize({
                 requireAllSignatures: false,
                 verifySignatures: false,
             });
+            console.log('[useSendTransaction] Serialized, length:', serializedTx.length);
 
             let txId: string;
 
             if (isWalletAuth) {
-                // Wallet auth: sign and send via MWA Seed Vault
-                const authToken = await SecureStore.getItemAsync('mwa_auth_token');
-                if (!authToken) {
-                    throw new Error('MWA auth token not found. Please reconnect your wallet.');
+                const isSeekerWallet = fromAddress === userData?.stealf_wallet;
+
+                if (isSeekerWallet) {
+                    // Wealth wallet (Seeker): sign via MWA Seed Vault, send manually
+                    console.log('[useSendTransaction] MWA Seed Vault path...');
+                    const authToken = await SecureStore.getItemAsync('mwa_auth_token');
+                    if (!authToken) {
+                        throw new Error('MWA auth token not found. Please reconnect your wallet.');
+                    }
+                    const bridge = createSeedVaultWallet(fromAddress, authToken);
+                    setMWAInProgress(true);
+                    try {
+                        const signedBytes = await bridge.signTransaction(
+                            new Uint8Array(serializedTx)
+                        );
+                        setMWAInProgress(false);
+                        txId = await connection.sendRawTransaction(signedBytes, {
+                            skipPreflight: false,
+                            preflightCommitment: 'confirmed',
+                        });
+                    } catch (mwaErr) {
+                        setMWAInProgress(false);
+                        throw mwaErr;
+                    }
+                } else {
+                    // Cash wallet (Turnkey): sign via backend
+                    console.log('[useSendTransaction] Turnkey backend path...');
+                    const hexTx = Buffer.from(serializedTx).toString('hex');
+                    const result = await api.post('/api/wallet/sign-and-send', {
+                        unsignedTransaction: hexTx,
+                    });
+                    txId = result.txSignature;
                 }
-                const bridge = createSeedVaultWallet(fromAddress, authToken);
-                txId = await bridge.signAndSendTransaction(
-                    new Uint8Array(serializedTx),
-                    RPC_ENDPOINT
-                );
+                console.log('[useSendTransaction] Transaction sent:', txId);
             } else {
                 // Passkey auth: sign via Turnkey
                 const hexTx = serializedTx.toString('hex');

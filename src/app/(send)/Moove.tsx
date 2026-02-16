@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -6,14 +6,18 @@ import {
   TouchableOpacity,
   Alert,
   ScrollView,
+  Modal,
+  Animated,
 } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useFonts } from 'expo-font';
+import { useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '../../contexts/AuthContext';
 import { usePrivacyBalance } from '../../hooks/usePrivacyBalance';
 import { useWalletInfos } from '../../hooks/useWalletInfos';
 import { useSwapApi } from '../../services/swapService';
+import { useSendTransaction } from '../../hooks/useSendSimpleTransaction';
 import { Keypair, VersionedTransaction } from '@solana/web3.js';
 import * as SecureStore from 'expo-secure-store';
 import bs58 from 'bs58';
@@ -67,19 +71,36 @@ async function getPrivacyKeypair(): Promise<Keypair> {
 
 interface MooveScreenProps {
   onBack: () => void;
+  direction?: 'toCash' | 'toPrivacy';
 }
 
-export default function MooveScreen({ onBack }: MooveScreenProps) {
+export default function MooveScreen({ onBack, direction = 'toCash' }: MooveScreenProps) {
   const [amount, setAmount] = useState('');
   const [selectedTokenIndex, setSelectedTokenIndex] = useState(0);
   const [tokenMenuOpen, setTokenMenuOpen] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [showSuccess, setShowSuccess] = useState(false);
+  const [successAmount, setSuccessAmount] = useState('');
+  const [successSymbol, setSuccessSymbol] = useState('');
+  const successScale = useRef(new Animated.Value(0)).current;
+  const successOpacity = useRef(new Animated.Value(0)).current;
+  const checkScale = useRef(new Animated.Value(0)).current;
 
-  const { userData } = useAuth();
+  const { userData, isWalletAuth } = useAuth();
+  const queryClient = useQueryClient();
   const { usdcBalance: cashUsdcBalance } = usePrivacyBalance();
   const { tokens: privacyTokens } = useWalletInfos(userData?.stealf_wallet || '');
+  const { tokens: cashTokens } = useWalletInfos(userData?.cash_wallet || '');
   const { order, execute } = useSwapApi();
-  const selectedToken = privacyTokens[selectedTokenIndex] || null;
+  const { sendTransaction: sendDirectTransfer } = useSendTransaction();
+
+  const isToCash = direction === 'toCash';
+  const sourceTokens = isToCash ? privacyTokens : cashTokens;
+  const sourceLabel = isToCash ? 'Wealth' : 'Cash';
+  const destLabel = isToCash ? 'Cash' : 'Wealth';
+  const fromWallet = isToCash ? userData?.stealf_wallet : userData?.cash_wallet;
+  const toWallet = isToCash ? userData?.cash_wallet : userData?.stealf_wallet;
+  const selectedToken = sourceTokens[selectedTokenIndex] || null;
 
   useEffect(() => {
     if (selectedTokenIndex >= privacyTokens.length && privacyTokens.length > 0) {
@@ -126,45 +147,86 @@ export default function MooveScreen({ onBack }: MooveScreenProps) {
       return;
     }
 
-    if (!userData?.stealf_wallet || !userData?.cash_wallet) {
+    if (!fromWallet || !toWallet) {
       Alert.alert('Error', 'Wallets not found');
       return;
     }
 
-    const inputMint = selectedToken.tokenMint || 'So11111111111111111111111111111111';
-    const amountInSmallestUnit = Math.floor(amountNum * Math.pow(10, selectedToken.tokenDecimals)).toString();
+    const isNativeSOL = !selectedToken.tokenMint || selectedToken.tokenMint === 'So11111111111111111111111111111111';
 
     setLoading(true);
     try {
-      // 1. Create order via backend (Jupiter)
-      const orderResponse = await order({
-        inputMint,
-        amount: amountInSmallestUnit,
-        taker: userData.stealf_wallet,
-        receiver: userData.cash_wallet,
-      });
+      if (isWalletAuth) {
+        // MWA users: direct transfer via useSendTransaction (signs via Seed Vault)
+        const tokenMint = isNativeSOL ? undefined : selectedToken.tokenMint;
+        await sendDirectTransfer(
+          fromWallet,
+          toWallet,
+          amountNum,
+          tokenMint,
+          selectedToken.tokenDecimals,
+        );
+      } else {
+        // Passkey users: use Jupiter swap via backend
+        const inputMint = selectedToken.tokenMint || 'So11111111111111111111111111111111';
+        const amountInSmallestUnit = Math.floor(amountNum * Math.pow(10, selectedToken.tokenDecimals)).toString();
 
-      // 2. Get privacy wallet keypair from SecureStore
-      const keypair = await getPrivacyKeypair();
+        const orderResponse = await order({
+          inputMint,
+          amount: amountInSmallestUnit,
+          taker: fromWallet,
+          receiver: toWallet,
+        });
 
-      // 3. Deserialize, sign, and re-serialize the transaction
-      const txBuffer = Buffer.from(orderResponse.transaction, 'base64');
-      const transaction = VersionedTransaction.deserialize(new Uint8Array(txBuffer));
-      transaction.sign([keypair]);
-      const signedBytes = transaction.serialize();
-      const signedTxBase64 = Buffer.from(signedBytes).toString('base64');
+        const keypair = await getPrivacyKeypair();
+        const txBuffer = Buffer.from(orderResponse.transaction, 'base64');
+        const transaction = VersionedTransaction.deserialize(new Uint8Array(txBuffer));
+        transaction.sign([keypair]);
+        const signedBytes = transaction.serialize();
+        const signedTxBase64 = Buffer.from(signedBytes).toString('base64');
 
-      // 4. Execute the signed swap
-      const executeResponse = await execute({
-        requestId: orderResponse.requestId,
-        signedTransaction: signedTxBase64,
-      });
+        await execute({
+          requestId: orderResponse.requestId,
+          signedTransaction: signedTxBase64,
+        });
+      }
 
-      Alert.alert('Success', `Swap complete! ${amount} ${selectedToken.tokenSymbol} moved to Cash`);
-      setAmount('');
+      // Refresh balances for both wallets
+      queryClient.invalidateQueries({ queryKey: ['wallet-balance', userData.stealf_wallet] });
+      queryClient.invalidateQueries({ queryKey: ['wallet-balance', userData.cash_wallet] });
+      queryClient.invalidateQueries({ queryKey: ['wallet-history', userData.stealf_wallet] });
+      queryClient.invalidateQueries({ queryKey: ['wallet-history', userData.cash_wallet] });
+
+      // Show success overlay
+      setSuccessAmount(amount);
+      setSuccessSymbol(selectedToken.tokenSymbol);
+      setShowSuccess(true);
+      successScale.setValue(0);
+      successOpacity.setValue(0);
+      checkScale.setValue(0);
+
+      Animated.sequence([
+        Animated.parallel([
+          Animated.spring(successScale, { toValue: 1, tension: 60, friction: 8, useNativeDriver: true }),
+          Animated.timing(successOpacity, { toValue: 1, duration: 200, useNativeDriver: true }),
+        ]),
+        Animated.spring(checkScale, { toValue: 1, tension: 100, friction: 6, useNativeDriver: true }),
+      ]).start();
+
+      setTimeout(() => {
+        Animated.parallel([
+          Animated.timing(successOpacity, { toValue: 0, duration: 300, useNativeDriver: true }),
+          Animated.timing(successScale, { toValue: 0.8, duration: 300, useNativeDriver: true }),
+        ]).start(() => {
+          setShowSuccess(false);
+          setAmount('');
+          onBack();
+        });
+      }, 2000);
+
     } catch (error: any) {
-      console.error('Swap failed:', error);
-      Alert.alert('Error', error?.message || 'Failed to execute swap');
+      console.error('Move failed:', error);
+      Alert.alert('Error', error?.message || 'Failed to move funds');
     } finally {
       setLoading(false);
     }
@@ -192,11 +254,11 @@ export default function MooveScreen({ onBack }: MooveScreenProps) {
 
         {/* Balance Cards */}
         <View style={styles.balancesContainer}>
-          {/* Privacy Card (source) */}
+          {/* Source Card */}
           <View style={styles.balanceCard}>
             <View style={styles.cardRow}>
               <View style={styles.cardLeft}>
-                <Text style={styles.cardLabel}>Privacy</Text>
+                <Text style={styles.cardLabel}>{sourceLabel}</Text>
                 <TouchableOpacity
                   style={styles.tokenDropdown}
                   onPress={() => setTokenMenuOpen(prev => !prev)}
@@ -223,7 +285,7 @@ export default function MooveScreen({ onBack }: MooveScreenProps) {
                 contentContainerStyle={styles.tokenSelectorContainer}
                 style={styles.tokenSelector}
               >
-                {privacyTokens.map((token, index) => (
+                {sourceTokens.map((token, index) => (
                   <TouchableOpacity
                     key={token.tokenMint || token.tokenSymbol}
                     style={[
@@ -261,13 +323,13 @@ export default function MooveScreen({ onBack }: MooveScreenProps) {
             </View>
           </View>
 
-          {/* Cash Card (destination) */}
+          {/* Destination Card */}
           <View style={styles.balanceCard}>
             <View style={styles.cardRow}>
               <View style={styles.cardLeft}>
-                <Text style={styles.cardLabel}>Cash</Text>
+                <Text style={styles.cardLabel}>{destLabel}</Text>
                 <Text style={styles.balanceSubtext}>
-                  {cashUsdcBalance.toFixed(3)} usdc
+                  destination
                 </Text>
               </View>
               <Text style={[styles.cardAmountRight, amount ? styles.cardAmountActive : null]}>
@@ -341,6 +403,28 @@ export default function MooveScreen({ onBack }: MooveScreenProps) {
           </View>
         </View>
       </LinearGradient>
+
+      {/* Success Overlay */}
+      <Modal visible={showSuccess} transparent animationType="none">
+        <View style={styles.successOverlay}>
+          <Animated.View style={[
+            styles.successCard,
+            { transform: [{ scale: successScale }], opacity: successOpacity },
+          ]}>
+            <Animated.View style={[
+              styles.successCheckCircle,
+              { transform: [{ scale: checkScale }] },
+            ]}>
+              <Text style={styles.successCheckMark}>✓</Text>
+            </Animated.View>
+            <Text style={styles.successTitle}>Sent</Text>
+            <Text style={styles.successAmountText}>
+              {successAmount} {successSymbol}
+            </Text>
+            <Text style={styles.successSubtext}>moved to {destLabel}</Text>
+          </Animated.View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -581,5 +665,49 @@ const styles = StyleSheet.create({
     color: 'white',
     fontWeight: '300',
     fontFamily: 'Sansation-Light',
+  },
+  successOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.85)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  successCard: {
+    alignItems: 'center',
+    paddingHorizontal: 50,
+    paddingVertical: 40,
+  },
+  successCheckCircle: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    backgroundColor: '#ffffff',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 24,
+  },
+  successCheckMark: {
+    fontSize: 40,
+    color: '#000000',
+    fontWeight: '700',
+  },
+  successTitle: {
+    fontSize: 28,
+    color: '#ffffff',
+    fontFamily: 'Sansation-Bold',
+    fontWeight: '700',
+    marginBottom: 8,
+  },
+  successAmountText: {
+    fontSize: 22,
+    color: '#ffffff',
+    fontFamily: 'Sansation-Bold',
+    fontWeight: '600',
+    marginBottom: 4,
+  },
+  successSubtext: {
+    fontSize: 16,
+    color: 'rgba(255, 255, 255, 0.5)',
+    fontFamily: 'Sansation-Regular',
   },
 });

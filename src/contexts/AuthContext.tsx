@@ -102,6 +102,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (isWallet) {
         await SecureStore.deleteItemAsync(MWA_AUTH_TOKEN_KEY);
         await SecureStore.deleteItemAsync(MWA_WALLET_ADDRESS_KEY);
+        await SecureStore.deleteItemAsync('wallet_session_token');
       }
 
       setUserDataState(null);

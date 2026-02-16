@@ -1,7 +1,8 @@
 import { transact, Web3MobileWallet } from "@solana-mobile/mobile-wallet-adapter-protocol-web3js";
 import { WalletType, SolanaWalletInterface } from "@turnkey/wallet-stamper";
 import bs58 from "bs58";
-import { Connection } from "@solana/web3.js";
+import { Connection, Transaction, VersionedTransaction } from "@solana/web3.js";
+import * as SecureStore from "expo-secure-store";
 
 const STEALF_IDENTITY = {
   name: "Stealf",
@@ -9,7 +10,7 @@ const STEALF_IDENTITY = {
   icon: "favicon.ico" as const,
 };
 
-const SOLANA_CHAIN = "solana:mainnet" as const;
+const SOLANA_CHAIN = "solana:devnet" as const;
 
 /**
  * Convert a base58 Solana address to hex-encoded public key.
@@ -41,6 +42,37 @@ export interface MWAWalletBridge extends SolanaWalletInterface {
 }
 
 /**
+ * Authorize with MWA, with fallback from reauth to fresh auth.
+ * Saves the new auth_token to SecureStore for future biometric reauth.
+ */
+async function mwaAuthorize(
+  wallet: Web3MobileWallet,
+  authToken: string
+): Promise<any> {
+  let authResult;
+  try {
+    authResult = await wallet.authorize({
+      chain: SOLANA_CHAIN,
+      identity: STEALF_IDENTITY,
+      auth_token: authToken,
+    });
+  } catch {
+    console.log('[MWA Bridge] Reauth failed, trying fresh authorize...');
+    authResult = await wallet.authorize({
+      chain: SOLANA_CHAIN,
+      identity: STEALF_IDENTITY,
+    });
+  }
+
+  // Save new auth_token for future biometric reauth
+  if (authResult.auth_token) {
+    await SecureStore.setItemAsync('mwa_auth_token', authResult.auth_token);
+  }
+
+  return authResult;
+}
+
+/**
  * Creates a wallet bridge that implements SolanaWalletInterface
  * by delegating to the Seed Vault via MWA transact().
  *
@@ -60,12 +92,7 @@ export function createSeedVaultWallet(
 
     async signMessage(message: string): Promise<string> {
       return await transact(async (wallet: Web3MobileWallet) => {
-        // Reauthorize with stored auth_token to avoid full authorization prompt
-        const reauth = await wallet.authorize({
-          chain: SOLANA_CHAIN,
-          identity: STEALF_IDENTITY,
-          auth_token: authToken,
-        });
+        await mwaAuthorize(wallet, authToken);
 
         const encoded = new TextEncoder().encode(message);
         const addressBase64 = Buffer.from(
@@ -84,20 +111,14 @@ export function createSeedVaultWallet(
 
     async signTransaction(serializedTx: Uint8Array): Promise<Uint8Array> {
       return await transact(async (wallet: Web3MobileWallet) => {
-        await wallet.authorize({
-          chain: SOLANA_CHAIN,
-          identity: STEALF_IDENTITY,
-          auth_token: authToken,
+        await mwaAuthorize(wallet, authToken);
+
+        const tx = Transaction.from(Buffer.from(serializedTx));
+        const signedTxs = await wallet.signTransactions({
+          transactions: [tx],
         });
 
-        const txBase64 = Buffer.from(serializedTx).toString("base64");
-
-        const signResult = await (wallet as any).signTransactions({
-          payloads: [txBase64],
-        });
-        const signedPayloads = signResult.signed_payloads || signResult;
-
-        return new Uint8Array(Buffer.from(signedPayloads[0], "base64"));
+        return signedTxs[0].serialize();
       });
     },
 
@@ -106,23 +127,14 @@ export function createSeedVaultWallet(
       rpcEndpoint: string
     ): Promise<string> {
       return await transact(async (wallet: Web3MobileWallet) => {
-        await wallet.authorize({
-          chain: SOLANA_CHAIN,
-          identity: STEALF_IDENTITY,
-          auth_token: authToken,
+        await mwaAuthorize(wallet, authToken);
+
+        const tx = Transaction.from(serializedTx);
+        const [signature] = await wallet.signAndSendTransactions({
+          transactions: [tx],
         });
 
-        const txBase64 = Buffer.from(serializedTx).toString("base64");
-
-        const sendResult = await (wallet as any).signAndSendTransactions({
-          payloads: [txBase64],
-          options: {
-            commitment: "confirmed",
-          },
-        });
-        const signatures = sendResult.signatures || sendResult;
-
-        return signatures[0];
+        return signature;
       });
     },
   };

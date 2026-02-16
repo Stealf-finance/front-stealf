@@ -20,19 +20,6 @@ export default function MinimalNavBar({
 
   return (
     <View style={styles.container}>
-      {/* Wealth (Privacy) */}
-      <TouchableOpacity
-        onPress={() => onNavigateToPage('privacy')}
-        activeOpacity={0.7}
-      >
-        <Text style={[
-          styles.navText,
-          currentPage === 'privacy' && styles.navTextActive
-        ]}>
-          Wealth
-        </Text>
-      </TouchableOpacity>
-
       {/* Cash (Home) */}
       <TouchableOpacity
         onPress={() => onNavigateToPage('home')}
@@ -43,6 +30,19 @@ export default function MinimalNavBar({
           currentPage === 'home' && styles.navTextActive
         ]}>
           Cash
+        </Text>
+      </TouchableOpacity>
+
+      {/* Wealth (Privacy) */}
+      <TouchableOpacity
+        onPress={() => onNavigateToPage('privacy')}
+        activeOpacity={0.7}
+      >
+        <Text style={[
+          styles.navText,
+          currentPage === 'privacy' && styles.navTextActive
+        ]}>
+          Wealth
         </Text>
       </TouchableOpacity>
 

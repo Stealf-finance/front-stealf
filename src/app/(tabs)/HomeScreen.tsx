@@ -11,6 +11,7 @@ interface HomeScreenProps {
   onOpenProfile: () => void;
   onOpenAddFunds: () => void;
   onOpenSend: () => void;
+  onOpenMoove?: () => void;
   onOpenDepositPrivateCash?: () => void;
   onOpenInfo: () => void;
   userEmail?: string;
@@ -23,6 +24,7 @@ export default function HomeScreen({
   onOpenProfile,
   onOpenAddFunds,
   onOpenSend,
+  onOpenMoove,
   onOpenDepositPrivateCash,
   onOpenInfo,
   currentPage = 'home',
@@ -72,6 +74,7 @@ export default function HomeScreen({
         {/* Balance Card */}
         <CashBalanceCard
           onDeposit={handleAddFundsPress}
+          onMoove={onOpenMoove}
           onSend={() => setShowSendModal(true)}
           onBank={onOpenInfo}
         />

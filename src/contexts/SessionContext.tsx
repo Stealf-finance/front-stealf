@@ -11,6 +11,7 @@ interface SessionContextType {
   isLocked: boolean;
   unlockWithAuth: () => Promise<{ success: boolean; error?: string }>;
   lockApp: () => void;
+  setMWAInProgress: (inProgress: boolean) => void;
 }
 
 const SessionContext = createContext<SessionContextType | undefined>(undefined);
@@ -19,10 +20,17 @@ interface SessionProviderProps {
   children: ReactNode;
 }
 
+// Track MWA state outside React to avoid re-renders
+let _mwaInProgress = false;
+
 export function SessionProvider({ children }: SessionProviderProps) {
   const [isLocked, setIsLocked] = useState(false);
   const { refreshSession } = useTurnkey();
   const { isAuthenticated, userData } = useAuth();
+
+  const setMWAInProgress = useCallback((inProgress: boolean) => {
+    _mwaInProgress = inProgress;
+  }, []);
 
   // Register lock callback with session handler
   useEffect(() => {
@@ -45,7 +53,7 @@ export function SessionProvider({ children }: SessionProviderProps) {
   // Handle app state changes
   useAppState({
     onForeground: useCallback(() => {
-      if (isAuthenticated) {
+      if (isAuthenticated && !_mwaInProgress) {
         sessionHandler.handleForeground();
         if (sessionHandler.shouldLock()) {
           setIsLocked(true);
@@ -53,7 +61,7 @@ export function SessionProvider({ children }: SessionProviderProps) {
       }
     }, [isAuthenticated]),
     onBackground: useCallback(() => {
-      if (isAuthenticated) {
+      if (isAuthenticated && !_mwaInProgress) {
         sessionHandler.handleBackground();
         setIsLocked(true);
       }
@@ -137,6 +145,7 @@ export function SessionProvider({ children }: SessionProviderProps) {
     isLocked,
     unlockWithAuth,
     lockApp,
+    setMWAInProgress,
   };
 
   return (
