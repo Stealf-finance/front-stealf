@@ -7,11 +7,13 @@ import {
   TouchableOpacity,
   ActivityIndicator,
   RefreshControl,
+  Alert,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useYieldDashboard, useYieldProof, useBatchStatus, type VaultType } from "../../hooks/useYield";
 import { useWalletInfos } from "../../hooks/useWalletInfos";
 import { useAuth } from "../../contexts/AuthContext";
+import { useReserveProof } from "../../hooks/useReserveProof";
 import DepositWithdrawModal from "./DepositWithdrawModal";
 import type { PageType } from "../../navigation/types";
 
@@ -38,6 +40,9 @@ export default function SavingsScreen({
 
   // Arcium: batch staking status (denomination staking in progress)
   const { data: batchStatus } = useBatchStatus();
+
+  // Arcium: proof of reserve (permissionless solvency check)
+  const { isSolvent, isLoading: reserveLoading } = useReserveProof();
 
   // Arcium: proof of yield (only in private SOL mode with a balance)
   // Use dashboard directly since solBalance hasn't been derived yet at hook-call time
@@ -92,6 +97,20 @@ export default function SavingsScreen({
           <Text style={styles.headerTitle}>Savings</Text>
           <Text style={styles.headerSubtitle}>Earn yield on your assets</Text>
         </View>
+        {/* Reserve proof indicator */}
+        {!reserveLoading && isSolvent === false && (
+          Alert.alert(
+            "Anomalie détectée",
+            "Le vault ne passe pas la vérification de réserve. Contactez le support.",
+            [{ text: "OK" }]
+          ) as any
+        )}
+        {!reserveLoading && isSolvent === true && (
+          <View style={styles.solventBadge}>
+            <Ionicons name="shield-checkmark-outline" size={13} color="#22c55e" />
+            <Text style={styles.solventText}>Vault vérifié</Text>
+          </View>
+        )}
       </View>
 
       {/* Asset Tabs */}
@@ -725,5 +744,19 @@ const styles = StyleSheet.create({
     fontFamily: "Sansation-Regular",
     color: "rgba(74,222,128,0.8)",
     flex: 1,
+  },
+  solventBadge: {
+    flexDirection: "row" as const,
+    alignItems: "center" as const,
+    gap: 4,
+    backgroundColor: "rgba(34,197,94,0.12)",
+    borderRadius: 8,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+  },
+  solventText: {
+    fontSize: 11,
+    fontFamily: "Sansation-Regular",
+    color: "#22c55e",
   },
 });
