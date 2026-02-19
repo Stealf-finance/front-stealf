@@ -111,14 +111,49 @@ export function createSeedVaultWallet(
 
     async signTransaction(serializedTx: Uint8Array): Promise<Uint8Array> {
       return await transact(async (wallet: Web3MobileWallet) => {
-        await mwaAuthorize(wallet, authToken);
+        const authResult = await mwaAuthorize(wallet, authToken);
+        const authorizedBase58 = authResult.accounts?.[0]?.address
+          ? bs58.encode(Buffer.from(authResult.accounts[0].address, 'base64'))
+          : 'unknown';
+        console.log('[MWA Bridge] Authorized account (base58):', authorizedBase58);
+        console.log('[MWA Bridge] Expected signer:', publicKeyBase58);
 
         const tx = Transaction.from(Buffer.from(serializedTx));
+        console.log('[MWA Bridge] TX feePayer:', tx.feePayer?.toBase58());
+
+        // Check if MWA authorized the right account
+        if (authorizedBase58 !== publicKeyBase58) {
+          console.warn('[MWA Bridge] MISMATCH! Authorized account does not match expected signer');
+          console.warn('[MWA Bridge] Authorized:', authorizedBase58);
+          console.warn('[MWA Bridge] Expected:', publicKeyBase58);
+        }
+
         const signedTxs = await wallet.signTransactions({
           transactions: [tx],
         });
 
-        return signedTxs[0].serialize();
+        const signedTx = signedTxs[0] as Transaction;
+        const hasSig = signedTx.signatures.some(s =>
+          s.signature != null && !s.signature.every((b: number) => b === 0)
+        );
+        console.log('[MWA Bridge] Transaction signed:', hasSig);
+
+        if (!hasSig) {
+          console.error('[MWA Bridge] Seeker did NOT sign the transaction!');
+          console.error('[MWA Bridge] Signatures:', JSON.stringify(signedTx.signatures.map(s => ({
+            key: s.publicKey.toBase58(),
+            sigPresent: s.signature != null,
+            allZeros: s.signature ? s.signature.every((b: number) => b === 0) : true,
+          }))));
+          throw new Error(
+            `Seeker wallet did not sign. Authorized: ${authorizedBase58}, FeePayer: ${tx.feePayer?.toBase58()}`
+          );
+        }
+
+        return new Uint8Array(signedTx.serialize({
+          requireAllSignatures: false,
+          verifySignatures: false,
+        }));
       });
     },
 

@@ -107,7 +107,7 @@ export const RevolutPager = forwardRef<RevolutPagerRef, RevolutPagerProps>(({
 
   return (
     <GestureDetector gesture={pan}>
-      <Animated.View style={[styles.container, containerStyle]}>
+      <Animated.View style={[styles.container, { width: width * count }, containerStyle]}>
         {pages.map((page, i) => {
           const pageStyle = useAnimatedStyle(() => {
             const progress = Math.abs(

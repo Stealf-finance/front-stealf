@@ -13,6 +13,7 @@ import AddFundsScreen from '../app/(add)/AddFunds';
 import AddFundsPrivacyScreen from '../app/(add)/AddFundsPrivacy';
 import DepositPrivateCashScreen from '../app/(deposit)/DepositPrivateCash';
 import ProfileScreen from '../app/(tabs)/Profile';
+import SavingsScreen from '../app/(savings)/SavingsScreen';
 import InfoScreen from '../app/(infos)/InfoScreen';
 import TransactionHistoryScreen from '../app/(infos)/TransactionHistoryScreen';
 import { useAuth } from '../contexts/AuthContext';
@@ -67,7 +68,7 @@ export default function AppNavigator() {
     setWelcomeFadeOut(false);
   }, []);
 
-  const pageOrder: PageType[] = ['home', 'privacy', 'profile'];
+  const pageOrder: PageType[] = ['home', 'privacy', 'savings', 'profile'];
   const getPageIndex = (page: PageType) => pageOrder.indexOf(page);
   const getPageFromIndex = (index: number) => pageOrder[index];
 
@@ -214,6 +215,15 @@ export default function AppNavigator() {
                     onOpenInfo={handleOpenInfoFromPrivacy}
                     userEmail={userData?.email}
                     username={userData?.username}
+                    currentPage={currentPage}
+                  />
+                ),
+              },
+              {
+                key: 'savings',
+                render: () => (
+                  <SavingsScreen
+                    onNavigateToPage={handleNavigateToPage}
                     currentPage={currentPage}
                   />
                 ),

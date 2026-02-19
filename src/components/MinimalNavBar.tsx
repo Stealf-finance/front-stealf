@@ -46,6 +46,19 @@ export default function MinimalNavBar({
         </Text>
       </TouchableOpacity>
 
+      {/* Savings */}
+      <TouchableOpacity
+        onPress={() => onNavigateToPage('savings')}
+        activeOpacity={0.7}
+      >
+        <Text style={[
+          styles.navText,
+          currentPage === 'savings' && styles.navTextActive
+        ]}>
+          Savings
+        </Text>
+      </TouchableOpacity>
+
       {/* Profile Circle with Initial */}
       <TouchableOpacity
         style={[
