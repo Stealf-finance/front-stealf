@@ -22,9 +22,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import { useSendTransaction } from '../../hooks/useSendSimpleTransaction';
 import { useAuthenticatedApi } from '../../services/clientStealf';
 import { createGetSolPriceUSD } from '../../services/fetchWalletInfos';
-import { usePrivacyCashTransfer } from '../../hooks/usePrivacyCashTransfer';
 import { useTurnkey } from '@turnkey/react-native-wallet-kit';
-import { usePrivacyBalance } from '../../hooks/usePrivacyBalance';
 
 interface SendConfirmationProps {
   amount: string;
@@ -38,7 +36,6 @@ export default function SendConfirmation({ amount, onBack, onClose, onSuccess, t
   const { userData } = useAuth();
   const { session } = useTurnkey();
   const { sendTransaction, loading: simpleLoading } = useSendTransaction();
-  const { initiatePrivateWithdraw, loading: privateLoading } = usePrivacyCashTransfer();
   const api = useAuthenticatedApi();
 
   const [externalAddress, setExternalAddress] = useState('');
@@ -73,14 +70,9 @@ export default function SendConfirmation({ amount, onBack, onClose, onSuccess, t
           return;
         }
 
-        const transfer = await initiatePrivateWithdraw(
-          userData.cash_wallet,
-          externalAddress,
-          amountSOL,
-          session.token
-        );
+        const transfer = ' ';
 
-        signature = transfer.transactions?.privacyCashWithdrawTx || 'Processing...';
+        signature = ' '
       } else {
         signature = await sendTransaction(
           userData.stealf_wallet,
@@ -123,7 +115,7 @@ export default function SendConfirmation({ amount, onBack, onClose, onSuccess, t
     onSuccess();
   };
 
-  const isLoading = transferType === 'private' ? privateLoading : simpleLoading;
+  const isLoading = transferType === 'private' ? " " : simpleLoading;
 
   const [fontsLoaded] = useFonts({
     'Sansation-Regular': require('../../assets/font/Sansation/Sansation-Regular.ttf'),
@@ -204,7 +196,7 @@ export default function SendConfirmation({ amount, onBack, onClose, onSuccess, t
             <TouchableOpacity
               style={styles.confirmButton}
               onPress={handleConfirm}
-              disabled={isLoading}
+              // disabled={isLoading}
               activeOpacity={0.8}
             >
               {isLoading ? (
