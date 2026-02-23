@@ -8,16 +8,20 @@ import {
   ScrollView,
   Modal,
   Animated,
+  ActivityIndicator,
 } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useFonts } from 'expo-font';
 import { useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '../../contexts/AuthContext';
-import { usePrivacyBalance } from '../../hooks/usePrivacyBalance';
 import { useWalletInfos } from '../../hooks/useWalletInfos';
 import { useSwapApi } from '../../services/swapService';
 import { useSendTransaction } from '../../hooks/useSendSimpleTransaction';
+import { useStealthTransfer } from '../../hooks/useStealthTransfer';
+import { useStealthAddress } from '../../hooks/useStealthAddress';
+import { useStealthPayments } from '../../hooks/useStealthPayments';
+import { useAuthenticatedApi } from '../../services/clientStealf';
 import { Keypair, VersionedTransaction } from '@solana/web3.js';
 import * as SecureStore from 'expo-secure-store';
 import bs58 from 'bs58';
@@ -88,11 +92,14 @@ export default function MooveScreen({ onBack, direction = 'toCash' }: MooveScree
 
   const { userData, isWalletAuth } = useAuth();
   const queryClient = useQueryClient();
-  const { usdcBalance: cashUsdcBalance } = usePrivacyBalance();
   const { tokens: privacyTokens } = useWalletInfos(userData?.stealf_wallet || '');
   const { tokens: cashTokens } = useWalletInfos(userData?.cash_wallet || '');
   const { order, execute } = useSwapApi();
   const { sendTransaction: sendDirectTransfer } = useSendTransaction();
+  const { send: sendStealth } = useStealthTransfer();
+  const { metaAddress: ownMetaAddress } = useStealthAddress();
+  const { spendPayment } = useStealthPayments();
+  const api = useAuthenticatedApi();
 
   const isToCash = direction === 'toCash';
   const sourceTokens = isToCash ? privacyTokens : cashTokens;
@@ -156,16 +163,60 @@ export default function MooveScreen({ onBack, direction = 'toCash' }: MooveScree
 
     setLoading(true);
     try {
+      console.log('[Moove] handleMove', { isWalletAuth, isNativeSOL, direction, fromWallet: fromWallet?.slice(0, 8), ownMetaAddress: ownMetaAddress?.slice(0, 8) });
       if (isWalletAuth) {
-        // MWA users: direct transfer via useSendTransaction (signs via Seed Vault)
-        const tokenMint = isNativeSOL ? undefined : selectedToken.tokenMint;
-        await sendDirectTransfer(
-          fromWallet,
-          toWallet,
-          amountNum,
-          tokenMint,
-          selectedToken.tokenDecimals,
-        );
+        if (isNativeSOL) {
+          // SOL natif (Cash → Wealth ou Wealth → Cash) : stealth pour casser le lien on-chain
+          if (!ownMetaAddress) {
+            Alert.alert('Error', 'Stealth address not ready. Please retry in a moment.');
+            setLoading(false);
+            return;
+          }
+          const amountLamports = BigInt(Math.round(amountNum * 1_000_000_000));
+          console.log('[Moove] calling sendStealth, fromWallet:', fromWallet?.slice(0, 8));
+          const stealthResult = await sendStealth(ownMetaAddress, amountLamports, fromWallet);
+          if (!stealthResult) {
+            Alert.alert('Erreur', 'Le transfert stealth a échoué. Vérifie ton solde.');
+            return;
+          }
+          console.log('[Moove] stealthResult OK, txSig:', stealthResult.txSignature?.slice(0, 12));
+          // Enregistrer en DB + claim automatique (pas de modal intermédiaire)
+          const dest = isToCash ? userData?.cash_wallet : userData?.stealf_wallet;
+          let paymentId: string | null = null;
+          try {
+            const regResult = await api.post('/api/stealth/register-payment', {
+              stealthAddress: stealthResult.stealthAddress,
+              amountLamports: amountLamports.toString(),
+              txSignature: stealthResult.txSignature,
+              ephemeralR: stealthResult.ephemeralR,
+              viewTag: stealthResult.viewTag,
+            });
+            paymentId = regResult.paymentId;
+            console.log('[Moove] register-payment OK, paymentId:', paymentId);
+          } catch (regErr: any) {
+            console.warn('[Moove] register-payment failed (scanner will detect):', regErr?.message);
+          }
+          console.log('[Moove] dest:', dest?.slice(0, 8), '| paymentId:', paymentId);
+          if (dest && paymentId) {
+            try {
+              console.log('[Moove] calling spendPayment...');
+              const spendSig = await spendPayment(paymentId, dest);
+              console.log('[Moove] spendPayment OK:', spendSig?.slice(0, 12) ?? 'null');
+            } catch (spendErr) {
+              console.warn('[Moove] spendPayment failed (scanner will detect):', (spendErr as any)?.message);
+            }
+          }
+        } else {
+          // Tokens SPL : transfert direct (pas de stealth sur SPL pour l'instant)
+          const tokenMint = isNativeSOL ? undefined : selectedToken.tokenMint;
+          await sendDirectTransfer(
+            fromWallet,
+            toWallet,
+            amountNum,
+            tokenMint,
+            selectedToken.tokenDecimals,
+          );
+        }
       } else {
         // Passkey users: use Jupiter swap via backend
         const inputMint = selectedToken.tokenMint || 'So11111111111111111111111111111111';
@@ -191,9 +242,12 @@ export default function MooveScreen({ onBack, direction = 'toCash' }: MooveScree
         });
       }
 
-      // Refresh balances for both wallets
-      queryClient.invalidateQueries({ queryKey: ['wallet-balance', userData.stealf_wallet] });
-      queryClient.invalidateQueries({ queryKey: ['wallet-balance', userData.cash_wallet] });
+      // Attendre la mise à jour réelle des balances avant de montrer le succès
+      await Promise.all([
+        queryClient.refetchQueries({ queryKey: ['wallet-balance', userData.stealf_wallet] }),
+        queryClient.refetchQueries({ queryKey: ['wallet-balance', userData.cash_wallet] }),
+      ]);
+      // Historique en arrière-plan (non bloquant)
       queryClient.invalidateQueries({ queryKey: ['wallet-history', userData.stealf_wallet] });
       queryClient.invalidateQueries({ queryKey: ['wallet-history', userData.cash_wallet] });
 
@@ -403,6 +457,18 @@ export default function MooveScreen({ onBack, direction = 'toCash' }: MooveScree
           </View>
         </View>
       </LinearGradient>
+
+
+      {/* Loading Overlay */}
+      <Modal visible={loading} transparent animationType="fade">
+        <View style={styles.successOverlay}>
+          <View style={styles.loadingCard}>
+            <ActivityIndicator size="large" color="#ffffff" />
+            <Text style={styles.loadingText}>Transaction en cours...</Text>
+            <Text style={styles.loadingSubtext}>Ne ferme pas l'app</Text>
+          </View>
+        </View>
+      </Modal>
 
       {/* Success Overlay */}
       <Modal visible={showSuccess} transparent animationType="none">
@@ -708,6 +774,64 @@ const styles = StyleSheet.create({
   successSubtext: {
     fontSize: 16,
     color: 'rgba(255, 255, 255, 0.5)',
+    fontFamily: 'Sansation-Regular',
+  },
+  claimOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.75)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 32,
+  },
+  claimCard: {
+    backgroundColor: '#1a1a1a',
+    borderRadius: 20,
+    padding: 28,
+    alignItems: 'center',
+    width: '100%',
+    borderWidth: 1,
+    borderColor: 'rgba(139,92,246,0.3)',
+  },
+  claimTitle: {
+    fontSize: 20,
+    color: '#ffffff',
+    fontFamily: 'Sansation-Bold',
+    marginBottom: 10,
+  },
+  claimSubtext: {
+    fontSize: 14,
+    color: 'rgba(255,255,255,0.55)',
+    fontFamily: 'Sansation-Regular',
+    textAlign: 'center',
+    marginBottom: 24,
+    lineHeight: 20,
+  },
+  claimButton: {
+    backgroundColor: '#8B5CF6',
+    borderRadius: 16,
+    paddingVertical: 14,
+    paddingHorizontal: 40,
+    alignItems: 'center',
+    width: '100%',
+  },
+  claimButtonText: {
+    color: '#ffffff',
+    fontSize: 16,
+    fontFamily: 'Sansation-Bold',
+  },
+  loadingCard: {
+    alignItems: 'center',
+    gap: 16,
+  },
+  loadingText: {
+    fontSize: 18,
+    color: '#ffffff',
+    fontFamily: 'Sansation-Bold',
+    marginTop: 8,
+  },
+  loadingSubtext: {
+    fontSize: 13,
+    color: 'rgba(255,255,255,0.4)',
     fontFamily: 'Sansation-Regular',
   },
 });

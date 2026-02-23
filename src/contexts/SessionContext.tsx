@@ -104,7 +104,7 @@ export function SessionProvider({ children }: SessionProviderProps) {
       const isEnrolled = await LocalAuthentication.isEnrolledAsync();
 
       if (!hasHardware || !isEnrolled) {
-        return { success: false, error: 'entication not available' };
+        return { success: false, error: 'Authentication not available' };
       }
 
       const biometricResult = await LocalAuthentication.authenticateAsync({
