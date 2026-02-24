@@ -9,6 +9,9 @@ import {
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useYieldDashboard, useBatchStatus, type VaultType } from "../../hooks/useYield";
+import { useReserveProof } from "../../hooks/useReserveProof";
+import { useYieldSnapshots } from "../../hooks/useYieldSnapshots";
+import { useYieldProofFromSnapshots } from "../../hooks/useYieldProofFromSnapshots";
 import { useWalletInfos } from "../../hooks/useWalletInfos";
 import { useAuth } from "../../contexts/AuthContext";
 import DepositWithdrawModal from "./DepositWithdrawModal";
@@ -30,6 +33,26 @@ export default function SavingsScreen() {
 
   // Arcium: batch staking status (denomination staking in progress)
   const { data: batchStatus } = useBatchStatus();
+
+  // Arcium: proof of reserve (SOL vault only)
+  const { isSolvent, isLoading: reserveLoading, error: reserveError } = useReserveProof();
+
+  // Arcium: balance snapshots + proof from snapshots
+  const { data: snapshots = [] } = useYieldSnapshots(selectedSolVault);
+  const canProve = activeTab === "sol" && snapshots.length >= 2;
+  const proofParams = canProve
+    ? {
+        startIndex: snapshots[0].snapshotIndex,
+        endIndex: snapshots[snapshots.length - 1].snapshotIndex,
+        thresholdBps: 100,
+        vaultType: selectedSolVault,
+      }
+    : null;
+  const {
+    data: snapshotProof,
+    isFetching: proofFetching,
+    refetch: triggerProof,
+  } = useYieldProofFromSnapshots(proofParams);
 
 
 
@@ -184,6 +207,28 @@ export default function SavingsScreen() {
                       <Text style={styles.protocolSub}>mSOL</Text>
                     </TouchableOpacity>
                   </View>
+
+                  {/* Badge proof of reserve — visible seulement sur l'onglet SOL */}
+                  {!reserveError && (
+                    <View style={[
+                      styles.solventBadge,
+                      !reserveLoading && isSolvent === false && { backgroundColor: "rgba(239,68,68,0.12)" },
+                      reserveLoading && { backgroundColor: "rgba(255,255,255,0.06)" },
+                    ]}>
+                      <Ionicons
+                        name={reserveLoading ? "time-outline" : isSolvent ? "shield-checkmark" : "warning"}
+                        size={12}
+                        color={reserveLoading ? "rgba(255,255,255,0.4)" : isSolvent ? "#22c55e" : "#ef4444"}
+                      />
+                      <Text style={[
+                        styles.solventText,
+                        !reserveLoading && isSolvent === false && { color: "#ef4444" },
+                        reserveLoading && { color: "rgba(255,255,255,0.4)" },
+                      ]}>
+                        {reserveLoading ? "Vérification…" : isSolvent ? "Vault vérifié" : "Non solvable"}
+                      </Text>
+                    </View>
+                  )}
                 </>
               ) : (
                 <View style={styles.apyRow}>
@@ -216,6 +261,33 @@ export default function SavingsScreen() {
                 <Ionicons name="checkmark-circle" size={18} color="#4ADE80" />
                 <Text style={styles.batchBannerTitle}>Staking confirmé</Text>
               </View>
+            )}
+
+            {/* Proof from snapshots button — SOL only, needs ≥2 snapshots */}
+            {canProve && (
+              <TouchableOpacity
+                style={styles.proveButton}
+                onPress={() => triggerProof()}
+                activeOpacity={0.7}
+                disabled={proofFetching}
+              >
+                {proofFetching ? (
+                  <ActivityIndicator size="small" color="#4ADE80" />
+                ) : (
+                  <Ionicons name="shield-checkmark-outline" size={16} color="#4ADE80" />
+                )}
+                <Text style={styles.proveButtonText}>
+                  {proofFetching
+                    ? "Calcul en cours…"
+                    : snapshotProof?.available === false
+                    ? "Preuve indisponible"
+                    : snapshotProof?.exceedsThreshold === true
+                    ? "Rendement prouvé ✓"
+                    : snapshotProof?.exceedsThreshold === false
+                    ? "Seuil non atteint"
+                    : "Prouver mon rendement"}
+                </Text>
+              </TouchableOpacity>
             )}
 
             {/* Privacy Toggle */}
@@ -696,6 +768,24 @@ const styles = StyleSheet.create({
     fontFamily: "Sansation-Regular",
     color: "rgba(74,222,128,0.8)",
     flex: 1,
+  },
+  proveButton: {
+    flexDirection: "row" as const,
+    alignItems: "center" as const,
+    justifyContent: "center" as const,
+    gap: 8,
+    backgroundColor: "rgba(74,222,128,0.08)",
+    borderWidth: 1,
+    borderColor: "rgba(74,222,128,0.25)",
+    borderRadius: 12,
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    marginBottom: 12,
+  },
+  proveButtonText: {
+    fontSize: 13,
+    fontFamily: "Sansation-Regular",
+    color: "#4ADE80",
   },
   solventBadge: {
     flexDirection: "row" as const,
