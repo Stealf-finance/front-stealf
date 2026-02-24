@@ -282,6 +282,9 @@ export function useWalletAuth() {
         };
       }
 
+      // Re-enable loading for backend call (connectWallet sets it to false internally)
+      setLoading(true);
+
       // Step 2: Send publicKeyHex to backend for user lookup
       console.log("[useWalletAuth] Calling wallet-login with publicKeyHex:", connectResult.publicKeyHex);
       console.log("[useWalletAuth] API_URL:", API_URL);

@@ -1,21 +1,12 @@
 import React, { useRef, useEffect, useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Animated, Easing, Alert } from 'react-native';
+import { View, Text, StyleSheet, Animated, Easing } from 'react-native';
 import BalanceCardPrivacy from '../../components/features/PrivacyBalanceCard';
 import TransactionHistory from '../../components/TransactionHistory';
 import AddFundsPrivacyModal from '../../components/AddFundsPrivacyModal';
-import SendPrivacyModal from '../../components/SendPrivacyModal';
-import StealthReceiveModal from '../../components/StealthReceiveModal';
-import { useAuth } from '../../contexts/AuthContext';
-import { useWalletInfos } from '../../hooks/useWalletInfos';
-import { usePrivacyBalance } from '../../hooks/usePrivacyBalance';
-import { useStealthPayments } from '../../hooks/useStealthPayments';
-import { useStealthAddress } from '../../hooks/useStealthAddress';
-import { useStealthTransfer } from '../../hooks/useStealthTransfer';
 import type { PageType } from '../../navigation/types';
 
 interface PrivacyScreenProps {
   onNavigateToPage: (page: PageType) => void;
-  onOpenSendPrivate: (transferType: 'basic' | 'private') => void;
   onOpenMoove: () => void;
   onOpenAddFundsPrivacy: () => void;
   onOpenDepositPrivateCash: () => void;
@@ -27,26 +18,14 @@ interface PrivacyScreenProps {
 }
 
 export default function PrivacyScreen({
-  onNavigateToPage,
-  onOpenSendPrivate,
   onOpenMoove,
   onOpenAddFundsPrivacy,
   onOpenInfo,
-  username,
   currentPage = 'privacy',
 }: PrivacyScreenProps) {
   const [showAddFundsModal, setShowAddFundsModal] = useState(false);
-  const [showSendPrivacyModal, setShowSendPrivacyModal] = useState(false);
-  const [showStealthReceive, setShowStealthReceive] = useState(false);
-
-  const { payments: stealthPayments, spendPayment } = useStealthPayments();
   const slideUpAnim = useRef(new Animated.Value(100)).current;
 
-  const { userData } = useAuth();
-  const { balance: basicBalance } = useWalletInfos(userData?.stealf_wallet || '');
-  const { totalUSD: privacyBalance } = usePrivacyBalance();
-  const { metaAddress: ownMetaAddress } = useStealthAddress();
-  const { send: sendStealth } = useStealthTransfer();
 
   useEffect(() => {
     if (currentPage === 'privacy') {
@@ -65,65 +44,16 @@ export default function PrivacyScreen({
     setShowAddFundsModal(true);
   };
 
-  const handleSelectPrivateCash = () => {
-    setShowAddFundsModal(false);
-    if (!ownMetaAddress) {
-      Alert.alert('Erreur', 'Adresse stealth non initialisée. Réessaie dans un instant.');
-      return;
-    }
-    Alert.prompt(
-      '🔒 Dépôt privé',
-      'Montant en SOL à envoyer vers ton wallet privé :',
-      async (amountStr) => {
-        if (!amountStr || !userData?.cash_wallet) return;
-        const amountSOL = parseFloat(amountStr);
-        if (isNaN(amountSOL) || amountSOL <= 0) {
-          Alert.alert('Erreur', 'Montant invalide');
-          return;
-        }
-        const amountLamports = BigInt(Math.round(amountSOL * 1_000_000_000));
-        const senderAddr = userData.stealf_wallet || userData.cash_wallet;
-        const result = await sendStealth(ownMetaAddress, amountLamports, senderAddr);
-        if (result) {
-          Alert.alert('✅ Succès', `Dépôt stealth confirmé !\nTX: ${result.txSignature.slice(0, 20)}...`);
-        } else {
-          Alert.alert('Erreur', 'Le dépôt a échoué. Vérifie ton solde.');
-        }
-      },
-      'plain-text',
-      '',
-      'numeric',
-    );
-  };
-
   const handleSelectSimpleDeposit = () => {
     setShowAddFundsModal(false);
     onOpenAddFundsPrivacy();
   };
 
-  const handleSendPress = () => {
-    setShowSendPrivacyModal(true);
-  };
-
-  const handleSelectBasicTransfer = () => {
-    setShowSendPrivacyModal(false);
-    onOpenSendPrivate('basic');
-  };
-
-  const handleSelectPrivateTransfer = () => {
-    setShowSendPrivacyModal(false);
-    onOpenSendPrivate('private');
-  };
-
   return (
     <View style={styles.container}>
-          {/* Header Spacer */}
           <View style={styles.headerSpacer} />
-
-          {/* Balance Card */}
           <View style={styles.cardsContainer}>
             <BalanceCardPrivacy
-              onWithdraw={handleSendPress}
               onTopUp={handleAddFundsPress}
               onExchange={onOpenMoove}
               onMore={onOpenInfo}
@@ -145,37 +75,17 @@ export default function PrivacyScreen({
           >
             <View style={styles.activityHeader}>
               <Text style={styles.activityTitle}>Transactions</Text>
-              <TouchableOpacity onPress={() => onNavigateToPage('transactionHistory')}>
-                <Text style={styles.seeAllText}>See All</Text>
-              </TouchableOpacity>
             </View>
-            <TransactionHistory limit={2} walletType="privacy" />
+            <TransactionHistory limit={50} compact walletType="privacy" />
           </Animated.View>
 
           {/* Add Funds Modal */}
           <AddFundsPrivacyModal
             visible={showAddFundsModal}
             onClose={() => setShowAddFundsModal(false)}
-            onSelectPrivateCash={handleSelectPrivateCash}
-            onSelectSimpleDeposit={handleSelectSimpleDeposit}
+onSelectSimpleDeposit={handleSelectSimpleDeposit}
           />
 
-          {/* Send Privacy Modal */}
-          <SendPrivacyModal
-            visible={showSendPrivacyModal}
-            onClose={() => setShowSendPrivacyModal(false)}
-            onSelectBasicTransfer={handleSelectBasicTransfer}
-            onSelectPrivateTransfer={handleSelectPrivateTransfer}
-            username={username}
-            basicTransferBalance={basicBalance || 0}
-            privateTransferBalance={privacyBalance}
-          />
-
-          {/* Stealth Receive Modal */}
-          <StealthReceiveModal
-            visible={showStealthReceive}
-            onClose={() => setShowStealthReceive(false)}
-          />
       </View>
   );
 }
@@ -240,6 +150,7 @@ const styles = StyleSheet.create({
     position: 'relative',
   },
   activityContainer: {
+    flex: 1,
     paddingHorizontal: 20,
     marginTop: 15,
   },
@@ -253,11 +164,6 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: '600',
     color: 'white',
-  },
-  seeAllText: {
-    fontSize: 14,
-    fontWeight: '500',
-    color: 'rgba(255, 255, 255, 0.6)',
   },
   titleContainer: {
     alignItems: 'center',

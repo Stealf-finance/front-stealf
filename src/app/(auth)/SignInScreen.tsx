@@ -11,6 +11,7 @@ import {
   KeyboardAvoidingView,
   Platform,
   ScrollView,
+  Modal,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useSignIn } from '../../hooks/useSignIn';
@@ -139,9 +140,17 @@ export default function SignInScreen({ onSwitchToSignUp }: SignInScreenProps = {
     );
   }
 
+  const isConnecting = walletAuth.loading;
+
   // Default sign in screen
   return (
     <View style={styles.container}>
+      <Modal visible={isConnecting} transparent animationType="fade">
+        <View style={styles.loadingOverlay}>
+          <ActivityIndicator size="large" color="#fff" />
+          <Text style={styles.loadingOverlayText}>Connecting...</Text>
+        </View>
+      </Modal>
       <LinearGradient
         colors={['#000000', '#000000', '#000000']}
         locations={[0, 0.5, 1]}
@@ -355,5 +364,17 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontFamily: 'Sansation-Bold',
     color: '#fff',
+  },
+  loadingOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.75)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    gap: 16,
+  },
+  loadingOverlayText: {
+    color: '#fff',
+    fontSize: 16,
+    fontFamily: 'Sansation-Regular',
   },
 });

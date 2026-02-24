@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { View, Image, TouchableOpacity, Text, StyleSheet, Dimensions, ActivityIndicator } from 'react-native';
+import * as LocalAuthentication from 'expo-local-authentication';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
@@ -16,6 +17,17 @@ export default function LockScreen({ onUnlock, username }: LockScreenProps) {
   const [isAuthenticating, setIsAuthenticating] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [imageLoaded, setImageLoaded] = useState(false);
+  const [biometricLabel, setBiometricLabel] = useState('Biometrics');
+
+  useEffect(() => {
+    LocalAuthentication.supportedAuthenticationTypesAsync().then(types => {
+      if (types.includes(LocalAuthentication.AuthenticationType.FACIAL_RECOGNITION)) {
+        setBiometricLabel('Face ID');
+      } else if (types.includes(LocalAuthentication.AuthenticationType.FINGERPRINT)) {
+        setBiometricLabel('Touch ID');
+      }
+    });
+  }, []);
 
   const handleUnlock = async () => {
     if (isAuthenticating) return;
@@ -67,7 +79,7 @@ export default function LockScreen({ onUnlock, username }: LockScreenProps) {
           disabled={isAuthenticating}
         >
           <Text style={styles.unlockText}>
-            {isAuthenticating ? 'Authenticating...' : 'Unlock with Face ID'}
+            {isAuthenticating ? 'Authenticating...' : `Unlock with ${biometricLabel}`}
           </Text>
         </TouchableOpacity>
       )}

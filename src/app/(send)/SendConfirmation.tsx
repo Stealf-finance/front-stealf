@@ -11,38 +11,61 @@ import {
   KeyboardAvoidingView,
   Platform,
   ScrollView,
-  Linking,
   Alert,
 } from 'react-native';
 import * as Clipboard from 'expo-clipboard';
 import { useFonts } from 'expo-font';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useSendTransaction } from '../../hooks/useSendSimpleTransaction';
+import { useStealthTransfer } from '../../hooks/useStealthTransfer';
 import { useAuth } from '../../contexts/AuthContext';
-import { useAuthenticatedApi } from '../../services/clientStealf';
-import { createGetSolPriceUSD } from '../../services/fetchWalletInfos';
+
+interface TokenInfo {
+  symbol: string;
+  mint: string | null;
+  decimals: number;
+}
 
 interface SendConfirmationProps {
   amount: string;
+  token: TokenInfo;
   onBack: () => void;
   onClose?: () => void;
   onSuccess: () => void;
 }
 
-export default function SendConfirmation({ amount, onBack, onClose, onSuccess }: SendConfirmationProps) {
-  const { userData } = useAuth();
-  const { sendTransaction, loading } = useSendTransaction();
-  const api = useAuthenticatedApi();
+const isSOL = (token: TokenInfo) => !token.mint;
 
-  const [externalAddress, setExternalAddress] = useState('');
+function isMetaAddress(addr: string): boolean {
+  try {
+    const bs58 = require('bs58');
+    const decoded = bs58.decode(addr);
+    return decoded.length === 64;
+  } catch {
+    return false;
+  }
+}
+
+export default function SendConfirmation({ amount, token, onBack, onClose, onSuccess }: SendConfirmationProps) {
+  const { userData } = useAuth();
+  const { sendTransaction, loading: loadingDirect } = useSendTransaction();
+  const { send: sendStealth, isLoading: loadingStealth } = useStealthTransfer();
+
+  const [address, setAddress] = useState('');
   const [showSuccessModal, setShowSuccessModal] = useState(false);
   const [transactionSignature, setTransactionSignature] = useState<string | null>(null);
 
   const successAnimation = useRef(new Animated.Value(0)).current;
   const checkmarkScale = useRef(new Animated.Value(0)).current;
 
+  const isLoading = loadingDirect || loadingStealth;
+
+  // Stealth si SOL + meta-address 64 bytes, sinon direct
+  const usesStealth = isSOL(token) && isMetaAddress(address.trim());
+  const isPrivate = usesStealth;
+
   const handleConfirm = async () => {
-    if (!externalAddress) {
+    if (!address.trim()) {
       Alert.alert('Error', 'Please enter a destination address');
       return;
     }
@@ -53,24 +76,27 @@ export default function SendConfirmation({ amount, onBack, onClose, onSuccess }:
     }
 
     try {
-      if (!externalAddress) {
-        throw new Error('Invalid destination address');
+      let signature: string;
+
+      if (usesStealth) {
+        // SOL + meta-address → stealth transfer (privé)
+        const amountLamports = BigInt(Math.round(parseFloat(amount) * 1_000_000_000));
+        const result = await sendStealth(address.trim(), amountLamports, userData.cash_wallet);
+        if (!result) {
+          Alert.alert('Error', 'Stealth transfer failed. Check the meta-address and your balance.');
+          return;
+        }
+        signature = result.txSignature;
+      } else {
+        // SOL adresse normale ou USDC → transfert direct
+        signature = await sendTransaction(
+          userData.cash_wallet,
+          address.trim(),
+          parseFloat(amount),
+          token.mint,
+          token.decimals,
+        );
       }
-
-      const getSolPrice = createGetSolPriceUSD(api);
-      const priceData = await getSolPrice();
-      const solPrice = priceData?.price_usd || priceData?.price || 0;
-
-      if (solPrice === 0) {
-        throw new Error('Unable to fetch SOL price. Please try again.');
-      }
-
-      const amountSOL = parseFloat(amount) / solPrice;
-      const signature = await sendTransaction(
-        userData.cash_wallet,
-        externalAddress,
-        amountSOL
-      );
 
       setTransactionSignature(signature);
       setShowSuccessModal(true);
@@ -105,8 +131,6 @@ export default function SendConfirmation({ amount, onBack, onClose, onSuccess }:
     onSuccess();
   };
 
-  const isLoading = loading;
-
   const [fontsLoaded] = useFonts({
     'Sansation-Regular': require('../../assets/font/Sansation/Sansation-Regular.ttf'),
     'Sansation-Bold': require('../../assets/font/Sansation/Sansation-Bold.ttf'),
@@ -119,13 +143,13 @@ export default function SendConfirmation({ amount, onBack, onClose, onSuccess }:
 
   return (
     <View style={styles.container}>
-        <LinearGradient
-              colors={['#000000', '#000000', '#000000']}
-              locations={[0, 0.5, 1]}
-              start={{ x: 0, y: 1 }}
-              end={{ x: 0, y: 0 }}
-              style={styles.background}
-            >
+      <LinearGradient
+        colors={['#000000', '#000000', '#000000']}
+        locations={[0, 0.5, 1]}
+        start={{ x: 0, y: 1 }}
+        end={{ x: 0, y: 0 }}
+        style={styles.background}
+      >
 
         {/* Header */}
         <View style={styles.header}>
@@ -150,52 +174,63 @@ export default function SendConfirmation({ amount, onBack, onClose, onSuccess }:
             keyboardShouldPersistTaps="handled"
             showsVerticalScrollIndicator={false}
           >
-          {/* Amount */}
-          <View style={styles.section}>
-            <Text style={styles.label}>Amount</Text>
-            <Text style={styles.value}>{amount} USD</Text>
-          </View>
 
-          {/* Network */}
-          <View style={styles.section}>
-            <Text style={styles.label}>Network</Text>
-            <Text style={styles.value}>Solana</Text>
-          </View>
-
-          {/* To */}
-          <View style={styles.section}>
-            <Text style={styles.label}>To</Text>
-
-            {/* Address Input */}
-            <View style={styles.addressInputContainer}>
-              <TextInput
-                style={styles.addressInput}
-                placeholder="Paste wallet address..."
-                placeholderTextColor="rgba(255, 255, 255, 0.3)"
-                value={externalAddress}
-                onChangeText={setExternalAddress}
-                autoCapitalize="none"
-                autoCorrect={false}
-              />
+            {/* Privacy Badge */}
+            <View style={[styles.privacyBadge, isPrivate ? styles.privacyBadgePrivate : styles.privacyBadgePublic]}>
+              <Text style={[styles.privacyBadgeText, isPrivate ? styles.privacyBadgeTextPrivate : styles.privacyBadgeTextPublic]}>
+                {isPrivate ? '⬥  Private transfer' : '⬥  Public transfer'}
+              </Text>
             </View>
-          </View>
 
-          {/* Confirm Button */}
-          <View style={styles.buttonContainer}>
-            <TouchableOpacity
-              style={styles.confirmButton}
-              onPress={handleConfirm}
-              disabled={isLoading}
-              activeOpacity={0.8}
-            >
-              {isLoading ? (
-                <ActivityIndicator color="#000" />
-              ) : (
-                <Text style={styles.confirmButtonText}>Confirm</Text>
+            {/* Amount */}
+            <View style={styles.section}>
+              <Text style={styles.label}>Amount</Text>
+              <Text style={styles.value}>{amount} {token.symbol}</Text>
+            </View>
+
+            {/* Network */}
+            <View style={styles.section}>
+              <Text style={styles.label}>Network</Text>
+              <Text style={styles.value}>Solana</Text>
+            </View>
+
+            {/* To */}
+            <View style={styles.section}>
+              <Text style={styles.label}>To</Text>
+              {isSOL(token) && (
+                <Text style={styles.hint}>Adresse Solana ou meta-address Stealf (64 bytes = private)</Text>
               )}
-            </TouchableOpacity>
-          </View>
-        </ScrollView>
+              <View style={styles.addressInputContainer}>
+                <TextInput
+                  style={styles.addressInput}
+                  placeholder="Paste address..."
+                  placeholderTextColor="rgba(255, 255, 255, 0.3)"
+                  value={address}
+                  onChangeText={setAddress}
+                  autoCapitalize="none"
+                  autoCorrect={false}
+                  multiline
+                />
+              </View>
+            </View>
+
+            {/* Confirm Button */}
+            <View style={styles.buttonContainer}>
+              <TouchableOpacity
+                style={styles.confirmButton}
+                onPress={handleConfirm}
+                disabled={isLoading}
+                activeOpacity={0.8}
+              >
+                {isLoading ? (
+                  <ActivityIndicator color="#000" />
+                ) : (
+                  <Text style={styles.confirmButtonText}>Confirm</Text>
+                )}
+              </TouchableOpacity>
+            </View>
+
+          </ScrollView>
         </KeyboardAvoidingView>
 
         {/* Success Modal */}
@@ -233,9 +268,7 @@ export default function SendConfirmation({ amount, onBack, onClose, onSuccess }:
                 <Animated.View
                   style={[
                     styles.checkmarkCircle,
-                    {
-                      transform: [{ scale: checkmarkScale }],
-                    },
+                    { transform: [{ scale: checkmarkScale }] },
                   ]}
                 >
                   <Text style={styles.checkmark}>✓</Text>
@@ -243,10 +276,12 @@ export default function SendConfirmation({ amount, onBack, onClose, onSuccess }:
 
                 <Text style={styles.successTitle}>Transaction Sent</Text>
                 <Text style={styles.successMessage}>
-                  Your transaction has been successfully sent
+                  {isPrivate
+                    ? 'SOL sent privately. The recipient can claim it with their Stealf app.'
+                    : 'Your transaction has been successfully sent.'}
                 </Text>
 
-                {transactionSignature && transactionSignature !== 'COMPLETED' && (
+                {transactionSignature && (
                   <TouchableOpacity
                     style={styles.signatureContainer}
                     onPress={async () => {
@@ -262,18 +297,11 @@ export default function SendConfirmation({ amount, onBack, onClose, onSuccess }:
                 )}
 
                 <TouchableOpacity
-                  style={styles.viewExplorerButton}
-
-                  activeOpacity={0.8}
-                >
-                </TouchableOpacity>
-
-                <TouchableOpacity
-                  style={[styles.viewExplorerButton, { marginTop: 10, backgroundColor: 'rgba(255, 255, 255, 0.1)', borderColor: 'rgba(255, 255, 255, 0.3)' }]}
+                  style={[styles.closeModalButton]}
                   onPress={closeSuccessModal}
                   activeOpacity={0.8}
                 >
-                  <Text style={[styles.viewExplorerText, { color: 'white' }]}>Close</Text>
+                  <Text style={styles.closeModalText}>Close</Text>
                 </TouchableOpacity>
               </Animated.View>
             </TouchableOpacity>
@@ -318,9 +346,6 @@ const styles = StyleSheet.create({
     color: 'white',
     fontFamily: 'Sansation-Bold',
   },
-  placeholder: {
-    width: 40,
-  },
   closeButton: {
     width: 40,
     height: 40,
@@ -339,16 +364,49 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     paddingHorizontal: 32,
-    paddingTop: 60,
+    paddingTop: 24,
     paddingBottom: 20,
   },
+  privacyBadge: {
+    alignSelf: 'flex-start',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 12,
+    marginBottom: 32,
+  },
+  privacyBadgePrivate: {
+    backgroundColor: 'rgba(0, 200, 120, 0.15)',
+    borderWidth: 1,
+    borderColor: 'rgba(0, 200, 120, 0.4)',
+  },
+  privacyBadgePublic: {
+    backgroundColor: 'rgba(255, 160, 50, 0.15)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 160, 50, 0.4)',
+  },
+  privacyBadgeText: {
+    fontSize: 13,
+    fontFamily: 'Sansation-Regular',
+  },
+  privacyBadgeTextPrivate: {
+    color: '#00c878',
+  },
+  privacyBadgeTextPublic: {
+    color: '#ffa032',
+  },
   section: {
-    marginBottom: 48,
+    marginBottom: 40,
   },
   label: {
     fontSize: 16,
     color: 'rgba(255, 255, 255, 0.5)',
-    marginBottom: 12,
+    marginBottom: 8,
+    fontFamily: 'Sansation-Regular',
+  },
+  hint: {
+    fontSize: 12,
+    color: 'rgba(255, 255, 255, 0.3)',
+    marginBottom: 10,
     fontFamily: 'Sansation-Regular',
   },
   value: {
@@ -358,7 +416,7 @@ const styles = StyleSheet.create({
     fontFamily: 'Sansation-Light',
   },
   addressInputContainer: {
-    marginTop: 16,
+    marginTop: 8,
     backgroundColor: 'rgba(255, 255, 255, 0.05)',
     borderRadius: 16,
     borderWidth: 1,
@@ -370,9 +428,9 @@ const styles = StyleSheet.create({
     color: 'white',
     fontSize: 14,
     fontFamily: 'Sansation-Regular',
+    minHeight: 56,
   },
   buttonContainer: {
-    paddingHorizontal: 32,
     paddingBottom: 40,
   },
   confirmButton: {
@@ -387,7 +445,6 @@ const styles = StyleSheet.create({
     color: '#000',
     fontFamily: 'Sansation-Bold',
   },
-  // Modal styles
   modalOverlay: {
     flex: 1,
     backgroundColor: 'rgba(0, 0, 0, 0.8)',
@@ -451,16 +508,16 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontFamily: 'Sansation-Regular',
   },
-  viewExplorerButton: {
-    backgroundColor: 'rgba(100, 255, 100, 0.2)',
+  closeModalButton: {
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
     borderRadius: 20,
     paddingHorizontal: 30,
     paddingVertical: 12,
     borderWidth: 1,
-    borderColor: '#00ff88',
+    borderColor: 'rgba(255, 255, 255, 0.3)',
   },
-  viewExplorerText: {
-    color: '#00ff88',
+  closeModalText: {
+    color: 'white',
     fontSize: 14,
     fontWeight: 'bold',
     fontFamily: 'Sansation-Bold',

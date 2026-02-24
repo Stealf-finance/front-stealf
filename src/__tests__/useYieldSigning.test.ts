@@ -180,8 +180,8 @@ describe("useYieldDepositAndConfirm", () => {
       private: false,
     });
 
-    // Step 4: returns signature
-    expect(result).toEqual({ signature: "mock-turnkey-sig-123" });
+    // Step 4: returns signature (hook may include extra fields like confirmData)
+    expect(result).toMatchObject({ signature: "mock-turnkey-sig-123" });
   });
 
   it("should sign via MWA bridge for wallet auth (Seeker path)", async () => {

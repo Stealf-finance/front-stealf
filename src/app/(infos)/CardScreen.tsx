@@ -1,5 +1,5 @@
-import React, { useEffect, useRef } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ImageBackground, Animated, Easing, Image } from 'react-native';
+import React, { useRef } from 'react';
+import { View, Text, StyleSheet, TouchableOpacity, ImageBackground, Animated, Easing, Image, Alert } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 
 interface CardScreenProps {
@@ -76,29 +76,21 @@ export default function CardScreen({ onClose, cardType }: CardScreenProps) {
 
       {/* Boutons d'action */}
       <View style={styles.actionsContainer}>
-        <TouchableOpacity style={styles.actionButton}>
+        <TouchableOpacity style={styles.actionButton} onPress={() => Alert.alert('Coming Soon', 'Card details will be available soon.')}>
           <View style={styles.actionIconContainer}>
-            <Image
-              source={require('../../assets/infos.png')}
-              style={styles.infoIcon}
-              resizeMode="contain"
-            />
+            <Image source={require('../../assets/infos.png')} style={styles.infoIcon} resizeMode="contain" />
           </View>
           <Text style={styles.actionLabel}>Infos</Text>
         </TouchableOpacity>
 
-        <TouchableOpacity style={styles.actionButton}>
+        <TouchableOpacity style={styles.actionButton} onPress={() => Alert.alert('Coming Soon', 'Card freeze will be available soon.')}>
           <View style={styles.actionIconContainer}>
-            <Image
-              source={require('../../assets/freeze.png')}
-              style={styles.freezeIcon}
-              resizeMode="contain"
-            />
+            <Image source={require('../../assets/freeze.png')} style={styles.freezeIcon} resizeMode="contain" />
           </View>
           <Text style={styles.actionLabel}>Freeze</Text>
         </TouchableOpacity>
 
-        <TouchableOpacity style={styles.actionButton}>
+        <TouchableOpacity style={styles.actionButton} onPress={() => Alert.alert('Coming Soon', 'Card deletion will be available soon.')}>
           <View style={styles.actionIconContainer}>
             <Text style={styles.actionIcon}>✕</Text>
           </View>
@@ -110,7 +102,7 @@ export default function CardScreen({ onClose, cardType }: CardScreenProps) {
       <View style={styles.quickActionsContainer}>
         <Text style={styles.quickActionsTitle}>Quick Actions</Text>
 
-        <TouchableOpacity style={styles.quickActionButton} activeOpacity={0.7}>
+        <TouchableOpacity style={styles.quickActionButton} activeOpacity={0.7} onPress={() => Alert.alert('Coming Soon', 'Apple Pay integration will be available soon.')}>
           <View style={styles.quickActionContent}>
             <View style={styles.quickActionIconCircle}>
               <Image

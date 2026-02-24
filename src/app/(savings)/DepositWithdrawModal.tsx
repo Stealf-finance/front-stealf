@@ -24,12 +24,6 @@ interface DepositWithdrawModalProps {
   isPrivate?: boolean;
 }
 
-interface ConfirmData {
-  denominationsUsed?: number[];
-  totalDeposited?: number;
-  surplusSol?: number;
-}
-
 export default function DepositWithdrawModal({
   visible,
   mode,
@@ -42,7 +36,6 @@ export default function DepositWithdrawModal({
 }: DepositWithdrawModalProps) {
   const [amount, setAmount] = useState("");
   const [step, setStep] = useState<"input" | "confirming" | "success" | "error">("input");
-  const [confirmData, setConfirmData] = useState<ConfirmData | null>(null);
 
   const deposit = useYieldDepositAndConfirm();
   const withdraw = useYieldWithdrawAndConfirm();
@@ -81,10 +74,7 @@ export default function DepositWithdrawModal({
 
     try {
       if (mode === "deposit") {
-        const result = await deposit.mutateAsync({ amount: parsedAmount, vaultType, isPrivate });
-        if (isPrivate && result.confirmData) {
-          setConfirmData(result.confirmData);
-        }
+        await deposit.mutateAsync({ amount: parsedAmount, vaultType, isPrivate });
       } else {
         await withdraw.mutateAsync({ amount: parsedAmount, vaultType, isPrivate });
       }
@@ -102,7 +92,6 @@ export default function DepositWithdrawModal({
   const handleClose = () => {
     setAmount("");
     setStep("input");
-    setConfirmData(null);
     onClose();
   };
 
@@ -135,71 +124,16 @@ export default function DepositWithdrawModal({
               <Ionicons name="checkmark-circle" size={64} color="#4ADE80" />
             </View>
             <Text style={styles.successTitle}>
-              {mode === "deposit" ? "Dépôt confirmé" : "Retrait confirmé"}
+              {mode === "deposit" ? "Deposit confirmed" : "Withdrawal confirmed"}
             </Text>
             <Text style={styles.successAmount}>
               {parsedAmount.toFixed(decimals)} {unit}
             </Text>
-
-            {/* Arcium encrypted deposit info */}
-            {isPrivate && mode === "deposit" && confirmData?.denominationsUsed && (
-              <View style={styles.arciumInfoBox}>
-                <View style={styles.arciumInfoRow}>
-                  <Ionicons name="lock-closed" size={14} color="#4ADE80" />
-                  <Text style={styles.arciumInfoText}>
-                    Chiffré on-chain via Arcium MPC
-                  </Text>
-                </View>
-                <View style={styles.arciumInfoRow}>
-                  <Ionicons name="layers-outline" size={14} color="rgba(74,222,128,0.7)" />
-                  <Text style={styles.arciumInfoText}>
-                    {confirmData.denominationsUsed.length} tranche{confirmData.denominationsUsed.length > 1 ? "s" : ""} standard
-                    {" "}({confirmData.denominationsUsed.map(d => `${d}`).join(", ")} SOL)
-                  </Text>
-                </View>
-                {confirmData.surplusSol != null && confirmData.surplusSol > 0.0001 && (
-                  <View style={styles.arciumInfoRow}>
-                    <Ionicons name="return-down-back-outline" size={14} color="rgba(74,222,128,0.7)" />
-                    <Text style={styles.arciumInfoText}>
-                      {confirmData.surplusSol.toFixed(4)} SOL retourné à ton wallet
-                    </Text>
-                  </View>
-                )}
-                <View style={styles.arciumInfoRow}>
-                  <Ionicons name="time-outline" size={14} color="rgba(74,222,128,0.7)" />
-                  <Text style={styles.arciumInfoText}>
-                    Staking en cours • délai anti-corrélation
-                  </Text>
-                </View>
-              </View>
-            )}
-
-            {/* Arcium private withdraw info */}
-            {isPrivate && mode === "withdraw" && (
-              <View style={styles.arciumInfoBox}>
-                <View style={styles.arciumInfoRow}>
-                  <Ionicons name="shield-checkmark" size={14} color="#4ADE80" />
-                  <Text style={styles.arciumInfoText}>
-                    Solde vérifié via Arcium MPC
-                  </Text>
-                </View>
-                <View style={styles.arciumInfoRow}>
-                  <Ionicons name="eye-off-outline" size={14} color="rgba(74,222,128,0.7)" />
-                  <Text style={styles.arciumInfoText}>
-                    Aucun lien on-chain avec ton wallet
-                  </Text>
-                </View>
-              </View>
-            )}
-
-            {/* Standard mode info */}
-            {!isPrivate && (
-              <Text style={styles.successSubtext}>
-                {mode === "deposit"
-                  ? `Ton ${unit} génère du yield via Jito`
-                  : `${unit} envoyé à ton wallet`}
-              </Text>
-            )}
+            <Text style={styles.successSubtext}>
+              {mode === "deposit"
+                ? `Your ${unit} is now earning yield`
+                : `${unit} sent to your wallet`}
+            </Text>
 
             <TouchableOpacity style={styles.doneButton} onPress={handleClose}>
               <Text style={styles.doneButtonText}>Done</Text>
@@ -209,18 +143,12 @@ export default function DepositWithdrawModal({
           <View style={styles.confirmingContainer}>
             <ActivityIndicator size="large" color={isPrivate ? "#4ADE80" : "#fff"} />
             <Text style={styles.confirmingText}>
-              {isPrivate && mode === "withdraw"
-                ? "Vérification Arcium..."
-                : isPrivate && mode === "deposit"
-                  ? "Dépôt sécurisé..."
-                  : mode === "deposit" ? "Depositing..." : "Withdrawing..."}
+              {mode === "deposit" ? "Depositing..." : "Withdrawing..."}
             </Text>
             <Text style={styles.confirmingSubtext}>
-              {isPrivate && mode === "withdraw"
-                ? "Vérification du solde chiffré via MPC"
-                : isPrivate && mode === "deposit"
-                  ? "Décomposition en montants standards"
-                  : "Please confirm the transaction in your wallet"}
+              {mode === "deposit"
+                ? "Please confirm the transaction in your wallet"
+                : "Processing your withdrawal..."}
             </Text>
           </View>
         ) : (
@@ -428,28 +356,6 @@ const styles = StyleSheet.create({
     fontSize: 17,
     fontFamily: "Sansation-Bold",
     color: "#000",
-  },
-  // Arcium info box
-  arciumInfoBox: {
-    backgroundColor: "rgba(74,222,128,0.06)",
-    borderWidth: 1,
-    borderColor: "rgba(74,222,128,0.2)",
-    borderRadius: 12,
-    padding: 14,
-    marginBottom: 24,
-    gap: 8,
-    width: "100%",
-  },
-  arciumInfoRow: {
-    flexDirection: "row" as const,
-    alignItems: "center",
-    gap: 8,
-  },
-  arciumInfoText: {
-    fontSize: 13,
-    fontFamily: "Sansation-Regular",
-    color: "rgba(74,222,128,0.85)",
-    flex: 1,
   },
   // Confirming state
   confirmingContainer: {

@@ -49,29 +49,31 @@ export const RevolutPager = forwardRef<RevolutPagerRef, RevolutPagerProps>(({
       index.value = targetIndex;
       translateX.value = withSpring(-targetIndex * width, SPRING);
 
-      // Notify the parent about the index change
       if (onIndexChange) {
         runOnJS(onIndexChange)(targetIndex);
       }
     },
   }));
 
-  const clamp = (v, min, max) => {
+  const clamp = (v: number, min: number, max: number) => {
     'worklet';
     return Math.min(Math.max(v, min), max);
   };
 
   const startX = useSharedValue(0);
+  const startIndex = useSharedValue(initialIndex);
 
   const pan = Gesture.Pan()
+    .activeOffsetX([-12, 12])
+    .failOffsetY([-8, 8])
     .onStart(() => {
       startX.value = translateX.value;
+      startIndex.value = Math.round(-translateX.value / width);
     })
     .onUpdate((e) => {
       const next = startX.value + e.translationX;
-
-      // rubber band edges
       const minX = -(count - 1) * width;
+
       if (next > 0) {
         translateX.value = next * 0.35;
       } else if (next < minX) {
@@ -81,14 +83,18 @@ export const RevolutPager = forwardRef<RevolutPagerRef, RevolutPagerProps>(({
       }
     })
     .onEnd((e) => {
-      const minX = -(count - 1) * width;
-      const rawIndex = -translateX.value / width;
+      const dragDelta = translateX.value - startX.value;
+      const threshold = width * 0.3;
+      let nextIndex: number;
 
-      let nextIndex = Math.round(rawIndex);
-
-      // velocity wins
       if (Math.abs(e.velocityX) > 600) {
-        nextIndex = e.velocityX > 0 ? index.value - 1 : index.value + 1;
+        nextIndex = e.velocityX > 0 ? startIndex.value - 1 : startIndex.value + 1;
+      } else if (dragDelta > threshold) {
+        nextIndex = startIndex.value - 1;
+      } else if (dragDelta < -threshold) {
+        nextIndex = startIndex.value + 1;
+      } else {
+        nextIndex = startIndex.value;
       }
 
       nextIndex = clamp(nextIndex, 0, count - 1);
@@ -151,7 +157,7 @@ export const RevolutPager = forwardRef<RevolutPagerRef, RevolutPagerProps>(({
 const styles = StyleSheet.create({
   container: {
     flexDirection: 'row',
-    width: width * 3, // overwritten dynamically
+    width: width * 3,
     flex: 1,
   },
   page: {

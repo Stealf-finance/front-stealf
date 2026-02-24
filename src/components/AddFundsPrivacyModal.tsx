@@ -11,14 +11,12 @@ import {
 interface AddFundsPrivacyModalProps {
   visible: boolean;
   onClose: () => void;
-  onSelectPrivateCash: () => void;
   onSelectSimpleDeposit: () => void;
 }
 
 export default function AddFundsPrivacyModal({
   visible,
   onClose,
-  onSelectPrivateCash,
   onSelectSimpleDeposit,
 }: AddFundsPrivacyModalProps) {
   return (
@@ -39,21 +37,6 @@ export default function AddFundsPrivacyModal({
 
             {/* Options */}
             <View style={styles.optionsContainer}>
-              {/* Deposit Private Cash */}
-              <TouchableOpacity
-                style={styles.optionButton}
-                onPress={onSelectPrivateCash}
-                activeOpacity={0.7}
-              >
-                <View style={styles.optionContent}>
-                  <View style={styles.optionTextContainer}>
-                    <Text style={styles.optionTitle}>Deposit private cash</Text>
-                  </View>
-                  <Text style={styles.arrow}>›</Text>
-                </View>
-              </TouchableOpacity>
-
-              {/* Simple Deposit */}
               <TouchableOpacity
                 style={styles.optionButton}
                 onPress={onSelectSimpleDeposit}

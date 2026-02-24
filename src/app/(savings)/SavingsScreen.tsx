@@ -6,57 +6,33 @@ import {
   ScrollView,
   TouchableOpacity,
   ActivityIndicator,
-  RefreshControl,
-  Alert,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import { useYieldDashboard, useYieldProof, useBatchStatus, type VaultType } from "../../hooks/useYield";
+import { useYieldDashboard, useBatchStatus, type VaultType } from "../../hooks/useYield";
 import { useWalletInfos } from "../../hooks/useWalletInfos";
 import { useAuth } from "../../contexts/AuthContext";
-import { useReserveProof } from "../../hooks/useReserveProof";
 import DepositWithdrawModal from "./DepositWithdrawModal";
-import type { PageType } from "../../navigation/types";
-
 type AssetTab = "sol" | "usdc";
 
-interface SavingsScreenProps {
-  onNavigateToPage: (page: PageType) => void;
-  currentPage: PageType;
-}
-
-export default function SavingsScreen({
-  onNavigateToPage,
-  currentPage,
-}: SavingsScreenProps) {
-  const { data: dashboard, isLoading, refetch } = useYieldDashboard();
+export default function SavingsScreen() {
+  const { data: dashboard, isLoading } = useYieldDashboard();
   const { userData } = useAuth();
-  const { balance: walletBalance } = useWalletInfos(userData?.cash_wallet || "");
-  const [refreshing, setRefreshing] = useState(false);
+  const { tokens: walletTokens } = useWalletInfos(userData?.cash_wallet || "");
   const [modalVisible, setModalVisible] = useState(false);
   const [modalMode, setModalMode] = useState<"deposit" | "withdraw">("deposit");
   const [activeTab, setActiveTab] = useState<AssetTab>("sol");
+  const USDC_MINT = 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v';
+  const walletSolBalance = walletTokens.find(t => t.tokenMint === null)?.balance ?? 0;
+  const walletUsdcBalance = walletTokens.find(t => t.tokenMint === USDC_MINT)?.balance ?? 0;
+  const walletAvailable = activeTab === 'sol' ? walletSolBalance : walletUsdcBalance;
   const [privacyMode, setPrivacyMode] = useState(false);
   const [selectedSolVault, setSelectedSolVault] = useState<"sol_jito" | "sol_marinade">("sol_jito");
 
   // Arcium: batch staking status (denomination staking in progress)
   const { data: batchStatus } = useBatchStatus();
 
-  // Arcium: proof of reserve (permissionless solvency check)
-  const { isSolvent, isLoading: reserveLoading } = useReserveProof();
 
-  // Arcium: proof of yield (only in private SOL mode with a balance)
-  // Use dashboard directly since solBalance hasn't been derived yet at hook-call time
-  const { data: yieldProof } = useYieldProof(
-    selectedSolVault,
-    100, // 1% threshold = 100 bps
-    privacyMode && activeTab === "sol" && (dashboard?.balance?.totalDeposited ?? 0) > 0
-  );
 
-  const onRefresh = async () => {
-    setRefreshing(true);
-    await refetch();
-    setRefreshing(false);
-  };
 
   const solBalance = dashboard?.balance;
   const usdcBalance = dashboard?.usdc;
@@ -84,246 +60,218 @@ export default function SavingsScreen({
     activeTab === "usdc" ? "usdc_kamino" : selectedSolVault;
 
   return (
-    <ScrollView
-      style={styles.container}
-      contentContainerStyle={styles.content}
-      refreshControl={
-        <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#fff" />
-      }
-    >
-      {/* Header */}
-      <View style={styles.header}>
-        <View>
-          <Text style={styles.headerTitle}>Savings</Text>
-          <Text style={styles.headerSubtitle}>Earn yield on your assets</Text>
-        </View>
-        {/* Reserve proof indicator */}
-        {!reserveLoading && isSolvent === false && (
-          Alert.alert(
-            "Anomalie détectée",
-            "Le vault ne passe pas la vérification de réserve. Contactez le support.",
-            [{ text: "OK" }]
-          ) as any
-        )}
-        {!reserveLoading && isSolvent === true && (
-          <View style={styles.solventBadge}>
-            <Ionicons name="shield-checkmark-outline" size={13} color="#22c55e" />
-            <Text style={styles.solventText}>Vault vérifié</Text>
+    <View style={styles.container}>
+      {/* Section fixe — ne scroll pas */}
+      <View style={styles.content}>
+        {/* Header */}
+        <View style={styles.header}>
+          <View>
+            <Text style={styles.headerTitle}>Savings</Text>
+            <Text style={styles.headerSubtitle}>Earn yield on your assets</Text>
           </View>
-        )}
-      </View>
-
-      {/* Asset Tabs */}
-      <View style={styles.tabRow}>
-        <TouchableOpacity
-          style={[styles.tab, activeTab === "sol" && styles.tabActive]}
-          onPress={() => setActiveTab("sol")}
-        >
-          <Text style={[styles.tabText, activeTab === "sol" && styles.tabTextActive]}>
-            SOL
-          </Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={[styles.tab, activeTab === "usdc" && styles.tabActive]}
-          onPress={() => setActiveTab("usdc")}
-        >
-          <Text style={[styles.tabText, activeTab === "usdc" && styles.tabTextActive]}>
-            USDC
-          </Text>
-        </TouchableOpacity>
-      </View>
-
-      {isLoading ? (
-        <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color="rgba(255,255,255,0.5)" />
         </View>
-      ) : (
-        <>
-          {/* Balance Card */}
-          <View style={styles.balanceCard}>
-            <Text style={styles.balanceLabel}>Total Value</Text>
-            <Text style={styles.balanceAmount}>
-              {(currentBalance?.currentValue ?? 0).toFixed(decimals)} {unit}
-            </Text>
 
-            <View style={styles.yieldRow}>
-              <View style={styles.yieldItem}>
-                <Text style={styles.yieldLabel}>Deposited</Text>
-                <Text style={styles.yieldValue}>
-                  {(currentBalance?.totalDeposited ?? 0).toFixed(decimals)} {unit}
-                </Text>
-              </View>
-              <View style={styles.yieldItem}>
-                <Text style={styles.yieldLabel}>Yield Earned</Text>
-                <Text
-                  style={[
-                    styles.yieldValue,
-                    { color: (currentBalance?.yieldEarned ?? 0) >= 0 ? "#4ADE80" : "#F87171" },
-                  ]}
-                >
-                  +{(currentBalance?.yieldEarned ?? 0).toFixed(decimals)} {unit}
-                </Text>
-              </View>
-              <View style={styles.yieldItem}>
-                <Text style={styles.yieldLabel}>Return</Text>
-                <Text
-                  style={[
-                    styles.yieldValue,
-                    { color: (currentBalance?.yieldPercent ?? 0) >= 0 ? "#4ADE80" : "#F87171" },
-                  ]}
-                >
-                  {(currentBalance?.yieldPercent ?? 0).toFixed(2)}%
-                </Text>
+        {/* Asset Tabs */}
+        <View style={styles.tabRow}>
+          <TouchableOpacity
+            style={[styles.tab, activeTab === "sol" && styles.tabActive]}
+            onPress={() => setActiveTab("sol")}
+          >
+            <Text style={[styles.tabText, activeTab === "sol" && styles.tabTextActive]}>
+              SOL
+            </Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.tab, activeTab === "usdc" && styles.tabActive]}
+            onPress={() => setActiveTab("usdc")}
+          >
+            <Text style={[styles.tabText, activeTab === "usdc" && styles.tabTextActive]}>
+              USDC
+            </Text>
+          </TouchableOpacity>
+        </View>
+
+        {isLoading ? (
+          <View style={styles.loadingContainer}>
+            <ActivityIndicator size="large" color="rgba(255,255,255,0.5)" />
+          </View>
+        ) : (
+          <>
+            {/* Balance Card */}
+            <View style={styles.balanceCard}>
+              <Text style={styles.balanceLabel}>Total Value</Text>
+              <Text style={styles.balanceAmount}>
+                {(currentBalance?.currentValue ?? 0).toFixed(decimals)} {unit}
+              </Text>
+
+              <View style={styles.yieldRow}>
+                <View style={styles.yieldItem}>
+                  <Text style={styles.yieldLabel}>Deposited</Text>
+                  <Text style={styles.yieldValue}>
+                    {(currentBalance?.totalDeposited ?? 0).toFixed(decimals)} {unit}
+                  </Text>
+                </View>
+                <View style={styles.yieldItem}>
+                  <Text style={styles.yieldLabel}>Yield Earned</Text>
+                  <Text
+                    style={[
+                      styles.yieldValue,
+                      { color: (currentBalance?.yieldEarned ?? 0) >= 0 ? "#4ADE80" : "#F87171" },
+                    ]}
+                  >
+                    +{(currentBalance?.yieldEarned ?? 0).toFixed(decimals)} {unit}
+                  </Text>
+                </View>
+                <View style={styles.yieldItem}>
+                  <Text style={styles.yieldLabel}>Return</Text>
+                  <Text
+                    style={[
+                      styles.yieldValue,
+                      { color: (currentBalance?.yieldPercent ?? 0) >= 0 ? "#4ADE80" : "#F87171" },
+                    ]}
+                  >
+                    {(currentBalance?.yieldPercent ?? 0).toFixed(2)}%
+                  </Text>
+                </View>
               </View>
             </View>
-          </View>
 
-          {/* APY Card / Protocol Selector */}
-          <View style={styles.apyCard}>
-            {activeTab === "sol" ? (
-              <>
-                <Text style={styles.apyCardLabel}>Protocole de staking</Text>
-                <View style={styles.protocolRow}>
-                  <TouchableOpacity
-                    style={[styles.protocolItem, selectedSolVault === "sol_jito" && styles.protocolItemActive]}
-                    onPress={() => setSelectedSolVault("sol_jito")}
-                    activeOpacity={0.7}
-                  >
-                    <View style={styles.protocolHeader}>
-                      <Text style={[styles.protocolName, selectedSolVault === "sol_jito" && styles.protocolNameActive]}>
-                        Jito
+            {/* APY Card / Protocol Selector */}
+            <View style={styles.apyCard}>
+              {activeTab === "sol" ? (
+                <>
+                  <Text style={styles.apyCardLabel}>Staking protocol</Text>
+                  <View style={styles.protocolRow}>
+                    <TouchableOpacity
+                      style={[styles.protocolItem, selectedSolVault === "sol_jito" && styles.protocolItemActive]}
+                      onPress={() => setSelectedSolVault("sol_jito")}
+                      activeOpacity={0.7}
+                    >
+                      <View style={styles.protocolHeader}>
+                        <Text style={[styles.protocolName, selectedSolVault === "sol_jito" && styles.protocolNameActive]}>
+                          Jito
+                        </Text>
+                        {selectedSolVault === "sol_jito" && (
+                          <View style={styles.protocolBadge}>
+                            <Text style={styles.protocolBadgeText}>actif</Text>
+                          </View>
+                        )}
+                      </View>
+                      <Text style={[styles.protocolApy, selectedSolVault === "sol_jito" && styles.protocolApyActive]}>
+                        {apy?.jitoApy ?? "—"}%
                       </Text>
-                      {selectedSolVault === "sol_jito" && (
-                        <View style={styles.protocolBadge}>
-                          <Text style={styles.protocolBadgeText}>actif</Text>
-                        </View>
-                      )}
-                    </View>
-                    <Text style={[styles.protocolApy, selectedSolVault === "sol_jito" && styles.protocolApyActive]}>
-                      {apy?.jitoApy ?? "—"}%
-                    </Text>
-                    <Text style={styles.protocolSub}>JitoSOL</Text>
-                  </TouchableOpacity>
+                      <Text style={styles.protocolSub}>JitoSOL</Text>
+                    </TouchableOpacity>
 
-                  <TouchableOpacity
-                    style={[styles.protocolItem, selectedSolVault === "sol_marinade" && styles.protocolItemActive]}
-                    onPress={() => setSelectedSolVault("sol_marinade")}
-                    activeOpacity={0.7}
-                  >
-                    <View style={styles.protocolHeader}>
-                      <Text style={[styles.protocolName, selectedSolVault === "sol_marinade" && styles.protocolNameActive]}>
-                        Marinade
+                    <TouchableOpacity
+                      style={[styles.protocolItem, selectedSolVault === "sol_marinade" && styles.protocolItemActive]}
+                      onPress={() => setSelectedSolVault("sol_marinade")}
+                      activeOpacity={0.7}
+                    >
+                      <View style={styles.protocolHeader}>
+                        <Text style={[styles.protocolName, selectedSolVault === "sol_marinade" && styles.protocolNameActive]}>
+                          Marinade
+                        </Text>
+                        {selectedSolVault === "sol_marinade" && (
+                          <View style={styles.protocolBadge}>
+                            <Text style={styles.protocolBadgeText}>actif</Text>
+                          </View>
+                        )}
+                      </View>
+                      <Text style={[styles.protocolApy, selectedSolVault === "sol_marinade" && styles.protocolApyActive]}>
+                        {apy?.marinadeApy ?? "—"}%
                       </Text>
-                      {selectedSolVault === "sol_marinade" && (
-                        <View style={styles.protocolBadge}>
-                          <Text style={styles.protocolBadgeText}>actif</Text>
-                        </View>
-                      )}
-                    </View>
-                    <Text style={[styles.protocolApy, selectedSolVault === "sol_marinade" && styles.protocolApyActive]}>
-                      {apy?.marinadeApy ?? "—"}%
-                    </Text>
-                    <Text style={styles.protocolSub}>mSOL</Text>
-                  </TouchableOpacity>
+                      <Text style={styles.protocolSub}>mSOL</Text>
+                    </TouchableOpacity>
+                  </View>
+                </>
+              ) : (
+                <View style={styles.apyRow}>
+                  <View style={styles.apyItem}>
+                    <Text style={styles.apyProtocol}>Kamino Lending</Text>
+                    <Text style={styles.apyRate}>{apy?.usdcKaminoApy ?? "—"}%</Text>
+                  </View>
                 </View>
-              </>
-            ) : (
-              <View style={styles.apyRow}>
-                <View style={styles.apyItem}>
-                  <Text style={styles.apyProtocol}>Kamino Lending</Text>
-                  <Text style={styles.apyRate}>{apy?.usdcKaminoApy ?? "—"}%</Text>
+              )}
+            </View>
+
+            {/* Batch staking status banner */}
+            {batchStatus && batchStatus.status === "pending" && (
+              <View style={styles.batchBanner}>
+                <ActivityIndicator size="small" color="#4ADE80" />
+                <View style={styles.batchBannerText}>
+                  <Text style={styles.batchBannerTitle}>Staking en cours</Text>
+                  <Text style={styles.batchBannerSub}>
+                    Anti-corrélation active
+                    {batchStatus.estimatedMinutes != null
+                      ? ` • ~${batchStatus.estimatedMinutes} min`
+                      : ""}
+                  </Text>
                 </View>
+                <Ionicons name="lock-closed" size={16} color="rgba(74,222,128,0.5)" />
               </View>
             )}
-          </View>
-
-          {/* Batch staking status banner (Arcium denomination processing) */}
-          {batchStatus && batchStatus.status === "pending" && (
-            <View style={styles.batchBanner}>
-              <ActivityIndicator size="small" color="#4ADE80" />
-              <View style={styles.batchBannerText}>
-                <Text style={styles.batchBannerTitle}>Staking en cours</Text>
-                <Text style={styles.batchBannerSub}>
-                  Anti-corrélation active
-                  {batchStatus.estimatedMinutes != null
-                    ? ` • ~${batchStatus.estimatedMinutes} min`
-                    : ""}
-                </Text>
+            {batchStatus && batchStatus.status === "complete" && (
+              <View style={[styles.batchBanner, styles.batchBannerComplete]}>
+                <Ionicons name="checkmark-circle" size={18} color="#4ADE80" />
+                <Text style={styles.batchBannerTitle}>Staking confirmé</Text>
               </View>
-              <Ionicons name="lock-closed" size={16} color="rgba(74,222,128,0.5)" />
-            </View>
-          )}
-          {batchStatus && batchStatus.status === "complete" && (
-            <View style={[styles.batchBanner, styles.batchBannerComplete]}>
-              <Ionicons name="checkmark-circle" size={18} color="#4ADE80" />
-              <Text style={styles.batchBannerTitle}>Staking confirmé</Text>
-            </View>
-          )}
+            )}
 
-          {/* Arcium Proof-of-Yield badge (private SOL mode only) */}
-          {privacyMode && activeTab === "sol" && yieldProof && (
-            <View style={styles.proofBadge}>
-              <Ionicons name="shield-checkmark" size={16} color="#4ADE80" />
-              <Text style={styles.proofBadgeText}>
-                {yieldProof.exceedsThreshold
-                  ? `Rendement ≥ ${(yieldProof.thresholdBps / 100).toFixed(0)}% vérifié via MPC`
-                  : `Preuve de rendement en attente`}
-              </Text>
-            </View>
-          )}
-
-          {/* Privacy Toggle */}
-          <TouchableOpacity
-            style={[styles.privacyBar, privacyMode && styles.privacyBarActive]}
-            onPress={() => setPrivacyMode(!privacyMode)}
-            activeOpacity={0.7}
-          >
-            <View style={styles.privacyBarLeft}>
-              <Ionicons
-                name={privacyMode ? "shield-checkmark" : "shield-outline"}
-                size={20}
-                color={privacyMode ? "#4ADE80" : "rgba(255,255,255,0.5)"}
-              />
-              <View>
+            {/* Privacy Toggle */}
+            <TouchableOpacity
+              style={[styles.privacyBar, privacyMode && styles.privacyBarActive]}
+              onPress={() => setPrivacyMode(!privacyMode)}
+              activeOpacity={0.7}
+            >
+              <View style={styles.privacyBarLeft}>
+                <Ionicons
+                  name={privacyMode ? "shield-checkmark" : "shield-outline"}
+                  size={20}
+                  color={privacyMode ? "#4ADE80" : "rgba(255,255,255,0.5)"}
+                />
                 <Text style={[styles.privacyBarTitle, privacyMode && styles.privacyBarTitleActive]}>
                   {privacyMode ? "Private Mode" : "Standard Mode"}
                 </Text>
-                <Text style={styles.privacyBarSubtext}>
-                  {privacyMode
-                    ? "Arcium chiffré • Privacy Pool routé"
-                    : "Activer pour chiffrer via Arcium MPC"}
-                </Text>
               </View>
-            </View>
-            <View style={[styles.privacySwitch, privacyMode && styles.privacySwitchActive]}>
-              <View style={[styles.privacySwitchThumb, privacyMode && styles.privacySwitchThumbActive]} />
-            </View>
-          </TouchableOpacity>
-
-          {/* Actions */}
-          <View style={styles.actionsRow}>
-            <TouchableOpacity
-              style={styles.actionButton}
-              onPress={() => openModal("deposit")}
-            >
-              <View style={[styles.actionIcon, privacyMode && styles.actionIconPrivate]}>
-                <Ionicons name="arrow-down" size={20} color="#fff" />
+              <View style={[styles.privacySwitch, privacyMode && styles.privacySwitchActive]}>
+                <View style={[styles.privacySwitchThumb, privacyMode && styles.privacySwitchThumbActive]} />
               </View>
-              <Text style={styles.actionLabel}>Deposit</Text>
             </TouchableOpacity>
-            <TouchableOpacity
-              style={styles.actionButton}
-              onPress={() => openModal("withdraw")}
-            >
-              <View style={[styles.actionIcon, privacyMode && styles.actionIconPrivate]}>
-                <Ionicons name="arrow-up" size={20} color="#fff" />
-              </View>
-              <Text style={styles.actionLabel}>Withdraw</Text>
-            </TouchableOpacity>
-          </View>
 
-          {/* History */}
-          {filteredHistory.length > 0 && (
+            {/* Actions */}
+            <View style={styles.actionsRow}>
+              <TouchableOpacity
+                style={styles.actionButton}
+                onPress={() => openModal("deposit")}
+              >
+                <View style={[styles.actionIcon, privacyMode && styles.actionIconPrivate]}>
+                  <Ionicons name="arrow-down" size={20} color="#fff" />
+                </View>
+                <Text style={styles.actionLabel}>Deposit</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.actionButton}
+                onPress={() => openModal("withdraw")}
+              >
+                <View style={[styles.actionIcon, privacyMode && styles.actionIconPrivate]}>
+                  <Ionicons name="arrow-up" size={20} color="#fff" />
+                </View>
+                <Text style={styles.actionLabel}>Withdraw</Text>
+              </TouchableOpacity>
+            </View>
+          </>
+        )}
+      </View>
+
+      {/* Section history — scroll indépendant */}
+      {!isLoading && (
+        <ScrollView
+          style={styles.historyScroll}
+          contentContainerStyle={styles.historyContent}
+          showsVerticalScrollIndicator={false}
+        >
+          {filteredHistory.length > 0 ? (
             <View style={styles.historySection}>
               <Text style={styles.sectionTitle}>History</Text>
               {filteredHistory.map((item, index) => (
@@ -350,33 +298,30 @@ export default function SavingsScreen({
                 </View>
               ))}
             </View>
-          )}
-
-          {filteredHistory.length === 0 && (
+          ) : (
             <View style={styles.emptyState}>
               <Ionicons name="wallet-outline" size={48} color="rgba(255,255,255,0.2)" />
-              <Text style={styles.emptyText}>No savings yet</Text>
               <Text style={styles.emptySubtext}>
                 {activeTab === "sol"
-                  ? "Deposit SOL to start earning ~7.5% APY via Jito"
-                  : "Deposit USDC to start earning yield via Kamino"}
+                  ? "Deposit SOL to start earning"
+                  : "Deposit USDC to start earning"}
               </Text>
             </View>
           )}
-        </>
+        </ScrollView>
       )}
 
       <DepositWithdrawModal
         visible={modalVisible}
         mode={modalMode}
         onClose={() => setModalVisible(false)}
-        availableBalance={walletBalance ?? 0}
+        availableBalance={walletAvailable}
         savingsBalance={currentBalance?.currentValue ?? 0}
         vaultType={modalVaultType}
         unit={unit}
         isPrivate={privacyMode}
       />
-    </ScrollView>
+    </View>
   );
 }
 
@@ -388,7 +333,7 @@ const styles = StyleSheet.create({
   content: {
     paddingHorizontal: 20,
     paddingTop: 100,
-    paddingBottom: 40,
+    paddingBottom: 8,
   },
   header: {
     marginBottom: 20,
@@ -560,7 +505,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     justifyContent: "center",
     gap: 40,
-    marginBottom: 32,
+    marginBottom: 12,
   },
   actionButton: {
     alignItems: "center",
@@ -579,8 +524,15 @@ const styles = StyleSheet.create({
     fontFamily: "Sansation-Regular",
     color: "rgba(255,255,255,0.8)",
   },
+  historyScroll: {
+    flex: 1,
+    paddingHorizontal: 20,
+  },
+  historyContent: {
+    paddingBottom: 40,
+  },
   historySection: {
-    marginTop: 8,
+    marginTop: 0,
   },
   sectionTitle: {
     fontSize: 18,
@@ -619,7 +571,7 @@ const styles = StyleSheet.create({
   },
   emptyState: {
     alignItems: "center",
-    paddingTop: 48,
+    paddingTop: 8,
     gap: 12,
   },
   emptyText: {

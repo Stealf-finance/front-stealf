@@ -60,7 +60,7 @@ export function useSendTransaction() {
             const fromPubkey = new PublicKey(fromAddress);
             const toPubkey = new PublicKey(toAddress);
 
-            const { blockhash } = await connection.getLatestBlockhash('finalized');
+            const { blockhash } = await connection.getLatestBlockhash('confirmed');
 
             const transaction = new Transaction();
             transaction.recentBlockhash = blockhash;

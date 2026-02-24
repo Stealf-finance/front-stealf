@@ -2,6 +2,14 @@ import { base58ToHex, base64ToBase58, createSeedVaultWallet } from '../services/
 import { transact } from '@solana-mobile/mobile-wallet-adapter-protocol-web3js';
 import bs58 from 'bs58';
 
+// Mock Transaction from @solana/web3.js to avoid needing valid serialized bytes
+jest.mock('@solana/web3.js', () => ({
+  ...jest.requireActual('@solana/web3.js'),
+  Transaction: {
+    from: jest.fn().mockReturnValue({ feePayer: null }),
+  },
+}));
+
 describe('solanaWalletBridge', () => {
   describe('base58ToHex', () => {
     it('converts a valid base58 Solana address to hex', () => {

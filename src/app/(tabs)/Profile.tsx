@@ -1,5 +1,5 @@
 import React from 'react';
-import { StyleSheet, View, Text, TouchableOpacity, ScrollView, Image, PanResponder, Linking } from 'react-native';
+import { StyleSheet, View, Text, TouchableOpacity, ScrollView, Image, Linking } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useAuth } from '../../contexts/AuthContext';
 
@@ -40,23 +40,6 @@ export default function ProfileScreen({ onBack, onNavigateToPage, onLogout, curr
     }
   };
 
-  const panResponder = PanResponder.create({
-    onStartShouldSetPanResponder: () => true,
-    onMoveShouldSetPanResponder: (_, gestureState) => {
-      return Math.abs(gestureState.dx) > Math.abs(gestureState.dy) && Math.abs(gestureState.dx) > 20;
-    },
-    onPanResponderRelease: (_, gestureState) => {
-      if (gestureState.dx > 50) {
-        if (onNavigateToPage) {
-          onNavigateToPage('home');
-        }
-        if (onBack) {
-          onBack();
-        }
-      }
-    },
-  });
-
   return (
     <View style={styles.container}>
       <LinearGradient colors={['#000000', '#000000', '#000000']} style={styles.background}>
@@ -74,7 +57,7 @@ export default function ProfileScreen({ onBack, onNavigateToPage, onLogout, curr
         </View>
 
         {/* Profile Content */}
-        <View style={{ flex: 1 }} {...panResponder.panHandlers}>
+        <View style={{ flex: 1 }}>
           <ScrollView style={styles.profileContent} showsVerticalScrollIndicator={false}>
 
           {/* Spacer pour pousser les boutons vers le bas */}

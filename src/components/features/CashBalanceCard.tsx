@@ -1,96 +1,124 @@
-import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator, Image, ScrollView } from 'react-native';
+import React, { useState } from 'react';
+import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator, Image } from 'react-native';
 import { useAuth } from '../../contexts/AuthContext';
 import { useWalletInfos } from '../../hooks/useWalletInfos';
+
+const USDC_MINT = 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v';
+type DisplayMode = 'usd' | 'sol' | 'usdc';
 
 // Import SVG icons
 import DepositIcon from '../../assets/buttons/deposit.svg';
 import MooveIcon from '../../assets/buttons/moove.svg';
 import SendIcon from '../../assets/buttons/send.svg';
-import BankIcon from '../../assets/buttons/bank.svg';
+import SwapIcon from '../../assets/buttons/swap.svg';
 
 interface CashBalanceCardProps {
   onDeposit?: () => void;
   onMoove?: () => void;
   onSend?: () => void;
-  onBank?: () => void;
+  onSwap?: () => void;
 }
 
 export default function CashBalanceCard({
   onDeposit,
   onMoove,
   onSend,
-  onBank
+  onSwap,
 }: CashBalanceCardProps) {
 
   const { userData } = useAuth();
 
-  const { balance, isLoadingBalance, balanceError } = useWalletInfos(
+  const { balance, tokens, isLoadingBalance, balanceError } = useWalletInfos(
     userData?.cash_wallet || ''
   );
 
-  const totalUSD = balance || 0;
+  const [displayMode, setDisplayMode] = useState<DisplayMode>('usd');
+
+  const solToken = tokens.find(t => t.tokenMint === null);
+  const usdcToken = tokens.find(t => t.tokenMint === USDC_MINT);
+
+  const getBalanceParts = () => {
+    if (displayMode === 'usd') {
+      const [int, dec] = (balance || 0).toFixed(2).split('.');
+      return { int, dec, symbol: 'USD' };
+    }
+    if (displayMode === 'sol') {
+      const [int, dec] = (solToken?.balance || 0).toFixed(4).split('.');
+      return { int, dec, symbol: 'SOL' };
+    }
+    const [int, dec] = (usdcToken?.balance || 0).toFixed(2).split('.');
+    return { int, dec, symbol: 'USDC' };
+  };
+
+  const MODES: { key: DisplayMode; label: string }[] = [
+    { key: 'usd', label: 'Total' },
+    { key: 'sol', label: 'SOL' },
+    { key: 'usdc', label: 'USDC' },
+  ];
 
   return (
     <View style={styles.container}>
-      {/* Total */}
+      {/* Balance */}
       <View style={styles.totalSection}>
-        <Text style={styles.totalLabel}>Total</Text>
-        {isLoadingBalance ? (
-          <ActivityIndicator size="small" color="#ffffff" />
-        ) : balanceError ? (
-          <Text style={styles.totalAmount}>0</Text>
-        ) : (
-          <Text style={styles.totalAmount}>{totalUSD.toFixed(0)} USD</Text>
-        )}
+        <TouchableOpacity onPress={() => setDisplayMode(m => m === 'usd' ? 'sol' : m === 'sol' ? 'usdc' : 'usd')} activeOpacity={0.7}>
+          {isLoadingBalance ? (
+            <ActivityIndicator size="small" color="#ffffff" style={{ marginBottom: 8 }} />
+          ) : balanceError ? (
+            <Text style={styles.totalAmount}>—</Text>
+          ) : (
+            <Text style={styles.totalAmount}>
+              {getBalanceParts().int}
+              <Text style={styles.totalAmountDecimals}>.{getBalanceParts().dec}</Text>
+              <Text style={styles.totalAmountSymbol}> {getBalanceParts().symbol}</Text>
+            </Text>
+          )}
+        </TouchableOpacity>
+
+        {/* Pills selector */}
+        <View style={styles.pillsRow}>
+          {MODES.map(m => (
+            <TouchableOpacity
+              key={m.key}
+              style={[styles.pill, displayMode === m.key && styles.pillActive]}
+              onPress={() => setDisplayMode(m.key)}
+              activeOpacity={0.7}
+            >
+              <Text style={[styles.pillText, displayMode === m.key && styles.pillTextActive]}>
+                {m.label}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </View>
       </View>
-
-
 
       {/* Action Buttons */}
       <View style={styles.actionsRow}>
-        <TouchableOpacity
-          style={styles.actionButton}
-          onPress={onDeposit}
-          activeOpacity={0.7}
-        >
+        <TouchableOpacity style={styles.actionButton} onPress={onDeposit} activeOpacity={0.7}>
           <View style={styles.iconContainer}>
             <DepositIcon />
           </View>
           <Text style={styles.actionText}>Deposit</Text>
         </TouchableOpacity>
 
-        <TouchableOpacity
-          style={styles.actionButton}
-          onPress={onMoove}
-          activeOpacity={0.7}
-        >
+        <TouchableOpacity style={styles.actionButton} onPress={onMoove} activeOpacity={0.7}>
           <View style={styles.iconContainer}>
             <MooveIcon />
           </View>
           <Text style={styles.actionText}>Moove</Text>
         </TouchableOpacity>
 
-        <TouchableOpacity
-          style={styles.actionButton}
-          onPress={onSend}
-          activeOpacity={0.7}
-        >
+        <TouchableOpacity style={styles.actionButton} onPress={onSend} activeOpacity={0.7}>
           <View style={styles.iconContainer}>
             <SendIcon />
           </View>
           <Text style={styles.actionText}>Send</Text>
         </TouchableOpacity>
 
-        <TouchableOpacity
-          style={styles.actionButton}
-          onPress={onBank}
-          activeOpacity={0.7}
-        >
+        <TouchableOpacity style={styles.actionButton} onPress={onSwap} activeOpacity={0.7}>
           <View style={styles.iconContainer}>
-            <BankIcon />
+            <SwapIcon />
           </View>
-          <Text style={styles.actionText}>Infos</Text>
+          <Text style={styles.actionText}>Swap</Text>
         </TouchableOpacity>
       </View>
 
@@ -116,14 +144,19 @@ const styles = StyleSheet.create({
     paddingVertical: 20,
   },
   totalSection: {
-    marginBottom: 24,
+    marginBottom: 48,
   },
-  totalLabel: {
-    color: 'rgba(255, 255, 255, 0.5)',
-    fontSize: 14,
-    fontWeight: '400',
-    marginBottom: 4,
-    fontFamily: 'Sansation-Regular',
+  totalAmountDecimals: {
+    fontSize: 28,
+    color: 'rgba(255,255,255,0.7)',
+    fontFamily: 'Sansation-Light',
+    fontWeight: '300',
+  },
+  totalAmountSymbol: {
+    fontSize: 24,
+    color: 'rgba(255,255,255,0.4)',
+    fontFamily: 'Sansation-Light',
+    fontWeight: '300',
   },
   totalAmount: {
     color: '#ffffff',
@@ -131,22 +164,32 @@ const styles = StyleSheet.create({
     fontWeight: '300',
     fontFamily: 'Sansation-Light',
     letterSpacing: -1,
+    marginBottom: 12,
   },
-  privacySection: {
-    marginBottom: 24,
+  pillsRow: {
+    flexDirection: 'row',
+    gap: 8,
   },
-  privacyLabel: {
-    color: 'rgba(255, 255, 255, 0.4)',
-    fontSize: 13,
-    fontWeight: '400',
-    marginBottom: 4,
+  pill: {
+    paddingHorizontal: 12,
+    paddingVertical: 5,
+    borderRadius: 20,
+    backgroundColor: 'rgba(255,255,255,0.08)',
+    borderWidth: 1,
+    borderColor: 'transparent',
+  },
+  pillActive: {
+    backgroundColor: 'rgba(255,255,255,0.15)',
+    borderColor: 'rgba(255,255,255,0.3)',
+  },
+  pillText: {
+    color: 'rgba(255,255,255,0.4)',
+    fontSize: 12,
+    fontWeight: '500',
     fontFamily: 'Sansation-Regular',
   },
-  privacyAmount: {
-    color: 'rgba(255, 255, 255, 0.8)',
-    fontSize: 24,
-    fontWeight: '300',
-    fontFamily: 'Sansation-Light',
+  pillTextActive: {
+    color: '#ffffff',
   },
   cardsSection: {
     marginTop: 8,
@@ -160,7 +203,7 @@ const styles = StyleSheet.create({
   },
   cardItem: {
     width: '50%',
-    aspectRatio: 1.586, // Ratio standard d'une carte bancaire
+    aspectRatio: 1.586,
     borderRadius: 12,
     overflow: 'hidden',
   },
@@ -181,9 +224,9 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   iconContainer: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
+    width: 54,
+    height: 54,
+    borderRadius: 27,
     backgroundColor: 'rgba(255, 255, 255, 0.1)',
     justifyContent: 'center',
     alignItems: 'center',
@@ -194,5 +237,9 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '400',
     fontFamily: 'Sansation-Regular',
+  },
+  swapIcon: {
+    color: '#ffffff',
+    fontSize: 20,
   },
 });

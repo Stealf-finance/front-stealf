@@ -1,9 +1,10 @@
 import React, { useRef, useEffect, useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Animated, Easing } from 'react-native';
+import { View, Text, StyleSheet, Animated, Easing } from 'react-native';
 import TransactionHistory from '../../components/TransactionHistory';
 import CashBalanceCard from '../../components/features/CashBalanceCard';
 import AddFundsModal from '../../components/AddFundsModal';
 import SendModal from '../../components/SendModal';
+import SwapModal from '../../components/SwapModal';
 import type { PageType } from '../../navigation/types';
 
 interface HomeScreenProps {
@@ -30,8 +31,10 @@ export default function HomeScreen({
   currentPage = 'home',
 }: HomeScreenProps) {
   const slideUpAnim = useRef(new Animated.Value(100)).current;
+
   const [showAddFundsModal, setShowAddFundsModal] = useState(false);
   const [showSendModal, setShowSendModal] = useState(false);
+  const [showSwapModal, setShowSwapModal] = useState(false);
 
   const handleAddFundsPress = () => {
     setShowAddFundsModal(true);
@@ -68,15 +71,12 @@ export default function HomeScreen({
 
   return (
     <View style={styles.container}>
-        {/* Header Spacer */}
         <View style={styles.headerSpacer} />
-
-        {/* Balance Card */}
         <CashBalanceCard
           onDeposit={handleAddFundsPress}
           onMoove={onOpenMoove}
           onSend={() => setShowSendModal(true)}
-          onBank={onOpenInfo}
+          onSwap={() => setShowSwapModal(true)}
         />
 
         {/* Recent Activity */}
@@ -94,11 +94,8 @@ export default function HomeScreen({
         >
           <View style={styles.activityHeader}>
             <Text style={styles.activityTitle}>Transactions</Text>
-            <TouchableOpacity onPress={() => onNavigateToPage('transactionHistory')}>
-              <Text style={styles.seeAllText}>See All</Text>
-            </TouchableOpacity>
           </View>
-          <TransactionHistory limit={2} />
+          <TransactionHistory limit={50} compact />
         </Animated.View>
 
         {/* Add Funds Modal */}
@@ -117,6 +114,11 @@ export default function HomeScreen({
             onOpenSend();
           }}
         />
+
+        <SwapModal
+          visible={showSwapModal}
+          onClose={() => setShowSwapModal(false)}
+        />
     </View>
   );
 }
@@ -131,6 +133,7 @@ const styles = StyleSheet.create({
     height: 110,
   },
   activityContainer: {
+    flex: 1,
     paddingHorizontal: 20,
     marginTop: 15,
   },
@@ -144,10 +147,5 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: '600',
     color: 'white',
-  },
-  seeAllText: {
-    fontSize: 14,
-    fontWeight: '500',
-    color: 'rgba(255, 255, 255, 0.6)',
   },
 });

@@ -29,11 +29,9 @@ export default function AppNavigator() {
   const { isAuthenticated, userData, logout, loading } = useAuth();
   const [currentPage, setCurrentPage] = useState<PageType>('home');
   const [currentScreen, setCurrentScreen] = useState<'main' | 'send' | 'sendPrivate' | 'moove' | 'addFunds' | 'addFundsPrivacy' | 'depositPrivateCash' | 'info' | 'transactionHistory'>('main');
-  const [isCardScreenOpen, setIsCardScreenOpen] = useState(false);
   const [authMode, setAuthMode] = useState<'signin' | 'signup'>('signin');
   const [depositWalletType, setDepositWalletType] = useState<'cash' | 'privacy'>('cash');
   const [previousPage, setPreviousPage] = useState<PageType>('home');
-  const [transferType, setTransferType] = useState<'basic' | 'private'>('private');
   const [mooveDirection, setMooveDirection] = useState<'toPrivacy' | 'toCash'>('toCash');
   const [txHistoryWalletType, setTxHistoryWalletType] = useState<'cash' | 'privacy'>('cash');
   const [infoSource, setInfoSource] = useState<'home' | 'privacy'>('home');
@@ -164,7 +162,7 @@ export default function AppNavigator() {
       <StatusBar style="light" />
 
       {/* Minimal NavBar - Fixed at top */}
-      {(currentScreen === 'main' && !isCardScreenOpen) && (
+      {currentScreen === 'main' && (
         <View style={styles.fixedNavBar}>
           <MinimalNavBar
             onOpenProfile={handleOpenProfile}
@@ -204,17 +202,12 @@ export default function AppNavigator() {
                 render: () => (
                   <PrivacyScreen
                     onNavigateToPage={handleNavigateToPage}
-                    onOpenSendPrivate={(type: 'basic' | 'private') => {
-                      setTransferType(type);
-                      handleOpenScreen('sendPrivate');
-                    }}
                     onOpenMoove={() => { setMooveDirection('toCash'); handleOpenScreen('moove'); }}
                     onOpenAddFundsPrivacy={() => handleOpenScreen('addFundsPrivacy')}
                     onOpenDepositPrivateCash={handleOpenDepositPrivateCashFromPrivacy}
                     onOpenProfile={handleOpenProfile}
                     onOpenInfo={handleOpenInfoFromPrivacy}
                     userEmail={userData?.email}
-                    username={userData?.username}
                     currentPage={currentPage}
                   />
                 ),
@@ -222,10 +215,7 @@ export default function AppNavigator() {
               {
                 key: 'savings',
                 render: () => (
-                  <SavingsScreen
-                    onNavigateToPage={handleNavigateToPage}
-                    currentPage={currentPage}
-                  />
+                  <SavingsScreen />
                 ),
               },
               {
@@ -247,7 +237,7 @@ export default function AppNavigator() {
         )}
 
         {currentScreen === 'send' && <SendScreen onBack={handleBackToMain} />}
-        {currentScreen === 'sendPrivate' && <SendPrivateScreen onBack={handleBackToMain} transferType={transferType} />}
+        {currentScreen === 'sendPrivate' && <SendPrivateScreen onBack={handleBackToMain} transferType="private" />}
         {currentScreen === 'moove' && <MooveScreen onBack={handleBackToMain} direction={mooveDirection} />}
         {currentScreen === 'addFunds' && <AddFundsScreen onBack={handleBackToMain} />}
         {currentScreen === 'addFundsPrivacy' && <AddFundsPrivacyScreen onBack={handleBackToMain} />}

@@ -108,6 +108,7 @@ export default function MooveScreen({ onBack, direction = 'toCash' }: MooveScree
   const fromWallet = isToCash ? userData?.stealf_wallet : userData?.cash_wallet;
   const toWallet = isToCash ? userData?.cash_wallet : userData?.stealf_wallet;
   const selectedToken = sourceTokens[selectedTokenIndex] || null;
+  const isNativeSOL = !selectedToken?.tokenMint || selectedToken.tokenMint === 'So11111111111111111111111111111111';
 
   useEffect(() => {
     if (selectedTokenIndex >= privacyTokens.length && privacyTokens.length > 0) {
@@ -158,8 +159,6 @@ export default function MooveScreen({ onBack, direction = 'toCash' }: MooveScree
       Alert.alert('Error', 'Wallets not found');
       return;
     }
-
-    const isNativeSOL = !selectedToken.tokenMint || selectedToken.tokenMint === 'So11111111111111111111111111111111';
 
     setLoading(true);
     try {
@@ -218,36 +217,45 @@ export default function MooveScreen({ onBack, direction = 'toCash' }: MooveScree
           );
         }
       } else {
-        // Passkey users: use Jupiter swap via backend
-        const inputMint = selectedToken.tokenMint || 'So11111111111111111111111111111111';
-        const amountInSmallestUnit = Math.floor(amountNum * Math.pow(10, selectedToken.tokenDecimals)).toString();
+        // Passkey users
+        if (isNativeSOL) {
+          // SOL: route via Jupiter swap
+          const inputMint = 'So11111111111111111111111111111111112';
+          const amountInSmallestUnit = Math.floor(amountNum * Math.pow(10, selectedToken.tokenDecimals)).toString();
 
-        const orderResponse = await order({
-          inputMint,
-          amount: amountInSmallestUnit,
-          taker: fromWallet,
-          receiver: toWallet,
-        });
+          const orderResponse = await order({
+            inputMint,
+            amount: amountInSmallestUnit,
+            taker: fromWallet,
+            receiver: toWallet,
+          });
 
-        const keypair = await getPrivacyKeypair();
-        const txBuffer = Buffer.from(orderResponse.transaction, 'base64');
-        const transaction = VersionedTransaction.deserialize(new Uint8Array(txBuffer));
-        transaction.sign([keypair]);
-        const signedBytes = transaction.serialize();
-        const signedTxBase64 = Buffer.from(signedBytes).toString('base64');
+          const keypair = await getPrivacyKeypair();
+          const txBuffer = Buffer.from(orderResponse.transaction, 'base64');
+          const transaction = VersionedTransaction.deserialize(new Uint8Array(txBuffer));
+          transaction.sign([keypair]);
+          const signedBytes = transaction.serialize();
+          const signedTxBase64 = Buffer.from(signedBytes).toString('base64');
 
-        await execute({
-          requestId: orderResponse.requestId,
-          signedTransaction: signedTxBase64,
-        });
+          await execute({
+            requestId: orderResponse.requestId,
+            signedTransaction: signedTxBase64,
+          });
+        } else {
+          // SPL tokens (USDC, etc.): direct transfer
+          await sendDirectTransfer(
+            fromWallet,
+            toWallet,
+            amountNum,
+            selectedToken.tokenMint,
+            selectedToken.tokenDecimals,
+          );
+        }
       }
 
-      // Attendre la mise à jour réelle des balances avant de montrer le succès
-      await Promise.all([
-        queryClient.refetchQueries({ queryKey: ['wallet-balance', userData.stealf_wallet] }),
-        queryClient.refetchQueries({ queryKey: ['wallet-balance', userData.cash_wallet] }),
-      ]);
-      // Historique en arrière-plan (non bloquant)
+      // Rafraîchir balances + historique en arrière-plan (non bloquant)
+      queryClient.invalidateQueries({ queryKey: ['wallet-balance', userData.stealf_wallet] });
+      queryClient.invalidateQueries({ queryKey: ['wallet-balance', userData.cash_wallet] });
       queryClient.invalidateQueries({ queryKey: ['wallet-history', userData.stealf_wallet] });
       queryClient.invalidateQueries({ queryKey: ['wallet-history', userData.cash_wallet] });
 
@@ -395,6 +403,15 @@ export default function MooveScreen({ onBack, direction = 'toCash' }: MooveScree
 
 
 
+
+        {/* Privacy badge */}
+        <View style={styles.privacyBadgeRow}>
+          <View style={[styles.privacyBadge, isNativeSOL ? styles.privacyBadgePrivate : styles.privacyBadgePublic]}>
+            <Text style={[styles.privacyBadgeText, isNativeSOL ? styles.privacyBadgeTextPrivate : styles.privacyBadgeTextPublic]}>
+              {isNativeSOL ? '⬤  Private transfer' : '⬤  Public transfer'}
+            </Text>
+          </View>
+        </View>
 
         {/* Move Button */}
         <TouchableOpacity
@@ -818,6 +835,34 @@ const styles = StyleSheet.create({
     color: '#ffffff',
     fontSize: 16,
     fontFamily: 'Sansation-Bold',
+  },
+  privacyBadgeRow: {
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  privacyBadge: {
+    paddingHorizontal: 14,
+    paddingVertical: 6,
+    borderRadius: 20,
+    borderWidth: 1,
+  },
+  privacyBadgePrivate: {
+    backgroundColor: 'rgba(34, 197, 94, 0.08)',
+    borderColor: 'rgba(34, 197, 94, 0.25)',
+  },
+  privacyBadgePublic: {
+    backgroundColor: 'rgba(251, 146, 60, 0.08)',
+    borderColor: 'rgba(251, 146, 60, 0.25)',
+  },
+  privacyBadgeText: {
+    fontSize: 12,
+    fontFamily: 'Sansation-Regular',
+  },
+  privacyBadgeTextPrivate: {
+    color: 'rgba(34, 197, 94, 0.9)',
+  },
+  privacyBadgeTextPublic: {
+    color: 'rgba(251, 146, 60, 0.9)',
   },
   loadingCard: {
     alignItems: 'center',

@@ -19,12 +19,14 @@ interface TransactionHistoryProps {
   limit?: number;
   style?: any;
   walletType?: 'cash' | 'privacy';
+  compact?: boolean;
 }
 
 export default function TransactionHistory({
   limit = 3,
   style,
-  walletType = 'cash'
+  walletType = 'cash',
+  compact = false,
 }: TransactionHistoryProps) {
 
   const { userData } = useAuth();
@@ -51,7 +53,7 @@ export default function TransactionHistory({
     setRefreshing(false);
   };
 
-  const isCompactMode = limit <= 3;
+  const isCompactMode = compact || limit <= 3;
 
   if (isLoading && displayedTransactions.length === 0) {
     return (
@@ -129,9 +131,19 @@ export default function TransactionHistory({
 
   if (isCompactMode) {
     return (
-      <View style={[styles.compactContainer, style]}>
+      <ScrollView
+        style={[styles.compactContainer, style]}
+        showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={handleRefresh}
+            tintColor="white"
+          />
+        }
+      >
         {transactionsList}
-      </View>
+      </ScrollView>
     );
   }
 
@@ -157,7 +169,9 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
   },
-  compactContainer: {},
+  compactContainer: {
+    flex: 1,
+  },
   row: {
     flexDirection: 'row',
     alignItems: 'center',

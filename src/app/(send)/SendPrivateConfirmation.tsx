@@ -25,6 +25,8 @@ import { createGetSolPriceUSD } from '../../services/fetchWalletInfos';
 import { usePrivacyCashTransfer } from '../../hooks/usePrivacyCashTransfer';
 import { useTurnkey } from '@turnkey/react-native-wallet-kit';
 import { usePrivacyBalance } from '../../hooks/usePrivacyBalance';
+import { useStealthTransfer } from '../../hooks/useStealthTransfer';
+import { useStealthAddress } from '../../hooks/useStealthAddress';
 
 interface SendConfirmationProps {
   amount: string;
@@ -45,10 +47,62 @@ export default function SendConfirmation({ amount, onBack, onClose, onSuccess, t
   const [showSuccessModal, setShowSuccessModal] = useState(false);
   const [transactionSignature, setTransactionSignature] = useState<string | null>(null);
 
+  // Stealth mode — activé automatiquement pour les transferts "basic" (wealth → stealth)
+  const [stealthMode, setStealthMode] = useState(transferType === 'basic');
+  const [metaAddress, setMetaAddress] = useState('');
+  const [metaAddressError, setMetaAddressError] = useState<string | null>(null);
+  const { send: sendStealth, isLoading: stealthLoading } = useStealthTransfer();
+  const { metaAddress: ownMetaAddress } = useStealthAddress();
+
+  // Pré-remplir avec la meta-adresse propre quand mode stealth par défaut (basic)
+  React.useEffect(() => {
+    if (transferType === 'basic' && ownMetaAddress && !metaAddress) {
+      setMetaAddress(ownMetaAddress);
+    }
+  }, [ownMetaAddress]);
+
+  const validateMetaAddress = (value: string) => {
+    try {
+      const bs58 = require('bs58');
+      const decoded = bs58.decode(value);
+      if (decoded.length !== 64) {
+        setMetaAddressError('Format invalide (64 bytes attendu)');
+      } else {
+        setMetaAddressError(null);
+      }
+    } catch {
+      setMetaAddressError('Format base58 invalide');
+    }
+  };
+
   const successAnimation = useRef(new Animated.Value(0)).current;
   const checkmarkScale = useRef(new Animated.Value(0)).current;
 
   const handleConfirm = async () => {
+    // Stealth mode : utiliser useStealthTransfer
+    if (stealthMode) {
+      if (!metaAddress || metaAddressError) {
+        Alert.alert('Error', 'Please enter a valid stealth meta-address');
+        return;
+      }
+      if (!userData?.stealf_wallet) {
+        Alert.alert('Error', 'No privacy wallet found');
+        return;
+      }
+      const amountSOL = parseFloat(amount);
+      const amountLamports = BigInt(Math.round(amountSOL * 1_000_000_000));
+      const sig = await sendStealth(metaAddress, amountLamports, userData.stealf_wallet);
+      if (sig) {
+        setTransactionSignature(sig);
+        setShowSuccessModal(true);
+        Animated.sequence([
+          Animated.timing(successAnimation, { toValue: 1, duration: 300, useNativeDriver: true }),
+          Animated.spring(checkmarkScale, { toValue: 1, friction: 4, tension: 40, useNativeDriver: true }),
+        ]).start();
+      }
+      return;
+    }
+
     if (!externalAddress) {
       Alert.alert('Error', 'Please enter a destination address');
       return;
@@ -123,7 +177,7 @@ export default function SendConfirmation({ amount, onBack, onClose, onSuccess, t
     onSuccess();
   };
 
-  const isLoading = transferType === 'private' ? privateLoading : simpleLoading;
+  const isLoading = stealthMode ? stealthLoading : (transferType === 'private' ? privateLoading : simpleLoading);
 
   const [fontsLoaded] = useFonts({
     'Sansation-Regular': require('../../assets/font/Sansation/Sansation-Regular.ttf'),
@@ -183,20 +237,55 @@ export default function SendConfirmation({ amount, onBack, onClose, onSuccess, t
 
           {/* To */}
           <View style={styles.section}>
-            <Text style={styles.label}>To</Text>
-
-            {/* Address Input */}
-            <View style={styles.addressInputContainer}>
-              <TextInput
-                style={styles.addressInput}
-                placeholder="Paste wallet address..."
-                placeholderTextColor="rgba(255, 255, 255, 0.3)"
-                value={externalAddress}
-                onChangeText={setExternalAddress}
-                autoCapitalize="none"
-                autoCorrect={false}
-              />
+            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+              <Text style={styles.label}>To</Text>
+              {/* Stealth mode toggle */}
+              <TouchableOpacity
+                onPress={() => { setStealthMode(!stealthMode); setMetaAddressError(null); }}
+                style={{ paddingHorizontal: 10, paddingVertical: 4, borderRadius: 12, borderWidth: 1, borderColor: stealthMode ? '#8B5CF6' : 'rgba(255,255,255,0.2)', backgroundColor: stealthMode ? 'rgba(139,92,246,0.15)' : 'transparent' }}
+                activeOpacity={0.7}
+              >
+                <Text style={{ color: stealthMode ? '#8B5CF6' : 'rgba(255,255,255,0.5)', fontSize: 11, fontFamily: 'Sansation-Regular' }}>
+                  {stealthMode ? '🔒 Stealth' : 'Stealth'}
+                </Text>
+              </TouchableOpacity>
             </View>
+
+            {stealthMode ? (
+              <>
+                {/* Meta-address Input */}
+                <View style={styles.addressInputContainer}>
+                  <TextInput
+                    style={[styles.addressInput, metaAddressError ? { borderColor: '#EF4444' } : {}]}
+                    placeholder="Meta-adresse du destinataire (base58)..."
+                    placeholderTextColor="rgba(255, 255, 255, 0.3)"
+                    value={metaAddress}
+                    onChangeText={(v) => { setMetaAddress(v); if (v.length > 40) validateMetaAddress(v); else setMetaAddressError(null); }}
+                    autoCapitalize="none"
+                    autoCorrect={false}
+                    multiline
+                  />
+                </View>
+                {metaAddressError && (
+                  <Text style={{ color: '#EF4444', fontSize: 11, marginTop: 4, fontFamily: 'Sansation-Regular' }}>
+                    {metaAddressError}
+                  </Text>
+                )}
+              </>
+            ) : (
+              /* Address Input */
+              <View style={styles.addressInputContainer}>
+                <TextInput
+                  style={styles.addressInput}
+                  placeholder="Paste wallet address..."
+                  placeholderTextColor="rgba(255, 255, 255, 0.3)"
+                  value={externalAddress}
+                  onChangeText={setExternalAddress}
+                  autoCapitalize="none"
+                  autoCorrect={false}
+                />
+              </View>
+            )}
           </View>
 
           {/* Confirm Button */}
