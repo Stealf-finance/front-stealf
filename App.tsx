@@ -1,3 +1,4 @@
+import './polyfills';
 import React from 'react';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { useFonts } from 'expo-font';
