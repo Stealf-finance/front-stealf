@@ -6,10 +6,11 @@ import {
   ScrollView,
   TouchableOpacity,
   ActivityIndicator,
+  Modal,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useYieldDashboard, useBatchStatus, type VaultType } from "../../hooks/useYield";
-import { useReserveProof } from "../../hooks/useReserveProof";
+
 import { useYieldSnapshots } from "../../hooks/useYieldSnapshots";
 import { useYieldProofFromSnapshots } from "../../hooks/useYieldProofFromSnapshots";
 import { useWalletInfos } from "../../hooks/useWalletInfos";
@@ -23,6 +24,7 @@ export default function SavingsScreen() {
   const { tokens: walletTokens } = useWalletInfos(userData?.cash_wallet || "");
   const [modalVisible, setModalVisible] = useState(false);
   const [modalMode, setModalMode] = useState<"deposit" | "withdraw">("deposit");
+  const [usdcComingSoonVisible, setUsdcComingSoonVisible] = useState(false);
   const [activeTab, setActiveTab] = useState<AssetTab>("sol");
   const USDC_MINT = 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v';
   const walletSolBalance = walletTokens.find(t => t.tokenMint === null)?.balance ?? 0;
@@ -33,9 +35,6 @@ export default function SavingsScreen() {
 
   // Arcium: batch staking status (denomination staking in progress)
   const { data: batchStatus } = useBatchStatus();
-
-  // Arcium: proof of reserve (SOL vault only)
-  const { isSolvent, isLoading: reserveLoading, error: reserveError } = useReserveProof();
 
   // Arcium: balance snapshots + proof from snapshots
   const { data: snapshots = [] } = useYieldSnapshots(selectedSolVault);
@@ -71,9 +70,13 @@ export default function SavingsScreen() {
 
   const currentBalance = activeTab === "sol" ? solBalance : usdcBalance;
   const unit = activeTab === "sol" ? "SOL" : "USDC";
-  const decimals = activeTab === "sol" ? 4 : 2;
+  const decimals = activeTab === "sol" ? 3 : 2;
 
   const openModal = (mode: "deposit" | "withdraw") => {
+    if (activeTab === "usdc") {
+      setUsdcComingSoonVisible(true);
+      return;
+    }
     setModalMode(mode);
     setModalVisible(true);
   };
@@ -88,10 +91,8 @@ export default function SavingsScreen() {
       <View style={styles.content}>
         {/* Header */}
         <View style={styles.header}>
-          <View>
-            <Text style={styles.headerTitle}>Savings</Text>
-            <Text style={styles.headerSubtitle}>Earn yield on your assets</Text>
-          </View>
+          <Text style={styles.headerTitle}>Savings</Text>
+          <Text style={styles.headerSubtitle}>Earn yield on your assets</Text>
         </View>
 
         {/* Asset Tabs */}
@@ -106,7 +107,7 @@ export default function SavingsScreen() {
           </TouchableOpacity>
           <TouchableOpacity
             style={[styles.tab, activeTab === "usdc" && styles.tabActive]}
-            onPress={() => setActiveTab("usdc")}
+            onPress={() => setUsdcComingSoonVisible(true)}
           >
             <Text style={[styles.tabText, activeTab === "usdc" && styles.tabTextActive]}>
               USDC
@@ -176,12 +177,12 @@ export default function SavingsScreen() {
                         </Text>
                         {selectedSolVault === "sol_jito" && (
                           <View style={styles.protocolBadge}>
-                            <Text style={styles.protocolBadgeText}>actif</Text>
+                            <Text style={styles.protocolBadgeText}>active</Text>
                           </View>
                         )}
                       </View>
                       <Text style={[styles.protocolApy, selectedSolVault === "sol_jito" && styles.protocolApyActive]}>
-                        {apy?.jitoApy ?? "—"}%
+                        {apy?.jitoApy != null ? apy.jitoApy.toFixed(2) : "—"}%
                       </Text>
                       <Text style={styles.protocolSub}>JitoSOL</Text>
                     </TouchableOpacity>
@@ -197,44 +198,23 @@ export default function SavingsScreen() {
                         </Text>
                         {selectedSolVault === "sol_marinade" && (
                           <View style={styles.protocolBadge}>
-                            <Text style={styles.protocolBadgeText}>actif</Text>
+                            <Text style={styles.protocolBadgeText}>active</Text>
                           </View>
                         )}
                       </View>
                       <Text style={[styles.protocolApy, selectedSolVault === "sol_marinade" && styles.protocolApyActive]}>
-                        {apy?.marinadeApy ?? "—"}%
+                        {apy?.marinadeApy != null ? apy.marinadeApy.toFixed(2) : "—"}%
                       </Text>
                       <Text style={styles.protocolSub}>mSOL</Text>
                     </TouchableOpacity>
                   </View>
 
-                  {/* Badge proof of reserve — visible seulement sur l'onglet SOL */}
-                  {!reserveError && (
-                    <View style={[
-                      styles.solventBadge,
-                      !reserveLoading && isSolvent === false && { backgroundColor: "rgba(239,68,68,0.12)" },
-                      reserveLoading && { backgroundColor: "rgba(255,255,255,0.06)" },
-                    ]}>
-                      <Ionicons
-                        name={reserveLoading ? "time-outline" : isSolvent ? "shield-checkmark" : "warning"}
-                        size={12}
-                        color={reserveLoading ? "rgba(255,255,255,0.4)" : isSolvent ? "#22c55e" : "#ef4444"}
-                      />
-                      <Text style={[
-                        styles.solventText,
-                        !reserveLoading && isSolvent === false && { color: "#ef4444" },
-                        reserveLoading && { color: "rgba(255,255,255,0.4)" },
-                      ]}>
-                        {reserveLoading ? "Vérification…" : isSolvent ? "Vault vérifié" : "Non solvable"}
-                      </Text>
-                    </View>
-                  )}
                 </>
               ) : (
                 <View style={styles.apyRow}>
                   <View style={styles.apyItem}>
                     <Text style={styles.apyProtocol}>Kamino Lending</Text>
-                    <Text style={styles.apyRate}>{apy?.usdcKaminoApy ?? "—"}%</Text>
+                    <Text style={styles.apyRate}>{apy?.usdcKaminoApy != null ? apy.usdcKaminoApy.toFixed(2) : "—"}%</Text>
                   </View>
                 </View>
               )}
@@ -245,9 +225,9 @@ export default function SavingsScreen() {
               <View style={styles.batchBanner}>
                 <ActivityIndicator size="small" color="#4ADE80" />
                 <View style={styles.batchBannerText}>
-                  <Text style={styles.batchBannerTitle}>Staking en cours</Text>
+                  <Text style={styles.batchBannerTitle}>Staking in progress</Text>
                   <Text style={styles.batchBannerSub}>
-                    Anti-corrélation active
+                    Anti-correlation active
                     {batchStatus.estimatedMinutes != null
                       ? ` • ~${batchStatus.estimatedMinutes} min`
                       : ""}
@@ -259,7 +239,7 @@ export default function SavingsScreen() {
             {batchStatus && batchStatus.status === "complete" && (
               <View style={[styles.batchBanner, styles.batchBannerComplete]}>
                 <Ionicons name="checkmark-circle" size={18} color="#4ADE80" />
-                <Text style={styles.batchBannerTitle}>Staking confirmé</Text>
+                <Text style={styles.batchBannerTitle}>Staking confirmed</Text>
               </View>
             )}
 
@@ -278,14 +258,14 @@ export default function SavingsScreen() {
                 )}
                 <Text style={styles.proveButtonText}>
                   {proofFetching
-                    ? "Calcul en cours…"
+                    ? "Computing…"
                     : snapshotProof?.available === false
-                    ? "Preuve indisponible"
+                    ? "Proof unavailable"
                     : snapshotProof?.exceedsThreshold === true
-                    ? "Rendement prouvé ✓"
+                    ? "Yield proven ✓"
                     : snapshotProof?.exceedsThreshold === false
-                    ? "Seuil non atteint"
-                    : "Prouver mon rendement"}
+                    ? "Threshold not reached"
+                    : "Prove my yield"}
                 </Text>
               </TouchableOpacity>
             )}
@@ -393,11 +373,137 @@ export default function SavingsScreen() {
         unit={unit}
         isPrivate={privacyMode}
       />
+
+      {/* USDC yield — coming soon */}
+      <Modal
+        visible={usdcComingSoonVisible}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setUsdcComingSoonVisible(false)}
+      >
+        <View style={styles.csOverlay}>
+          <TouchableOpacity
+            style={StyleSheet.absoluteFillObject}
+            activeOpacity={1}
+            onPress={() => setUsdcComingSoonVisible(false)}
+          />
+          <View style={styles.csSheet}>
+            <View style={styles.csHeader}>
+              <Text style={styles.csTitle}>USDC Yield</Text>
+              <TouchableOpacity style={styles.csCloseBtn} onPress={() => setUsdcComingSoonVisible(false)} activeOpacity={0.8}>
+                <Text style={styles.csCloseBtnText}>✕</Text>
+              </TouchableOpacity>
+            </View>
+            <View style={styles.csContent}>
+              <View style={styles.csIconCircle}>
+                <Text style={styles.csIconText}>$</Text>
+              </View>
+              <View style={styles.csBadge}>
+                <Text style={styles.csBadgeText}>Coming soon</Text>
+              </View>
+              <Text style={styles.csBigTitle}>Private USDC Yield</Text>
+              <Text style={styles.csSubtitle}>
+                Earn yield on your USDC privately via lending, without revealing your balance on-chain.
+              </Text>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
+  // USDC coming soon modal
+  csOverlay: {
+    flex: 1,
+    justifyContent: 'flex-end',
+  },
+  csSheet: {
+    backgroundColor: '#000000',
+    borderTopLeftRadius: 28,
+    borderTopRightRadius: 28,
+    borderWidth: 1,
+    borderBottomWidth: 0,
+    borderColor: 'rgba(255,255,255,0.1)',
+    paddingHorizontal: 24,
+    paddingTop: 24,
+    paddingBottom: 44,
+  },
+  csHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 28,
+  },
+  csTitle: {
+    color: '#ffffff',
+    fontSize: 20,
+    fontFamily: 'Sansation-Bold',
+  },
+  csCloseBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: 'rgba(60,60,60,0.9)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  csCloseBtnText: {
+    color: 'rgba(255,255,255,0.7)',
+    fontSize: 14,
+    fontWeight: 'bold',
+  },
+  csContent: {
+    alignItems: 'center',
+    paddingVertical: 32,
+    gap: 16,
+  },
+  csIconCircle: {
+    width: 72,
+    height: 72,
+    borderRadius: 36,
+    backgroundColor: 'rgba(255,255,255,0.06)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.12)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 4,
+  },
+  csIconText: {
+    fontSize: 32,
+    color: '#ffffff',
+    fontFamily: 'Sansation-Bold',
+  },
+  csBadge: {
+    paddingHorizontal: 12,
+    paddingVertical: 4,
+    borderRadius: 20,
+    backgroundColor: 'rgba(255,255,255,0.07)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.15)',
+  },
+  csBadgeText: {
+    color: 'rgba(255,255,255,0.5)',
+    fontSize: 12,
+    fontFamily: 'Sansation-Regular',
+    letterSpacing: 1,
+    textTransform: 'uppercase',
+  },
+  csBigTitle: {
+    color: '#ffffff',
+    fontSize: 24,
+    fontFamily: 'Sansation-Bold',
+  },
+  csSubtitle: {
+    color: 'rgba(255,255,255,0.4)',
+    fontSize: 14,
+    fontFamily: 'Sansation-Regular',
+    textAlign: 'center',
+    lineHeight: 22,
+    paddingHorizontal: 16,
+  },
+  // App styles
   container: {
     flex: 1,
     backgroundColor: "#000000",

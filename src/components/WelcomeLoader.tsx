@@ -4,6 +4,7 @@ import { View, StyleSheet, Animated, Easing, StatusBar } from "react-native";
 type Props = {
   logo: React.ReactNode;         // <Image .../> ou <Svg .../>
   visible?: boolean;             // affiche/masque le loader
+  startOpaque?: boolean;        // démarre opaque (pas d'animation d'entrée)
   durationInMs?: number;         // vitesse d'arrivée
   fadeOutTrigger?: boolean;      // déclenche la sortie (quand data loaded)
   onFadeOutEnd?: () => void;
@@ -12,15 +13,16 @@ type Props = {
 export function WelcomeLoader({
   logo,
   visible = true,
+  startOpaque = false,
   durationInMs = 520,
   fadeOutTrigger = false,
   onFadeOutEnd,
 }: Props) {
-  const scale = useRef(new Animated.Value(0.6)).current;
-  const opacity = useRef(new Animated.Value(0)).current;
+  const scale = useRef(new Animated.Value(startOpaque ? 1 : 0.6)).current;
+  const opacity = useRef(new Animated.Value(startOpaque ? 1 : 0)).current;
 
   useEffect(() => {
-    if (!visible) return;
+    if (!visible || startOpaque) return;
 
     // Reset
     scale.setValue(0.6);
@@ -49,7 +51,7 @@ export function WelcomeLoader({
         }),
       ]),
     ]).start();
-  }, [visible, durationInMs, opacity, scale]);
+  }, [visible, startOpaque, durationInMs, opacity, scale]);
 
   useEffect(() => {
     if (!fadeOutTrigger) return;

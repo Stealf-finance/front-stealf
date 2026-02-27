@@ -4,6 +4,7 @@ import { useFonts } from 'expo-font';
 import { Asset } from 'expo-asset';
 import { AuthProvider } from './src/contexts/AuthContext';
 import { SessionProvider } from './src/contexts/SessionContext';
+import { PointsProvider } from './src/contexts/PointsContext';
 import AppNavigator from './src/navigation/AppNavigator';
 import { TurnkeyProvider } from '@turnkey/react-native-wallet-kit';
 import { TURNKEY_CONFIG, TURNKEY_CALLBACKS } from './src/constants/turnkey';
@@ -42,7 +43,9 @@ export default function App() {
         <TurnkeyProvider config={TURNKEY_CONFIG} callbacks={TURNKEY_CALLBACKS}>
           <AuthProvider>
             <SessionProvider>
-              <AppNavigator />
+              <PointsProvider>
+                <AppNavigator />
+              </PointsProvider>
             </SessionProvider>
           </AuthProvider>
         </TurnkeyProvider>

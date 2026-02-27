@@ -8,6 +8,7 @@ import { socketService } from "../services/socketService";
 import { createSeedVaultWallet } from "../services/solanaWalletBridge";
 import { useAuth } from "../contexts/AuthContext";
 import { useSession } from "../contexts/SessionContext";
+import { usePointsContext } from "../contexts/PointsContext";
 
 const RPC_ENDPOINT = process.env.EXPO_PUBLIC_SOLANA_RPC_URL || "";
 const yieldConnection = new Connection(RPC_ENDPOINT, "confirmed");
@@ -211,6 +212,7 @@ export function useYieldDepositAndConfirm() {
   const { signAndSendTransaction, wallets } = useTurnkey();
   const { isWalletAuth, userData } = useAuth();
   const { setMWAInProgress } = useSession();
+  const { showToast } = usePointsContext();
 
   return useMutation({
     mutationFn: async ({
@@ -251,16 +253,16 @@ export function useYieldDepositAndConfirm() {
           );
           setMWAInProgress(true);
           try {
-            console.log("[Yield] Sending raw tx bytes to MWA bridge...");
+            __DEV__ && console.log("[Yield] Sending raw tx bytes to MWA bridge...");
             const signedBytes = await bridge.signTransaction(
               new Uint8Array(txBytes)
             );
-            console.log("[Yield] MWA signed, broadcasting...", signedBytes.length, "bytes");
+            __DEV__ && console.log("[Yield] MWA signed, broadcasting...", signedBytes.length, "bytes");
             txSignature = await yieldConnection.sendRawTransaction(
               Buffer.from(signedBytes),
               { skipPreflight: true, preflightCommitment: "confirmed" }
             );
-            console.log("[Yield] Broadcast success:", txSignature);
+            __DEV__ && console.log("[Yield] Broadcast success:", txSignature);
           } catch (err: any) {
             console.error("[Yield] MWA sign/send error:", err?.message || err);
             throw err;
@@ -314,7 +316,10 @@ export function useYieldDepositAndConfirm() {
 
       return { signature: txSignature, confirmData };
     },
-    onSuccess: () => {
+    onSuccess: (data) => {
+      const pts = data.confirmData?.pointsEarned;
+      if (pts > 0) showToast(pts);
+      queryClient.invalidateQueries({ queryKey: ["points"] });
       queryClient.invalidateQueries({ queryKey: ["yield-balance"] });
       queryClient.invalidateQueries({ queryKey: ["yield-dashboard"] });
     },
@@ -328,6 +333,7 @@ export function useYieldDepositAndConfirm() {
 export function useYieldWithdrawAndConfirm() {
   const api = useAuthenticatedApi();
   const queryClient = useQueryClient();
+  const { showToast } = usePointsContext();
 
   return useMutation({
     mutationFn: async ({
@@ -349,7 +355,7 @@ export function useYieldWithdrawAndConfirm() {
       // Private SOL withdraw: backend handled everything (vault → authority → user)
       // No transaction to broadcast — just return the result
       if (isPrivate && vaultType !== "usdc_kamino" && buildResult.success) {
-        return { signature: buildResult.txSignature || "private" };
+        return { signature: buildResult.txSignature || "private", pointsEarned: buildResult.pointsEarned };
       }
 
       const txBase64: string = buildResult.transaction;
@@ -365,7 +371,7 @@ export function useYieldWithdrawAndConfirm() {
       await yieldConnection.confirmTransaction(txSignature, "confirmed");
 
       // Step 3: Confirm with backend to update ledger
-      await api.post("/api/yield/confirm", {
+      const confirmData = await api.post("/api/yield/confirm", {
         signature: txSignature,
         type: "withdraw",
         vaultType,
@@ -373,9 +379,12 @@ export function useYieldWithdrawAndConfirm() {
         private: isPrivate,
       });
 
-      return { signature: txSignature };
+      return { signature: txSignature, pointsEarned: confirmData?.pointsEarned };
     },
-    onSuccess: () => {
+    onSuccess: (data) => {
+      const pts = (data as any).pointsEarned;
+      if (pts > 0) showToast(pts);
+      queryClient.invalidateQueries({ queryKey: ["points"] });
       queryClient.invalidateQueries({ queryKey: ["yield-balance"] });
       queryClient.invalidateQueries({ queryKey: ["yield-dashboard"] });
     },

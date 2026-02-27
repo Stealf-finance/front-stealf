@@ -16,6 +16,7 @@ import {
 import * as Clipboard from 'expo-clipboard';
 import { useFonts } from 'expo-font';
 import { LinearGradient } from 'expo-linear-gradient';
+import { useQueryClient } from '@tanstack/react-query';
 import { useSendTransaction } from '../../hooks/useSendSimpleTransaction';
 import { useStealthTransfer } from '../../hooks/useStealthTransfer';
 import { useAuth } from '../../contexts/AuthContext';
@@ -48,12 +49,14 @@ function isMetaAddress(addr: string): boolean {
 
 export default function SendConfirmation({ amount, token, onBack, onClose, onSuccess }: SendConfirmationProps) {
   const { userData } = useAuth();
+  const queryClient = useQueryClient();
   const { sendTransaction, loading: loadingDirect } = useSendTransaction();
   const { send: sendStealth, isLoading: loadingStealth } = useStealthTransfer();
 
   const [address, setAddress] = useState('');
   const [showSuccessModal, setShowSuccessModal] = useState(false);
   const [transactionSignature, setTransactionSignature] = useState<string | null>(null);
+  const [pointsEarned, setPointsEarned] = useState<number>(0);
 
   const successAnimation = useRef(new Animated.Value(0)).current;
   const checkmarkScale = useRef(new Animated.Value(0)).current;
@@ -87,6 +90,8 @@ export default function SendConfirmation({ amount, token, onBack, onClose, onSuc
           return;
         }
         signature = result.txSignature;
+        setPointsEarned(result.pointsEarned || 15);
+        queryClient.invalidateQueries({ queryKey: ['points'] });
       } else {
         // SOL adresse normale ou USDC → transfert direct
         signature = await sendTransaction(
@@ -198,7 +203,7 @@ export default function SendConfirmation({ amount, token, onBack, onClose, onSuc
             <View style={styles.section}>
               <Text style={styles.label}>To</Text>
               {isSOL(token) && (
-                <Text style={styles.hint}>Adresse Solana ou meta-address Stealf (64 bytes = private)</Text>
+                <Text style={styles.hint}>Solana address or Stealf meta-address (64 bytes = private)</Text>
               )}
               <View style={styles.addressInputContainer}>
                 <TextInput
@@ -275,6 +280,11 @@ export default function SendConfirmation({ amount, token, onBack, onClose, onSuc
                 </Animated.View>
 
                 <Text style={styles.successTitle}>Transaction Sent</Text>
+                {pointsEarned > 0 && (
+                  <View style={styles.pointsBadge}>
+                    <Text style={styles.pointsBadgeText}>+{pointsEarned} pts ✦</Text>
+                  </View>
+                )}
                 <Text style={styles.successMessage}>
                   {isPrivate
                     ? 'SOL sent privately. The recipient can claim it with their Stealf app.'
@@ -521,5 +531,20 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: 'bold',
     fontFamily: 'Sansation-Bold',
+  },
+  pointsBadge: {
+    paddingHorizontal: 14,
+    paddingVertical: 6,
+    borderRadius: 20,
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.2)',
+    marginBottom: 14,
+  },
+  pointsBadgeText: {
+    color: 'rgba(255, 255, 255, 0.9)',
+    fontSize: 14,
+    fontFamily: 'Sansation-Bold',
+    fontWeight: '700',
   },
 });

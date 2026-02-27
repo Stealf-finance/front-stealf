@@ -18,11 +18,12 @@ import { useAuth } from '../../contexts/AuthContext';
 import { useWalletInfos } from '../../hooks/useWalletInfos';
 import { useSwapApi } from '../../services/swapService';
 import { useSendTransaction } from '../../hooks/useSendSimpleTransaction';
-import { useStealthTransfer } from '../../hooks/useStealthTransfer';
 import { useStealthAddress } from '../../hooks/useStealthAddress';
-import { useStealthPayments } from '../../hooks/useStealthPayments';
+import { useStealthTransfer } from '../../hooks/useStealthTransfer';
+import { useCashStealthAddress } from '../../hooks/useCashStealthAddress';
 import { useAuthenticatedApi } from '../../services/clientStealf';
 import { Keypair, VersionedTransaction } from '@solana/web3.js';
+import { SOL_MINT } from '../../constants/solana';
 import * as SecureStore from 'expo-secure-store';
 import bs58 from 'bs58';
 import * as bip39 from 'bip39';
@@ -86,6 +87,7 @@ export default function MooveScreen({ onBack, direction = 'toCash' }: MooveScree
   const [showSuccess, setShowSuccess] = useState(false);
   const [successAmount, setSuccessAmount] = useState('');
   const [successSymbol, setSuccessSymbol] = useState('');
+  const [pointsEarned, setPointsEarned] = useState(0);
   const successScale = useRef(new Animated.Value(0)).current;
   const successOpacity = useRef(new Animated.Value(0)).current;
   const checkScale = useRef(new Animated.Value(0)).current;
@@ -96,9 +98,9 @@ export default function MooveScreen({ onBack, direction = 'toCash' }: MooveScree
   const { tokens: cashTokens } = useWalletInfos(userData?.cash_wallet || '');
   const { order, execute } = useSwapApi();
   const { sendTransaction: sendDirectTransfer } = useSendTransaction();
-  const { send: sendStealth } = useStealthTransfer();
   const { metaAddress: ownMetaAddress } = useStealthAddress();
-  const { spendPayment } = useStealthPayments();
+  const { cashMetaAddress } = useCashStealthAddress();
+  const { send: sendStealthTransfer } = useStealthTransfer();
   const api = useAuthenticatedApi();
 
   const isToCash = direction === 'toCash';
@@ -108,7 +110,7 @@ export default function MooveScreen({ onBack, direction = 'toCash' }: MooveScree
   const fromWallet = isToCash ? userData?.stealf_wallet : userData?.cash_wallet;
   const toWallet = isToCash ? userData?.cash_wallet : userData?.stealf_wallet;
   const selectedToken = sourceTokens[selectedTokenIndex] || null;
-  const isNativeSOL = !selectedToken?.tokenMint || selectedToken.tokenMint === 'So11111111111111111111111111111111';
+  const isNativeSOL = !selectedToken?.tokenMint || selectedToken.tokenMint === SOL_MINT;
 
   useEffect(() => {
     if (selectedTokenIndex >= privacyTokens.length && privacyTokens.length > 0) {
@@ -161,58 +163,78 @@ export default function MooveScreen({ onBack, direction = 'toCash' }: MooveScree
     }
 
     setLoading(true);
+    let earnedPts = 0;
     try {
-      console.log('[Moove] handleMove', { isWalletAuth, isNativeSOL, direction, fromWallet: fromWallet?.slice(0, 8), ownMetaAddress: ownMetaAddress?.slice(0, 8) });
+      __DEV__ && console.log('[Moove] handleMove', { isWalletAuth, isNativeSOL, direction, fromWallet: fromWallet?.slice(0, 8), ownMetaAddress: ownMetaAddress?.slice(0, 8) });
       if (isWalletAuth) {
         if (isNativeSOL) {
-          // SOL natif (Cash → Wealth ou Wealth → Cash) : stealth pour casser le lien on-chain
-          if (!ownMetaAddress) {
-            Alert.alert('Error', 'Stealth address not ready. Please retry in a moment.');
-            setLoading(false);
-            return;
-          }
-          const amountLamports = BigInt(Math.round(amountNum * 1_000_000_000));
-          console.log('[Moove] calling sendStealth, fromWallet:', fromWallet?.slice(0, 8));
-          const stealthResult = await sendStealth(ownMetaAddress, amountLamports, fromWallet);
-          if (!stealthResult) {
-            Alert.alert('Erreur', 'Le transfert stealth a échoué. Vérifie ton solde.');
-            return;
-          }
-          console.log('[Moove] stealthResult OK, txSig:', stealthResult.txSignature?.slice(0, 12));
-          // Enregistrer en DB + claim automatique (pas de modal intermédiaire)
-          const dest = isToCash ? userData?.cash_wallet : userData?.stealf_wallet;
-          let paymentId: string | null = null;
-          try {
-            const regResult = await api.post('/api/stealth/register-payment', {
-              stealthAddress: stealthResult.stealthAddress,
-              amountLamports: amountLamports.toString(),
-              txSignature: stealthResult.txSignature,
-              ephemeralR: stealthResult.ephemeralR,
-              viewTag: stealthResult.viewTag,
+          if (!isToCash) {
+            // cash → wealth : stealth TX unique, lien on-chain cryptographiquement impossible
+            // fromWallet (cash) envoie vers une stealth address dérivée du wealth wallet
+            // Le wealth wallet n'apparaît JAMAIS on-chain
+            if (!ownMetaAddress) {
+              Alert.alert('Error', 'Wealth wallet not configured (stealth address missing)');
+              return;
+            }
+            const amountLamports = Math.round(amountNum * 1_000_000_000);
+            __DEV__ && console.log('[Moove] build-and-send-cash stealth', { fromWallet: fromWallet?.slice(0, 8), amountLamports });
+            const result = await api.post('/api/stealth/build-and-send-cash', {
+              recipientMetaAddress: ownMetaAddress,
+              amountLamports,
+              senderPublicKey: fromWallet,
             });
-            paymentId = regResult.paymentId;
-            console.log('[Moove] register-payment OK, paymentId:', paymentId);
-          } catch (regErr: any) {
-            console.warn('[Moove] register-payment failed (scanner will detect):', regErr?.message);
-          }
-          console.log('[Moove] dest:', dest?.slice(0, 8), '| paymentId:', paymentId);
-          if (dest && paymentId) {
+            __DEV__ && console.log('[Moove] stealth TX OK', { sig: result.txSignature?.slice(0, 12), stealthAddr: result.stealthAddress?.slice(0, 8) });
+            earnedPts = result.pointsEarned || 15;
+            // Register payment for wealth wallet instant detection (walletType:'wealth')
             try {
-              console.log('[Moove] calling spendPayment...');
-              const spendSig = await spendPayment(paymentId, dest);
-              console.log('[Moove] spendPayment OK:', spendSig?.slice(0, 12) ?? 'null');
-            } catch (spendErr) {
-              console.warn('[Moove] spendPayment failed (scanner will detect):', (spendErr as any)?.message);
+              await api.post('/api/stealth/register-payment', {
+                stealthAddress: result.stealthAddress,
+                amountLamports: amountLamports.toString(),
+                txSignature: result.txSignature,
+                ephemeralR: result.ephemeralR,
+                viewTag: result.viewTag,
+                walletType: 'wealth',
+              });
+            } catch (regErr) {
+              __DEV__ && console.warn('[Moove] register-payment wealth failed (non-blocking):', regErr);
+            }
+          } else {
+            // wealth → cash : transfert stealth (adresse cash stealthée — pas de lien on-chain direct)
+            if (!cashMetaAddress) {
+              Alert.alert('Error', 'Cash stealth address not available — please wait for initialization');
+              return;
+            }
+            const amountLamports = BigInt(Math.round(amountNum * 1_000_000_000));
+            __DEV__ && console.log('[Moove] wealth→cash stealth', { fromWallet: fromWallet?.slice(0, 8), amountLamports: amountLamports.toString(), cashMetaAddress: cashMetaAddress?.slice(0, 8) });
+            const stealthResult = await sendStealthTransfer(cashMetaAddress, amountLamports, fromWallet);
+            if (!stealthResult) {
+              // sendStealthTransfer has already set its internal error — surface via Alert
+              throw new Error('Stealth transfer failed');
+            }
+            __DEV__ && console.log('[Moove] wealth→cash stealth OK', { sig: stealthResult.txSignature?.slice(0, 12), stealthAddr: stealthResult.stealthAddress?.slice(0, 8) });
+            earnedPts = stealthResult.pointsEarned || 15;
+            // Enregistrer immédiatement le paiement (détection instantanée sans attendre le scanner)
+            try {
+              await api.post('/api/stealth/register-payment', {
+                stealthAddress: stealthResult.stealthAddress,
+                amountLamports: amountLamports.toString(),
+                txSignature: stealthResult.txSignature,
+                ephemeralR: stealthResult.ephemeralR,
+                viewTag: stealthResult.viewTag,
+                walletType: 'cash',
+              });
+            } catch (regErr) {
+              // Non-bloquant — le scanner récupérera la TX au prochain cycle
+              __DEV__ && console.warn('[Moove] register-payment failed (non-blocking):', regErr);
             }
           }
         } else {
           // Tokens SPL : transfert direct (pas de stealth sur SPL pour l'instant)
-          const tokenMint = isNativeSOL ? undefined : selectedToken.tokenMint;
           await sendDirectTransfer(
             fromWallet,
             toWallet,
             amountNum,
-            tokenMint,
+            selectedToken.tokenMint,
             selectedToken.tokenDecimals,
           );
         }
@@ -220,7 +242,7 @@ export default function MooveScreen({ onBack, direction = 'toCash' }: MooveScree
         // Passkey users
         if (isNativeSOL) {
           // SOL: route via Jupiter swap
-          const inputMint = 'So11111111111111111111111111111111112';
+          const inputMint = SOL_MINT;
           const amountInSmallestUnit = Math.floor(amountNum * Math.pow(10, selectedToken.tokenDecimals)).toString();
 
           const orderResponse = await order({
@@ -263,6 +285,8 @@ export default function MooveScreen({ onBack, direction = 'toCash' }: MooveScree
       setSuccessAmount(amount);
       setSuccessSymbol(selectedToken.tokenSymbol);
       setShowSuccess(true);
+      setPointsEarned(earnedPts);
+      if (earnedPts > 0) queryClient.invalidateQueries({ queryKey: ['points'] });
       successScale.setValue(0);
       successOpacity.setValue(0);
       checkScale.setValue(0);
@@ -481,8 +505,8 @@ export default function MooveScreen({ onBack, direction = 'toCash' }: MooveScree
         <View style={styles.successOverlay}>
           <View style={styles.loadingCard}>
             <ActivityIndicator size="large" color="#ffffff" />
-            <Text style={styles.loadingText}>Transaction en cours...</Text>
-            <Text style={styles.loadingSubtext}>Ne ferme pas l'app</Text>
+            <Text style={styles.loadingText}>Transaction in progress...</Text>
+            <Text style={styles.loadingSubtext}>Don't close the app</Text>
           </View>
         </View>
       </Modal>
@@ -501,6 +525,11 @@ export default function MooveScreen({ onBack, direction = 'toCash' }: MooveScree
               <Text style={styles.successCheckMark}>✓</Text>
             </Animated.View>
             <Text style={styles.successTitle}>Sent</Text>
+            {pointsEarned > 0 && (
+              <View style={styles.pointsBadge}>
+                <Text style={styles.pointsBadgeText}>+{pointsEarned} pts ✦</Text>
+              </View>
+            )}
             <Text style={styles.successAmountText}>
               {successAmount} {successSymbol}
             </Text>
@@ -792,6 +821,21 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: 'rgba(255, 255, 255, 0.5)',
     fontFamily: 'Sansation-Regular',
+  },
+  pointsBadge: {
+    paddingHorizontal: 14,
+    paddingVertical: 6,
+    borderRadius: 20,
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.2)',
+    marginBottom: 12,
+  },
+  pointsBadgeText: {
+    color: 'rgba(255, 255, 255, 0.9)',
+    fontSize: 14,
+    fontFamily: 'Sansation-Bold',
+    fontWeight: '700',
   },
   claimOverlay: {
     flex: 1,

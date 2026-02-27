@@ -1,5 +1,5 @@
 import React, { useRef } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ImageBackground, Animated, Easing, Image, Alert } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ImageBackground, Animated, Easing, Image } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 
 interface CardScreenProps {
@@ -74,48 +74,6 @@ export default function CardScreen({ onClose, cardType }: CardScreenProps) {
         />
       </View>
 
-      {/* Boutons d'action */}
-      <View style={styles.actionsContainer}>
-        <TouchableOpacity style={styles.actionButton} onPress={() => Alert.alert('Coming Soon', 'Card details will be available soon.')}>
-          <View style={styles.actionIconContainer}>
-            <Image source={require('../../assets/infos.png')} style={styles.infoIcon} resizeMode="contain" />
-          </View>
-          <Text style={styles.actionLabel}>Infos</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity style={styles.actionButton} onPress={() => Alert.alert('Coming Soon', 'Card freeze will be available soon.')}>
-          <View style={styles.actionIconContainer}>
-            <Image source={require('../../assets/freeze.png')} style={styles.freezeIcon} resizeMode="contain" />
-          </View>
-          <Text style={styles.actionLabel}>Freeze</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity style={styles.actionButton} onPress={() => Alert.alert('Coming Soon', 'Card deletion will be available soon.')}>
-          <View style={styles.actionIconContainer}>
-            <Text style={styles.actionIcon}>✕</Text>
-          </View>
-          <Text style={styles.actionLabel}>Delete</Text>
-        </TouchableOpacity>
-      </View>
-
-      {/* Quick Actions Section */}
-      <View style={styles.quickActionsContainer}>
-        <Text style={styles.quickActionsTitle}>Quick Actions</Text>
-
-        <TouchableOpacity style={styles.quickActionButton} activeOpacity={0.7} onPress={() => Alert.alert('Coming Soon', 'Apple Pay integration will be available soon.')}>
-          <View style={styles.quickActionContent}>
-            <View style={styles.quickActionIconCircle}>
-              <Image
-                source={require('../../assets/appleWallet.png')}
-                style={styles.quickActionIcon}
-                resizeMode="contain"
-              />
-            </View>
-            <Text style={styles.quickActionText}>Add to Apple Pay</Text>
-          </View>
-          <Text style={styles.quickActionArrow}>›</Text>
-        </TouchableOpacity>
-      </View>
       </LinearGradient>
     </Animated.View>
   );
@@ -140,9 +98,7 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: 'rgba(255, 255, 255, 0.1)',
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.2)',
+    backgroundColor: 'rgba(60, 60, 60, 0.9)',
     justifyContent: 'center',
     alignItems: 'center',
     zIndex: 100001,

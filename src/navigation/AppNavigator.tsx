@@ -19,7 +19,6 @@ import TransactionHistoryScreen from '../app/(infos)/TransactionHistoryScreen';
 import { useAuth } from '../contexts/AuthContext';
 import { animateScreenTransition } from '../utils/animations';
 import type { PageType } from './types';
-import { Image } from 'react-native';
 import { RevolutPager, RevolutPagerRef } from './swipePager';
 import { WelcomeLoader } from '../components/WelcomeLoader';
 import Logo from '../assets/logo/logo.svg';
@@ -39,31 +38,35 @@ export default function AppNavigator() {
   const screenFadeAnim = useRef(new Animated.Value(1)).current;
   const screenSlideAnim = useRef(new Animated.Value(0)).current;
 
-  // Welcome loader: only show when transitioning from non-auth to auth
-  const [showWelcome, setShowWelcome] = useState(false);
-  const [welcomeFadeOut, setWelcomeFadeOut] = useState(false);
-  const wasAuthenticated = useRef(isAuthenticated);
+  // Splash overlay — starts opaque, covers everything until app is ready
+  const [splashVisible, setSplashVisible] = useState(true);
+  const [splashFading, setSplashFading] = useState(false);
   const { isLoadingBalance } = useWalletInfos(userData?.cash_wallet || '');
 
+  // Dismiss splash when auth is resolved + data loaded (or not authenticated)
   useEffect(() => {
-    if (isAuthenticated && !wasAuthenticated.current) {
-      // Just became authenticated, show welcome loader
-      setShowWelcome(true);
-      setWelcomeFadeOut(false);
+    if (loading || splashFading) return;
+    if (!isAuthenticated) {
+      setSplashVisible(false);
+      return;
     }
-    wasAuthenticated.current = isAuthenticated;
-  }, [isAuthenticated]);
-
-  useEffect(() => {
-    if (showWelcome && isAuthenticated && !isLoadingBalance) {
-      const timer = setTimeout(() => setWelcomeFadeOut(true), 300);
+    if (!isLoadingBalance) {
+      const timer = setTimeout(() => setSplashFading(true), 1500);
       return () => clearTimeout(timer);
     }
-  }, [showWelcome, isAuthenticated, isLoadingBalance]);
+  }, [loading, isAuthenticated, isLoadingBalance, splashFading]);
+
+  // Reset splash for next login after logout
+  useEffect(() => {
+    if (!isAuthenticated) {
+      setSplashVisible(true);
+      setSplashFading(false);
+    }
+  }, [isAuthenticated]);
 
   const handleWelcomeDone = useCallback(() => {
-    setShowWelcome(false);
-    setWelcomeFadeOut(false);
+    setSplashVisible(false);
+    setSplashFading(false);
   }, []);
 
   const pageOrder: PageType[] = ['home', 'privacy', 'savings', 'profile'];
@@ -137,20 +140,7 @@ export default function AppNavigator() {
     setCurrentScreen('main');
   };
 
-  if (loading) {
-    return (
-      <View style={styles.splashContainer}>
-        <StatusBar style="light" />
-        <Image
-          source={require('../assets/logo-transparent.png')}
-          style={styles.splashLogo}
-          resizeMode="contain"
-        />
-      </View>
-    );
-  }
-
-  if (!isAuthenticated) {
+  if (!isAuthenticated && !splashVisible) {
     if (authMode === 'signin') {
       return <SignInScreen onSwitchToSignUp={() => setAuthMode('signup')} />;
     }
@@ -246,11 +236,12 @@ export default function AppNavigator() {
         {currentScreen === 'transactionHistory' && <TransactionHistoryScreen onClose={handleBackToMain} walletType={txHistoryWalletType} />}
       </View>
 
-      {showWelcome && (
+      {splashVisible && (
         <View style={styles.welcomeOverlay}>
           <WelcomeLoader
             logo={<Logo width={80} height={80} />}
-            fadeOutTrigger={welcomeFadeOut}
+            startOpaque
+            fadeOutTrigger={splashFading}
             onFadeOutEnd={handleWelcomeDone}
           />
         </View>
@@ -276,17 +267,7 @@ const styles = StyleSheet.create({
   mainContainer: {
     flex: 1,
   },
-  splashContainer: {
-    flex: 1,
-    backgroundColor: '#000000',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  splashLogo: {
-    width: 150,
-    height: 150,
-  },
-  welcomeOverlay: {
+welcomeOverlay: {
     ...StyleSheet.absoluteFillObject,
     zIndex: 2000,
   },

@@ -90,38 +90,38 @@ export function useStealthPayments(): StealthPaymentsState {
     async (paymentId: string, destinationAddress: string): Promise<string | null> => {
       try {
         // 1. Préparer la TX de dépense côté backend
-        console.log('[spendPayment] step1: prepare, paymentId:', paymentId);
+        __DEV__ && console.log('[spendPayment] step1: prepare, paymentId:', paymentId);
         const prepareResult = await api.post('/api/stealth/spend/prepare', {
           paymentId,
           destinationAddress,
         });
-        console.log('[spendPayment] step1 OK, stealthAddress:', prepareResult?.stealthAddress?.slice(0, 8));
+        __DEV__ && console.log('[spendPayment] step1 OK, stealthAddress:', prepareResult?.stealthAddress?.slice(0, 8));
 
         const { serializedUnsignedTx, ephemeralR, stealthAddress } = prepareResult;
 
         // 2. Signer côté frontend (stealth spending key depuis SecureStore)
-        console.log('[spendPayment] step2: signSpendTransaction...');
+        __DEV__ && console.log('[spendPayment] step2: signSpendTransaction...');
         const { serializedSignedTx } = await signSpendTransaction(
           serializedUnsignedTx,
           ephemeralR,
           stealthAddress,
         );
-        console.log('[spendPayment] step2 OK');
+        __DEV__ && console.log('[spendPayment] step2 OK');
 
         // 3. Soumettre on-chain
-        console.log('[spendPayment] step3: sendRawTransaction...');
+        __DEV__ && console.log('[spendPayment] step3: sendRawTransaction...');
         const txBytes = Buffer.from(serializedSignedTx, 'base64');
         const sig = await connection.sendRawTransaction(txBytes, {
           skipPreflight: false,
         });
-        console.log('[spendPayment] step3 OK, spend sig (full):', sig);
-        console.log('[spendPayment] Explorer: https://explorer.solana.com/tx/' + sig + '?cluster=devnet');
+        __DEV__ && console.log('[spendPayment] step3 OK, spend sig (full):', sig);
+        __DEV__ && console.log('[spendPayment] Explorer: https://explorer.solana.com/tx/' + sig + '?cluster=devnet');
 
         // 4. Attendre confirmation 'processed' (tx dans un bloc, suffisant pour le spend)
-        console.log('[spendPayment] step4: confirmTransaction...');
+        __DEV__ && console.log('[spendPayment] step4: confirmTransaction...');
         const { blockhash, lastValidBlockHeight } = await connection.getLatestBlockhash('processed');
         await connection.confirmTransaction({ signature: sig, blockhash, lastValidBlockHeight }, 'processed');
-        console.log('[spendPayment] step4 confirmed ✓');
+        __DEV__ && console.log('[spendPayment] step4 confirmed ✓');
 
         // 5. Confirmer côté backend
         await api.post('/api/stealth/spend/confirm', {

@@ -36,6 +36,7 @@ export interface StealthSendResult {
   stealthAddress: string;
   ephemeralR: string;
   viewTag: number;
+  pointsEarned?: number;
 }
 
 interface StealthTransferState {
@@ -72,19 +73,20 @@ export function useStealthTransfer(): StealthTransferState {
       setTxSignature(null);
 
       try {
-        console.log('[StealthTransfer] START send', { senderAddress, amountLamports: amountLamports.toString(), isWalletAuth });
+        __DEV__ && console.log('[StealthTransfer] START send', { senderAddress, amountLamports: amountLamports.toString(), isWalletAuth });
 
         const isCashWallet = isWalletAuth && senderAddress !== userData?.stealf_wallet;
-        console.log('[StealthTransfer] isCashWallet:', isCashWallet);
+        __DEV__ && console.log('[StealthTransfer] isCashWallet:', isCashWallet);
 
         let txSig: string;
         let stealthAddress: string;
         let ephemeralR: string;
         let viewTag: number;
+        let earnedPts = 0;
 
         if (isCashWallet) {
           // Cash wallet (Turnkey) : build + sign + send en 1 seul appel backend
-          console.log('[StealthTransfer] build-and-send-cash...');
+          __DEV__ && console.log('[StealthTransfer] build-and-send-cash...');
           const result = await api.post('/api/stealth/build-and-send-cash', {
             recipientMetaAddress,
             amountLamports: amountLamports.toString(),
@@ -94,25 +96,27 @@ export function useStealthTransfer(): StealthTransferState {
           stealthAddress = result.stealthAddress;
           ephemeralR = result.ephemeralR;
           viewTag = result.viewTag;
-          console.log('[StealthTransfer] build-and-send-cash OK, tx:', txSig?.slice(0, 20));
+          earnedPts = result.pointsEarned ?? 0;
+          __DEV__ && console.log('[StealthTransfer] build-and-send-cash OK, tx:', txSig?.slice(0, 20));
         } else {
           // Wealth wallet : build TX côté backend, signer localement
-          console.log('[StealthTransfer] Calling build-transfer...');
+          __DEV__ && console.log('[StealthTransfer] Calling build-transfer...');
           const buildResult = await api.post('/api/stealth/build-transfer', {
             recipientMetaAddress,
             amountLamports: amountLamports.toString(),
             senderPublicKey: senderAddress,
           });
-          console.log('[StealthTransfer] build-transfer OK, stealthAddress:', buildResult?.stealthAddress?.slice(0, 8));
+          __DEV__ && console.log('[StealthTransfer] build-transfer OK, stealthAddress:', buildResult?.stealthAddress?.slice(0, 8));
 
           stealthAddress = buildResult.stealthAddress;
           ephemeralR = buildResult.ephemeralR;
           viewTag = buildResult.viewTag;
+          earnedPts = buildResult.pointsEarned ?? 0;
           const serializedTxBytes = Buffer.from(buildResult.serializedTx, 'base64');
 
           if (isWalletAuth) {
             // MWA SeedVault
-            console.log('[StealthTransfer] Signing via MWA SeedVault...');
+            __DEV__ && console.log('[StealthTransfer] Signing via MWA SeedVault...');
             setMWAInProgress(true);
             try {
               const authToken = await SecureStore.getItemAsync('mwa_auth_token');
@@ -122,8 +126,8 @@ export function useStealthTransfer(): StealthTransferState {
                 new Uint8Array(serializedTxBytes),
                 RPC_ENDPOINT,
               );
-              console.log('[StealthTransfer] MWA sign OK, txSig:', txSig);
-              console.log('[StealthTransfer] Explorer: https://explorer.solana.com/tx/' + txSig + '?cluster=devnet');
+              __DEV__ && console.log('[StealthTransfer] MWA sign OK, txSig:', txSig);
+              __DEV__ && console.log('[StealthTransfer] Explorer: https://explorer.solana.com/tx/' + txSig + '?cluster=devnet');
             } finally {
               setMWAInProgress(false);
             }
@@ -146,17 +150,17 @@ export function useStealthTransfer(): StealthTransferState {
         // Cash wallet: backend confirme avant de répondre (processed) — pas besoin d'attendre ici
         // Wealth wallet (MWA/passkey): confirmer côté client avant spend TX
         if (!isCashWallet) {
-          console.log('[StealthTransfer] Waiting for confirmation (wealth wallet)...');
+          __DEV__ && console.log('[StealthTransfer] Waiting for confirmation (wealth wallet)...');
           const { blockhash, lastValidBlockHeight } = await _connection.getLatestBlockhash('processed');
           await _connection.confirmTransaction({ signature: txSig!, blockhash, lastValidBlockHeight }, 'processed');
-          console.log('[StealthTransfer] TX confirmed ✓');
+          __DEV__ && console.log('[StealthTransfer] TX confirmed ✓');
         } else {
-          console.log('[StealthTransfer] TX confirmed by backend ✓');
+          __DEV__ && console.log('[StealthTransfer] TX confirmed by backend ✓');
         }
-        console.log('[StealthTransfer] Explorer: https://explorer.solana.com/tx/' + txSig + '?cluster=devnet');
+        __DEV__ && console.log('[StealthTransfer] Explorer: https://explorer.solana.com/tx/' + txSig + '?cluster=devnet');
 
         setTxSignature(txSig!);
-        return { txSignature: txSig!, stealthAddress: stealthAddress!, ephemeralR: ephemeralR!, viewTag: viewTag! };
+        return { txSignature: txSig!, stealthAddress: stealthAddress!, ephemeralR: ephemeralR!, viewTag: viewTag!, pointsEarned: earnedPts };
       } catch (err) {
         const e = err as any;
         console.error('[StealthTransfer] ERROR:', e?.message, e);

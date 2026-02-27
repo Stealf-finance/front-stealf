@@ -95,7 +95,7 @@ export function useWalletAuth() {
       // Check for existing auth token to try reauthorize first
       const existingAuthToken = await SecureStore.getItemAsync(MWA_AUTH_TOKEN_KEY);
 
-      console.log("[useWalletAuth] Starting transact()...", existingAuthToken ? "(reauthorize)" : "(authorize)");
+      __DEV__ && console.log("[useWalletAuth] Starting transact()...", existingAuthToken ? "(reauthorize)" : "(authorize)");
       let result;
       try {
         result = await transact(async (wallet: Web3MobileWallet) => {
@@ -103,27 +103,27 @@ export function useWalletAuth() {
 
           if (existingAuthToken) {
             try {
-              console.log("[useWalletAuth] Trying reauthorize...");
+              __DEV__ && console.log("[useWalletAuth] Trying reauthorize...");
               auth = await wallet.reauthorize({
                 auth_token: existingAuthToken,
                 identity: STEALF_IDENTITY,
               });
             } catch (reAuthErr) {
-              console.log("[useWalletAuth] Reauthorize failed, falling back to authorize");
+              __DEV__ && console.log("[useWalletAuth] Reauthorize failed, falling back to authorize");
               auth = await wallet.authorize({
                 chain: SOLANA_CHAIN,
                 identity: STEALF_IDENTITY,
               });
             }
           } else {
-            console.log("[useWalletAuth] Calling authorize...");
+            __DEV__ && console.log("[useWalletAuth] Calling authorize...");
             auth = await wallet.authorize({
               chain: SOLANA_CHAIN,
               identity: STEALF_IDENTITY,
             });
           }
 
-          console.log("[useWalletAuth] Auth success, accounts:", auth.accounts?.length);
+          __DEV__ && console.log("[useWalletAuth] Auth success, accounts:", auth.accounts?.length);
 
           return {
             addressBase64: auth.accounts[0].address,
@@ -168,7 +168,7 @@ export function useWalletAuth() {
         errorMsg.includes("rejected");
 
       if (isCancelled) {
-        console.log("[useWalletAuth] User cancelled authorization");
+        __DEV__ && console.log("[useWalletAuth] User cancelled authorization");
         return { success: false };
       }
 
@@ -196,7 +196,7 @@ export function useWalletAuth() {
         const pseudo = params.label || params.walletAddress.slice(0, 8);
         const email = `${params.walletAddress.slice(0, 8)}@wallet.stealf.xyz`;
 
-        console.log("[useWalletAuth] signUpWithWallet called with:", {
+        __DEV__ && console.log("[useWalletAuth] signUpWithWallet called with:", {
           pseudo,
           email,
           publicKeyHex: params.publicKeyHex,
@@ -211,9 +211,9 @@ export function useWalletAuth() {
           }),
         });
 
-        console.log("[useWalletAuth] wallet-signup response status:", response.status);
+        __DEV__ && console.log("[useWalletAuth] wallet-signup response status:", response.status);
         const data = await response.json();
-        console.log("[useWalletAuth] wallet-signup response data:", JSON.stringify(data));
+        __DEV__ && console.log("[useWalletAuth] wallet-signup response data:", JSON.stringify(data));
 
         if (!response.ok) {
           if (response.status === 409) {
@@ -286,8 +286,8 @@ export function useWalletAuth() {
       setLoading(true);
 
       // Step 2: Send publicKeyHex to backend for user lookup
-      console.log("[useWalletAuth] Calling wallet-login with publicKeyHex:", connectResult.publicKeyHex);
-      console.log("[useWalletAuth] API_URL:", API_URL);
+      __DEV__ && console.log("[useWalletAuth] Calling wallet-login with publicKeyHex:", connectResult.publicKeyHex);
+      __DEV__ && console.log("[useWalletAuth] API_URL:", API_URL);
       const response = await fetch(`${API_URL}/api/users/wallet-login`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -296,9 +296,9 @@ export function useWalletAuth() {
         }),
       });
 
-      console.log("[useWalletAuth] wallet-login response status:", response.status);
+      __DEV__ && console.log("[useWalletAuth] wallet-login response status:", response.status);
       const data = await response.json();
-      console.log("[useWalletAuth] wallet-login response data:", JSON.stringify(data));
+      __DEV__ && console.log("[useWalletAuth] wallet-login response data:", JSON.stringify(data));
 
       if (!response.ok) {
         if (response.status === 404) {

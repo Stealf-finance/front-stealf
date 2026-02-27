@@ -6,6 +6,7 @@ import AddFundsModal from '../../components/AddFundsModal';
 import SendModal from '../../components/SendModal';
 import SwapModal from '../../components/SwapModal';
 import type { PageType } from '../../navigation/types';
+import { usePointsContext } from '../../contexts/PointsContext';
 
 interface HomeScreenProps {
   onNavigateToPage: (page: PageType) => void;
@@ -31,6 +32,7 @@ export default function HomeScreen({
   currentPage = 'home',
 }: HomeScreenProps) {
   const slideUpAnim = useRef(new Animated.Value(100)).current;
+  const { points } = usePointsContext();
 
   const [showAddFundsModal, setShowAddFundsModal] = useState(false);
   const [showSendModal, setShowSendModal] = useState(false);

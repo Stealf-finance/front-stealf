@@ -1,7 +1,9 @@
 import React from 'react';
-import { StyleSheet, View, Text, TouchableOpacity, ScrollView, Image, Linking } from 'react-native';
+import { StyleSheet, View, Text, TouchableOpacity, ScrollView, Image, Linking, Alert } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useAuth } from '../../contexts/AuthContext';
+import PointsCard from '../../components/features/PointsCard';
+import { usePoints } from '../../hooks/usePoints';
 
 interface ProfileScreenProps {
   onBack?: () => void;
@@ -14,6 +16,7 @@ interface ProfileScreenProps {
 
 export default function ProfileScreen({ onBack, onNavigateToPage, onLogout, currentPage, userEmail, username }: ProfileScreenProps) {
   const { setUserData } = useAuth();
+  const { points, history } = usePoints();
 
   const handleLogout = async () => {
     try {
@@ -36,7 +39,7 @@ export default function ProfileScreen({ onBack, onNavigateToPage, onLogout, curr
     if (canOpen) {
       await Linking.openURL(url);
     } else {
-      console.error('Cannot open Telegram URL');
+      Alert.alert('Error', 'Cannot open Telegram. Please install the Telegram app.');
     }
   };
 
@@ -59,6 +62,9 @@ export default function ProfileScreen({ onBack, onNavigateToPage, onLogout, curr
         {/* Profile Content */}
         <View style={{ flex: 1 }}>
           <ScrollView style={styles.profileContent} showsVerticalScrollIndicator={false}>
+
+          {/* Rewards card */}
+          <PointsCard points={points} history={history} />
 
           {/* Spacer pour pousser les boutons vers le bas */}
           <View style={{ flex: 1 }} />

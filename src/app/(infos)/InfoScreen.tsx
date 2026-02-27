@@ -172,11 +172,12 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     borderRadius: 20,
-    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    backgroundColor: 'rgba(60, 60, 60, 0.9)',
   },
   backIcon: {
-    fontSize: 24,
+    fontSize: 18,
     color: 'white',
+    fontWeight: 'bold',
   },
   headerTitle: {
     fontSize: 20,

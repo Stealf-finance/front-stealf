@@ -18,6 +18,7 @@ import * as Clipboard from 'expo-clipboard';
 import { StatusBar } from 'expo-status-bar';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useFonts } from 'expo-font';
+import { useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '../../contexts/AuthContext';
 import { useSendTransaction } from '../../hooks/useSendSimpleTransaction';
 import { useAuthenticatedApi } from '../../services/clientStealf';
@@ -39,6 +40,7 @@ interface SendConfirmationProps {
 export default function SendConfirmation({ amount, onBack, onClose, onSuccess, transferType = 'private' }: SendConfirmationProps) {
   const { userData } = useAuth();
   const { session } = useTurnkey();
+  const queryClient = useQueryClient();
   const { sendTransaction, loading: simpleLoading } = useSendTransaction();
   const { initiatePrivateWithdraw, loading: privateLoading } = usePrivacyCashTransfer();
   const api = useAuthenticatedApi();
@@ -46,6 +48,7 @@ export default function SendConfirmation({ amount, onBack, onClose, onSuccess, t
   const [externalAddress, setExternalAddress] = useState('');
   const [showSuccessModal, setShowSuccessModal] = useState(false);
   const [transactionSignature, setTransactionSignature] = useState<string | null>(null);
+  const [pointsEarned, setPointsEarned] = useState(0);
 
   // Stealth mode — activé automatiquement pour les transferts "basic" (wealth → stealth)
   const [stealthMode, setStealthMode] = useState(transferType === 'basic');
@@ -66,12 +69,12 @@ export default function SendConfirmation({ amount, onBack, onClose, onSuccess, t
       const bs58 = require('bs58');
       const decoded = bs58.decode(value);
       if (decoded.length !== 64) {
-        setMetaAddressError('Format invalide (64 bytes attendu)');
+        setMetaAddressError('Invalid format (64 bytes expected)');
       } else {
         setMetaAddressError(null);
       }
     } catch {
-      setMetaAddressError('Format base58 invalide');
+      setMetaAddressError('Invalid base58 format');
     }
   };
 
@@ -93,7 +96,9 @@ export default function SendConfirmation({ amount, onBack, onClose, onSuccess, t
       const amountLamports = BigInt(Math.round(amountSOL * 1_000_000_000));
       const sig = await sendStealth(metaAddress, amountLamports, userData.stealf_wallet);
       if (sig) {
-        setTransactionSignature(sig);
+        setTransactionSignature(sig.txSignature);
+        setPointsEarned(sig.pointsEarned || 15);
+        queryClient.invalidateQueries({ queryKey: ['points'] });
         setShowSuccessModal(true);
         Animated.sequence([
           Animated.timing(successAnimation, { toValue: 1, duration: 300, useNativeDriver: true }),
@@ -350,6 +355,11 @@ export default function SendConfirmation({ amount, onBack, onClose, onSuccess, t
                 </Animated.View>
 
                 <Text style={styles.successTitle}>Transaction Sent</Text>
+                {pointsEarned > 0 && (
+                  <View style={styles.pointsBadge}>
+                    <Text style={styles.pointsBadgeText}>+{pointsEarned} pts ✦</Text>
+                  </View>
+                )}
                 <Text style={styles.successMessage}>
                   Your transaction has been successfully sent
                 </Text>
@@ -543,6 +553,21 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginBottom: 20,
     fontFamily: 'Sansation-Regular',
+  },
+  pointsBadge: {
+    paddingHorizontal: 14,
+    paddingVertical: 6,
+    borderRadius: 20,
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.2)',
+    marginBottom: 14,
+  },
+  pointsBadgeText: {
+    color: 'rgba(255, 255, 255, 0.9)',
+    fontSize: 14,
+    fontFamily: 'Sansation-Bold',
+    fontWeight: '700',
   },
   signatureContainer: {
     backgroundColor: 'rgba(255, 255, 255, 0.05)',

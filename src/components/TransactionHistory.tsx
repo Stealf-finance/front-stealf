@@ -9,6 +9,7 @@ import {
   RefreshControl,
   Linking,
 } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { useWalletInfos } from '../hooks/useWalletInfos';
 import SendIcon from '../assets/buttons/send.svg';
 import ReceivedIcon from '../assets/buttons/received.svg';
@@ -76,6 +77,30 @@ export default function TransactionHistory({
   }
 
   if (displayedTransactions.length === 0) {
+    if (walletType === 'privacy') {
+      return (
+        <View style={[styles.emptyPrivacyContainer, style]}>
+          <View style={styles.emptyPrivacyRow}>
+            <Ionicons name="shield-checkmark-outline" size={16} color="rgba(139,92,246,0.6)" />
+            <Text style={styles.emptyPrivacyText}>No private transactions yet</Text>
+          </View>
+          <View style={styles.emptyPrivacyFeatures}>
+            <View style={styles.emptyPrivacyFeature}>
+              <Ionicons name="eye-off-outline" size={13} color="rgba(255,255,255,0.3)" />
+              <Text style={styles.emptyPrivacyFeatureText}>One-time stealth addresses</Text>
+            </View>
+            <View style={styles.emptyPrivacyFeature}>
+              <Ionicons name="swap-horizontal-outline" size={13} color="rgba(255,255,255,0.3)" />
+              <Text style={styles.emptyPrivacyFeatureText}>Routed via Privacy Pool</Text>
+            </View>
+            <View style={styles.emptyPrivacyFeature}>
+              <Ionicons name="lock-closed-outline" size={13} color="rgba(255,255,255,0.3)" />
+              <Text style={styles.emptyPrivacyFeatureText}>Encrypted balance on-chain (Arcium)</Text>
+            </View>
+          </View>
+        </View>
+      );
+    }
     return (
       <View style={[styles.emptyContainer, style]}>
         <Text style={styles.emptyText}>No transactions yet</Text>
@@ -240,6 +265,34 @@ const styles = StyleSheet.create({
   emptyContainer: {
     alignItems: 'center',
     paddingVertical: 40,
+  },
+  emptyPrivacyContainer: {
+    paddingVertical: 16,
+    gap: 12,
+  },
+  emptyPrivacyRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  emptyPrivacyText: {
+    fontSize: 13,
+    color: 'rgba(255,255,255,0.4)',
+    fontFamily: 'Sansation-Regular',
+  },
+  emptyPrivacyFeatures: {
+    gap: 8,
+    paddingLeft: 2,
+  },
+  emptyPrivacyFeature: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  emptyPrivacyFeatureText: {
+    fontSize: 12,
+    color: 'rgba(255,255,255,0.22)',
+    fontFamily: 'Sansation-Regular',
   },
   emptyText: {
     color: 'white',

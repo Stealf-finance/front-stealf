@@ -108,12 +108,12 @@ export function useSendTransaction() {
                 );
             }
 
-            console.log('[useSendTransaction] Transaction built, serializing...');
+            __DEV__ && console.log('[useSendTransaction] Transaction built, serializing...');
             const serializedTx = transaction.serialize({
                 requireAllSignatures: false,
                 verifySignatures: false,
             });
-            console.log('[useSendTransaction] Serialized, length:', serializedTx.length);
+            __DEV__ && console.log('[useSendTransaction] Serialized, length:', serializedTx.length);
 
             let txId: string;
 
@@ -122,7 +122,7 @@ export function useSendTransaction() {
 
                 if (isSeekerWallet) {
                     // Wealth wallet (Seeker): sign via MWA Seed Vault, send manually
-                    console.log('[useSendTransaction] MWA Seed Vault path...');
+                    __DEV__ && console.log('[useSendTransaction] MWA Seed Vault path...');
                     const authToken = await SecureStore.getItemAsync('mwa_auth_token');
                     if (!authToken) {
                         throw new Error('MWA auth token not found. Please reconnect your wallet.');
@@ -144,14 +144,14 @@ export function useSendTransaction() {
                     }
                 } else {
                     // Cash wallet (Turnkey): sign via backend
-                    console.log('[useSendTransaction] Turnkey backend path...');
+                    __DEV__ && console.log('[useSendTransaction] Turnkey backend path...');
                     const hexTx = Buffer.from(serializedTx).toString('hex');
                     const result = await api.post('/api/wallet/sign-and-send', {
                         unsignedTransaction: hexTx,
                     });
                     txId = result.txSignature;
                 }
-                console.log('[useSendTransaction] Transaction sent:', txId);
+                __DEV__ && console.log('[useSendTransaction] Transaction sent:', txId);
             } else {
                 // Passkey auth: sign via Turnkey
                 const hexTx = serializedTx.toString('hex');

@@ -30,7 +30,7 @@ export default function StealthReceiveModal({ visible, onClose }: StealthReceive
   const handleCopy = async () => {
     if (!metaAddress) return;
     await Clipboard.setStringAsync(metaAddress);
-    Alert.alert('Copié', 'Meta-adresse copiée dans le presse-papier');
+    Alert.alert('Copied', 'Meta-address copied to clipboard');
   };
 
   return (
@@ -44,7 +44,7 @@ export default function StealthReceiveModal({ visible, onClose }: StealthReceive
         <TouchableOpacity style={styles.container} activeOpacity={1} onPress={() => {}}>
           {/* Header */}
           <View style={styles.header}>
-            <Text style={styles.title}>Recevoir (Stealth)</Text>
+            <Text style={styles.title}>Receive (Stealth)</Text>
             <TouchableOpacity onPress={onClose} style={styles.closeBtn}>
               <Text style={styles.closeIcon}>✕</Text>
             </TouchableOpacity>
@@ -52,7 +52,7 @@ export default function StealthReceiveModal({ visible, onClose }: StealthReceive
 
           <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
             {isLoading ? (
-              <Text style={styles.loadingText}>Initialisation des clés stealth...</Text>
+              <Text style={styles.loadingText}>Initializing stealth keys...</Text>
             ) : error ? (
               <Text style={styles.errorText}>{error}</Text>
             ) : metaAddress ? (
@@ -69,7 +69,7 @@ export default function StealthReceiveModal({ visible, onClose }: StealthReceive
 
                 {/* Subtitle */}
                 <Text style={styles.subtitle}>
-                  Partagez cette meta-adresse pour recevoir des paiements privés stealth
+                  Share this meta-address to receive private stealth payments
                 </Text>
 
                 {/* Meta-address display */}
@@ -81,13 +81,12 @@ export default function StealthReceiveModal({ visible, onClose }: StealthReceive
 
                 {/* Copy button */}
                 <TouchableOpacity style={styles.copyButton} onPress={handleCopy} activeOpacity={0.8}>
-                  <Text style={styles.copyButtonText}>Copier la meta-adresse</Text>
+                  <Text style={styles.copyButtonText}>Copy meta-address</Text>
                 </TouchableOpacity>
 
                 {/* Privacy note */}
                 <Text style={styles.privacyNote}>
-                  🔒 Chaque paiement est envoyé à une adresse unique dérivée de votre meta-adresse.
-                  L'expéditeur ne peut pas voir votre portefeuille principal.
+                  🔒 Each payment is sent to a unique address derived from your meta-address. The sender cannot see your main wallet.
                 </Text>
               </>
             ) : null}

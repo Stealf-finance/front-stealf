@@ -36,6 +36,7 @@ export default function DepositWithdrawModal({
 }: DepositWithdrawModalProps) {
   const [amount, setAmount] = useState("");
   const [step, setStep] = useState<"input" | "confirming" | "success" | "error">("input");
+  const [pointsEarned, setPointsEarned] = useState(0);
 
   const deposit = useYieldDepositAndConfirm();
   const withdraw = useYieldWithdrawAndConfirm();
@@ -74,9 +75,11 @@ export default function DepositWithdrawModal({
 
     try {
       if (mode === "deposit") {
-        await deposit.mutateAsync({ amount: parsedAmount, vaultType, isPrivate });
+        const result = await deposit.mutateAsync({ amount: parsedAmount, vaultType, isPrivate });
+        setPointsEarned(result.confirmData?.pointsEarned || (isPrivate ? 35 : 20));
       } else {
-        await withdraw.mutateAsync({ amount: parsedAmount, vaultType, isPrivate });
+        const result = await withdraw.mutateAsync({ amount: parsedAmount, vaultType, isPrivate });
+        setPointsEarned((result as any).pointsEarned || 10);
       }
       setStep("success");
     } catch (error: any) {
@@ -129,6 +132,11 @@ export default function DepositWithdrawModal({
             <Text style={styles.successAmount}>
               {parsedAmount.toFixed(decimals)} {unit}
             </Text>
+            {pointsEarned > 0 && (
+              <View style={styles.pointsBadge}>
+                <Text style={styles.pointsBadgeText}>+{pointsEarned} pts ✦</Text>
+              </View>
+            )}
             <Text style={styles.successSubtext}>
               {mode === "deposit"
                 ? `Your ${unit} is now earning yield`
@@ -345,6 +353,21 @@ const styles = StyleSheet.create({
     color: "rgba(255,255,255,0.5)",
     textAlign: "center",
     marginBottom: 40,
+  },
+  pointsBadge: {
+    paddingHorizontal: 14,
+    paddingVertical: 6,
+    borderRadius: 20,
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.2)',
+    marginBottom: 16,
+  },
+  pointsBadgeText: {
+    color: 'rgba(255, 255, 255, 0.9)',
+    fontSize: 14,
+    fontFamily: 'Sansation-Bold',
+    fontWeight: '700',
   },
   doneButton: {
     backgroundColor: "rgba(240, 235, 220, 0.95)",
