@@ -76,7 +76,7 @@ export function SessionProvider({ children }: SessionProviderProps) {
   const refreshTurnkeySession = useCallback(async () => {
     try {
       // For wallet auth, no Turnkey session to refresh
-      // Biometric unlock is sufficient; signing uses MWA transact()
+      // Biometric unlock is sufficient; signing uses createColdWallet() locally
       if (userData?.authMethod === 'wallet') {
         console.log('[Session] Wallet auth - biometric unlock sufficient');
         return true;
