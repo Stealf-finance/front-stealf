@@ -64,10 +64,15 @@ jest.mock("../services/socketService", () => ({
   },
 }));
 
+// Mock PointsContext
+jest.mock("../contexts/PointsContext", () => ({
+  usePointsContext: () => ({ showToast: jest.fn() }),
+}));
+
 // Mock Solana wallet bridge
 const mockBridgeSignTransaction = jest.fn().mockResolvedValue(new Uint8Array(100));
 jest.mock("../services/solanaWalletBridge", () => ({
-  createSeedVaultWallet: jest.fn(() => ({
+  createColdWallet: jest.fn(() => ({
     signTransaction: mockBridgeSignTransaction,
   })),
 }));
@@ -104,7 +109,7 @@ jest.mock("@tanstack/react-query", () => {
     useMutation: (opts: any) => ({
       mutateAsync: async (args: any) => {
         const result = await opts.mutationFn(args);
-        opts.onSuccess?.();
+        opts.onSuccess?.(result);
         return result;
       },
       isLoading: false,
@@ -184,17 +189,13 @@ describe("useYieldDepositAndConfirm", () => {
     expect(result).toMatchObject({ signature: "mock-turnkey-sig-123" });
   });
 
-  it("should sign via MWA bridge for wallet auth (Seeker path)", async () => {
+  it("should sign via cold wallet for wallet auth (Seeker path)", async () => {
     mockIsWalletAuth = true;
     mockUserData = {
       cash_wallet: "StealfWallet11111111111111111111111111111",
       stealf_wallet: "StealfWallet11111111111111111111111111111",
       authMethod: "wallet",
     };
-
-    // Pre-fill MWA auth token in SecureStore mock
-    const SecureStore = require("expo-secure-store");
-    SecureStore.getItemAsync.mockResolvedValueOnce("mock-mwa-token");
 
     mockApiPost
       .mockResolvedValueOnce({
@@ -206,11 +207,11 @@ describe("useYieldDepositAndConfirm", () => {
     const hook = useYieldDepositAndConfirm();
     await hook.mutateAsync({ amount: 0.5, vaultType: "sol_marinade" });
 
-    // MWA bridge should be called
-    expect(mockSetMWAInProgress).toHaveBeenCalledWith(true);
+    // Cold wallet bridge should sign and broadcast
     expect(mockBridgeSignTransaction).toHaveBeenCalled();
     expect(mockSendRawTransaction).toHaveBeenCalled();
-    expect(mockSetMWAInProgress).toHaveBeenCalledWith(false);
+    // No MWA progress flag
+    expect(mockSetMWAInProgress).not.toHaveBeenCalled();
   });
 
   it("should pass private flag when isPrivate is true", async () => {

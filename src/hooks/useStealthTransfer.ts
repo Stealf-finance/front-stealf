@@ -9,13 +9,11 @@
  */
 
 import { useState, useCallback } from 'react';
-import * as SecureStore from 'expo-secure-store';
 import { Connection } from '@solana/web3.js';
 import { useTurnkey } from '@turnkey/react-native-wallet-kit';
 import { useAuthenticatedApi } from '../services/clientStealf';
 import { useAuth } from '../contexts/AuthContext';
-import { useSession } from '../contexts/SessionContext';
-import { createSeedVaultWallet } from '../services/solanaWalletBridge';
+import { createColdWallet } from '../services/solanaWalletBridge';
 
 const RPC_ENDPOINT = process.env.EXPO_PUBLIC_SOLANA_RPC_URL || '';
 const _connection = new Connection(RPC_ENDPOINT, 'confirmed');
@@ -55,7 +53,6 @@ export function useStealthTransfer(): StealthTransferState {
   const api = useAuthenticatedApi();
   const { signAndSendTransaction, wallets } = useTurnkey();
   const { isWalletAuth, userData } = useAuth();
-  const { setMWAInProgress } = useSession();
 
   const send = useCallback(
     async (
@@ -115,22 +112,15 @@ export function useStealthTransfer(): StealthTransferState {
           const serializedTxBytes = Buffer.from(buildResult.serializedTx, 'base64');
 
           if (isWalletAuth) {
-            // MWA SeedVault
-            __DEV__ && console.log('[StealthTransfer] Signing via MWA SeedVault...');
-            setMWAInProgress(true);
-            try {
-              const authToken = await SecureStore.getItemAsync('mwa_auth_token');
-              if (!authToken) throw new Error('MWA auth token not found. Please reconnect your wallet.');
-              const bridge = createSeedVaultWallet(senderAddress, authToken);
-              txSig = await bridge.signAndSendTransaction(
-                new Uint8Array(serializedTxBytes),
-                RPC_ENDPOINT,
-              );
-              __DEV__ && console.log('[StealthTransfer] MWA sign OK, txSig:', txSig);
-              __DEV__ && console.log('[StealthTransfer] Explorer: https://explorer.solana.com/tx/' + txSig + '?cluster=devnet');
-            } finally {
-              setMWAInProgress(false);
-            }
+            // Cold wallet: sign locally using key from SecureStore
+            __DEV__ && console.log('[StealthTransfer] Signing via cold wallet...');
+            const bridge = createColdWallet(senderAddress);
+            txSig = await bridge.signAndSendTransaction(
+              new Uint8Array(serializedTxBytes),
+              RPC_ENDPOINT,
+            );
+            __DEV__ && console.log('[StealthTransfer] Cold wallet sign OK, txSig:', txSig);
+            __DEV__ && console.log('[StealthTransfer] Explorer: https://explorer.solana.com/tx/' + txSig + '?cluster=devnet');
           } else {
             // Turnkey passkey
             const wallet = wallets?.[0];
@@ -170,7 +160,7 @@ export function useStealthTransfer(): StealthTransferState {
         setIsLoading(false);
       }
     },
-    [api, isWalletAuth, userData, signAndSendTransaction, wallets, setMWAInProgress],
+    [api, isWalletAuth, userData, signAndSendTransaction, wallets],
   );
 
   const reset = useCallback(() => {

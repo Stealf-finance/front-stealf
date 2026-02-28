@@ -1,13 +1,18 @@
-import { base58ToHex, base64ToBase58, createSeedVaultWallet } from '../services/solanaWalletBridge';
+import { base58ToHex, base64ToBase58, createSeedVaultWallet, createColdWallet } from '../services/solanaWalletBridge';
 import { transact } from '@solana-mobile/mobile-wallet-adapter-protocol-web3js';
+import * as SecureStore from 'expo-secure-store';
+import { Keypair } from '@solana/web3.js';
 import bs58 from 'bs58';
 
-// Mock Transaction from @solana/web3.js to avoid needing valid serialized bytes
+// Mock Transaction and Connection from @solana/web3.js to avoid needing valid serialized bytes
 jest.mock('@solana/web3.js', () => ({
   ...jest.requireActual('@solana/web3.js'),
   Transaction: {
     from: jest.fn().mockReturnValue({ feePayer: null }),
   },
+  Connection: jest.fn().mockImplementation(() => ({
+    sendRawTransaction: jest.fn().mockResolvedValue('mock-cold-signature'),
+  })),
 }));
 
 describe('solanaWalletBridge', () => {
@@ -113,6 +118,141 @@ describe('solanaWalletBridge', () => {
       expect(transact).toHaveBeenCalledTimes(1);
       expect(typeof txId).toBe('string');
       expect(txId).toBe('mock-tx-signature');
+    });
+  });
+
+  describe('createColdWallet', () => {
+    // Generate a deterministic test keypair from a known seed
+    const testSeed = new Uint8Array(32).fill(42);
+    const testKeypair = Keypair.fromSeed(testSeed);
+    const testAddressBase58 = testKeypair.publicKey.toBase58();
+    const testStoredKey = bs58.encode(testKeypair.secretKey);
+
+    beforeEach(() => {
+      (transact as jest.Mock).mockClear();
+      (SecureStore.getItemAsync as jest.Mock).mockReset();
+    });
+
+    it('returns an object with type Solana', () => {
+      const bridge = createColdWallet(testAddressBase58);
+      expect(bridge.type).toBe('solana');
+    });
+
+    it('getPublicKey returns hex-encoded public key without calling transact or SecureStore', async () => {
+      const bridge = createColdWallet(testAddressBase58);
+      const hex = await bridge.getPublicKey();
+      expect(hex).toBe(base58ToHex(testAddressBase58));
+      expect(transact).not.toHaveBeenCalled();
+      expect(SecureStore.getItemAsync).not.toHaveBeenCalled();
+    });
+
+    it('signTransaction signs locally without calling transact', async () => {
+      (SecureStore.getItemAsync as jest.Mock).mockResolvedValueOnce(testStoredKey);
+
+      const mockPartialSign = jest.fn();
+      const mockSerialize = jest.fn().mockReturnValue(Buffer.from([0xde, 0xad, 0xbe, 0xef]));
+      const { Transaction } = jest.requireMock('@solana/web3.js');
+      (Transaction.from as jest.Mock).mockReturnValueOnce({
+        feePayer: null,
+        partialSign: mockPartialSign,
+        serialize: mockSerialize,
+      });
+
+      const bridge = createColdWallet(testAddressBase58);
+      const result = await bridge.signTransaction(new Uint8Array([1, 2, 3]));
+
+      expect(transact).not.toHaveBeenCalled();
+      expect(SecureStore.getItemAsync).toHaveBeenCalledWith('stealf_private_key');
+      expect(mockPartialSign).toHaveBeenCalled();
+      expect(result).toBeInstanceOf(Uint8Array);
+    });
+
+    it('signTransaction throws if both private key and mnemonic are absent', async () => {
+      (SecureStore.getItemAsync as jest.Mock)
+        .mockResolvedValueOnce(null)  // stealf_private_key
+        .mockResolvedValueOnce(null); // stealf_wallet_mnemonic
+
+      const bridge = createColdWallet(testAddressBase58);
+
+      await expect(bridge.signTransaction(new Uint8Array([1, 2, 3]))).rejects.toThrow(
+        '[ColdWallet] Key not found'
+      );
+      expect(transact).not.toHaveBeenCalled();
+    });
+
+    it('signMessage signs locally without calling transact', async () => {
+      (SecureStore.getItemAsync as jest.Mock).mockResolvedValueOnce(testStoredKey);
+
+      const bridge = createColdWallet(testAddressBase58);
+      const result = await bridge.signMessage('test message');
+
+      expect(transact).not.toHaveBeenCalled();
+      expect(typeof result).toBe('string');
+      expect(/^[0-9a-f]+$/.test(result)).toBe(true);
+      expect(result.length).toBe(128); // ed25519 signature = 64 bytes = 128 hex chars
+    });
+
+    it('signMessage throws if both private key and mnemonic are absent', async () => {
+      (SecureStore.getItemAsync as jest.Mock)
+        .mockResolvedValueOnce(null)  // stealf_private_key
+        .mockResolvedValueOnce(null); // stealf_wallet_mnemonic
+
+      const bridge = createColdWallet(testAddressBase58);
+
+      await expect(bridge.signMessage('test')).rejects.toThrow('[ColdWallet] Key not found');
+      expect(transact).not.toHaveBeenCalled();
+    });
+
+    it('signMessage falls back to mnemonic when private key is absent', async () => {
+      // 12-word BIP39 mnemonic that derives a valid keypair
+      const testMnemonic = 'abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about';
+      (SecureStore.getItemAsync as jest.Mock)
+        .mockResolvedValueOnce(null)          // stealf_private_key → absent
+        .mockResolvedValueOnce(testMnemonic); // stealf_wallet_mnemonic → present
+      // setItemAsync is called to cache the derived key — let it be a no-op via mock default
+
+      const bridge = createColdWallet(testAddressBase58);
+      const result = await bridge.signMessage('test message');
+
+      expect(typeof result).toBe('string');
+      expect(/^[0-9a-f]+$/.test(result)).toBe(true);
+      expect(result.length).toBe(128);
+      expect(transact).not.toHaveBeenCalled();
+    });
+
+    it('signAndSendTransaction signs locally and returns transaction signature', async () => {
+      (SecureStore.getItemAsync as jest.Mock).mockResolvedValueOnce(testStoredKey);
+
+      const mockPartialSign = jest.fn();
+      const mockSerialize = jest.fn().mockReturnValue(Buffer.from([0x01, 0x02]));
+      const { Transaction } = jest.requireMock('@solana/web3.js');
+      (Transaction.from as jest.Mock).mockReturnValueOnce({
+        feePayer: null,
+        partialSign: mockPartialSign,
+        serialize: mockSerialize,
+      });
+
+      const bridge = createColdWallet(testAddressBase58);
+      const result = await bridge.signAndSendTransaction(
+        new Uint8Array([1, 2, 3]),
+        'https://api.devnet.solana.com'
+      );
+
+      expect(transact).not.toHaveBeenCalled();
+      expect(typeof result).toBe('string');
+      expect(result).toBe('mock-cold-signature');
+    });
+
+    it('signAndSendTransaction throws if both private key and mnemonic are absent', async () => {
+      (SecureStore.getItemAsync as jest.Mock)
+        .mockResolvedValueOnce(null)  // stealf_private_key
+        .mockResolvedValueOnce(null); // stealf_wallet_mnemonic
+
+      const bridge = createColdWallet(testAddressBase58);
+
+      await expect(
+        bridge.signAndSendTransaction(new Uint8Array([1, 2, 3]), 'https://api.devnet.solana.com')
+      ).rejects.toThrow('[ColdWallet] Key not found');
     });
   });
 });

@@ -2,12 +2,10 @@ import { useState } from 'react';
 import { useTurnkey } from '@turnkey/react-native-wallet-kit';
 import { Connection, Transaction, SystemProgram, PublicKey, LAMPORTS_PER_SOL } from "@solana/web3.js";
 import { getAssociatedTokenAddress, createTransferInstruction, createAssociatedTokenAccountInstruction, getAccount } from "@solana/spl-token";
-import * as SecureStore from 'expo-secure-store';
 import { guardTransaction } from '../services/transactionsGuard';
 import { useAuth } from '../contexts/AuthContext';
-import { useSession } from '../contexts/SessionContext';
 import { useAuthenticatedApi } from '../services/clientStealf';
-import { createSeedVaultWallet } from '../services/solanaWalletBridge';
+import { createColdWallet } from '../services/solanaWalletBridge';
 
 const RPC_ENDPOINT = process.env.EXPO_PUBLIC_SOLANA_RPC_URL || "";
 const connection = new Connection(RPC_ENDPOINT, "confirmed");
@@ -17,7 +15,6 @@ export function useSendTransaction() {
     const [error, setError] = useState<string | null>(null);
     const { signAndSendTransaction, wallets } = useTurnkey();
     const { isWalletAuth, userData } = useAuth();
-    const { setMWAInProgress } = useSession();
     const api = useAuthenticatedApi();
 
     const sendTransaction = async (
@@ -121,27 +118,14 @@ export function useSendTransaction() {
                 const isSeekerWallet = fromAddress === userData?.stealf_wallet;
 
                 if (isSeekerWallet) {
-                    // Wealth wallet (Seeker): sign via MWA Seed Vault, send manually
-                    __DEV__ && console.log('[useSendTransaction] MWA Seed Vault path...');
-                    const authToken = await SecureStore.getItemAsync('mwa_auth_token');
-                    if (!authToken) {
-                        throw new Error('MWA auth token not found. Please reconnect your wallet.');
-                    }
-                    const bridge = createSeedVaultWallet(fromAddress, authToken);
-                    setMWAInProgress(true);
-                    try {
-                        const signedBytes = await bridge.signTransaction(
-                            new Uint8Array(serializedTx)
-                        );
-                        setMWAInProgress(false);
-                        txId = await connection.sendRawTransaction(signedBytes, {
-                            skipPreflight: false,
-                            preflightCommitment: 'confirmed',
-                        });
-                    } catch (mwaErr) {
-                        setMWAInProgress(false);
-                        throw mwaErr;
-                    }
+                    // Seeker wallet: sign locally via cold wallet
+                    __DEV__ && console.log('[useSendTransaction] Cold wallet path...');
+                    const bridge = createColdWallet(fromAddress);
+                    const signedBytes = await bridge.signTransaction(new Uint8Array(serializedTx));
+                    txId = await connection.sendRawTransaction(signedBytes, {
+                        skipPreflight: false,
+                        preflightCommitment: 'confirmed',
+                    });
                 } else {
                     // Cash wallet (Turnkey): sign via backend
                     __DEV__ && console.log('[useSendTransaction] Turnkey backend path...');

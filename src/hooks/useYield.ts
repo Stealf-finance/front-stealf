@@ -2,12 +2,10 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useEffect } from "react";
 import { Connection, Transaction } from "@solana/web3.js";
 import { useTurnkey } from "@turnkey/react-native-wallet-kit";
-import * as SecureStore from "expo-secure-store";
 import { useAuthenticatedApi } from "../services/clientStealf";
 import { socketService } from "../services/socketService";
-import { createSeedVaultWallet } from "../services/solanaWalletBridge";
+import { createColdWallet } from "../services/solanaWalletBridge";
 import { useAuth } from "../contexts/AuthContext";
-import { useSession } from "../contexts/SessionContext";
 import { usePointsContext } from "../contexts/PointsContext";
 
 const RPC_ENDPOINT = process.env.EXPO_PUBLIC_SOLANA_RPC_URL || "";
@@ -211,7 +209,6 @@ export function useYieldDepositAndConfirm() {
   const queryClient = useQueryClient();
   const { signAndSendTransaction, wallets } = useTurnkey();
   const { isWalletAuth, userData } = useAuth();
-  const { setMWAInProgress } = useSession();
   const { showToast } = usePointsContext();
 
   return useMutation({
@@ -243,32 +240,18 @@ export function useYieldDepositAndConfirm() {
           userData?.authMethod === "wallet";
 
         if (isSeekerWallet) {
-          // MWA Seed Vault path — pass raw bytes, bridge handles deserialization
-          const authToken = await SecureStore.getItemAsync("mwa_auth_token");
-          if (!authToken) throw new Error("MWA auth token not found");
-
-          const bridge = createSeedVaultWallet(
-            userData!.stealf_wallet || userData!.cash_wallet!,
-            authToken
+          // Cold wallet path — sign locally using key from SecureStore
+          const bridge = createColdWallet(
+            userData!.stealf_wallet || userData!.cash_wallet!
           );
-          setMWAInProgress(true);
-          try {
-            __DEV__ && console.log("[Yield] Sending raw tx bytes to MWA bridge...");
-            const signedBytes = await bridge.signTransaction(
-              new Uint8Array(txBytes)
-            );
-            __DEV__ && console.log("[Yield] MWA signed, broadcasting...", signedBytes.length, "bytes");
-            txSignature = await yieldConnection.sendRawTransaction(
-              Buffer.from(signedBytes),
-              { skipPreflight: true, preflightCommitment: "confirmed" }
-            );
-            __DEV__ && console.log("[Yield] Broadcast success:", txSignature);
-          } catch (err: any) {
-            console.error("[Yield] MWA sign/send error:", err?.message || err);
-            throw err;
-          } finally {
-            setMWAInProgress(false);
-          }
+          __DEV__ && console.log("[Yield] Signing via cold wallet...");
+          const signedBytes = await bridge.signTransaction(new Uint8Array(txBytes));
+          __DEV__ && console.log("[Yield] Cold wallet signed, broadcasting...", signedBytes.length, "bytes");
+          txSignature = await yieldConnection.sendRawTransaction(
+            Buffer.from(signedBytes),
+            { skipPreflight: true, preflightCommitment: "confirmed" }
+          );
+          __DEV__ && console.log("[Yield] Broadcast success:", txSignature);
         } else {
           // Turnkey backend sign-and-send
           const hexTx = Buffer.from(

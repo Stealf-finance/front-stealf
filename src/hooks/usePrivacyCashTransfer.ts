@@ -1,12 +1,11 @@
 import { useState } from 'react';
 import { useTurnkey } from '@turnkey/react-native-wallet-kit';
 import { Connection, Transaction, SystemProgram, PublicKey, LAMPORTS_PER_SOL, TransactionInstruction } from '@solana/web3.js';
-import * as SecureStore from 'expo-secure-store';
 import * as privacyCashApi from '../services/privacyCashApi';
 import type { PrivateTransfer } from '../types/privacyCash';
 import { validateAmount, validateBalance, validateAddress } from '../services/transactionsGuard';
 import { useAuth } from '../contexts/AuthContext';
-import { createSeedVaultWallet } from '../services/solanaWalletBridge';
+import { createColdWallet } from '../services/solanaWalletBridge';
 
 function guardError(message?: string): Error {
   const err = new Error(message);
@@ -133,12 +132,8 @@ export function usePrivacyCashTransfer() {
       let vaultTxId: string;
 
       if (isWalletAuth) {
-        // Wallet auth: sign and send via MWA Seed Vault
-        const authToken = await SecureStore.getItemAsync('mwa_auth_token');
-        if (!authToken) {
-          throw new Error('MWA auth token not found. Please reconnect your wallet.');
-        }
-        const bridge = createSeedVaultWallet(fromAddress, authToken);
+        // Wallet auth: sign and send via cold wallet
+        const bridge = createColdWallet(fromAddress);
         vaultTxId = await bridge.signAndSendTransaction(
           new Uint8Array(serializedTx),
           RPC_ENDPOINT

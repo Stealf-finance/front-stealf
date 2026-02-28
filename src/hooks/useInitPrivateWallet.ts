@@ -69,7 +69,12 @@ export function useSetupWallet() {
       const privateKey = bs58.encode(keypair.secretKey);
       const walletAddress = keypair.publicKey.toBase58();
 
+      // Store mnemonic for recovery
       await SecureStore.setItemAsync(MNEMONIC_STORE_KEY, mnemonic, {
+        keychainAccessible: SecureStore.WHEN_UNLOCKED_THIS_DEVICE_ONLY,
+      });
+      // Store private key for fast transaction signing
+      await SecureStore.setItemAsync(SECURE_STORE_KEY, privateKey, {
         keychainAccessible: SecureStore.WHEN_UNLOCKED_THIS_DEVICE_ONLY,
       });
 

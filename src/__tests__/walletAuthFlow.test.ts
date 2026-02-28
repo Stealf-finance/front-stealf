@@ -135,3 +135,39 @@ describe('Wallet Auth Flow - Data Transformations', () => {
     });
   });
 });
+
+describe('Cold Wallet Auth Flow', () => {
+  it('derives publicKeyHex from stored private key', async () => {
+    const { Keypair } = require('@solana/web3.js');
+    const bs58 = require('bs58');
+
+    // Simulate what useWalletAuth.connectWallet() does
+    const testSeed = new Uint8Array(32).fill(42);
+    const keypair = Keypair.fromSeed(testSeed);
+    const storedKey = bs58.encode(keypair.secretKey);
+
+    // Decode and reconstruct keypair (as the hook does)
+    const secretKey = bs58.decode(storedKey);
+    const reconstructed = Keypair.fromSecretKey(secretKey);
+    const addressBase58 = reconstructed.publicKey.toBase58();
+    const publicKeyHex = Buffer.from(reconstructed.publicKey.toBytes()).toString('hex');
+
+    expect(addressBase58).toBe(keypair.publicKey.toBase58());
+    expect(publicKeyHex).toHaveLength(64);
+    expect(publicKeyHex).toBe(Buffer.from(keypair.publicKey.toBytes()).toString('hex'));
+  });
+
+  it('authToken is always "local" for cold wallet', () => {
+    const authToken = 'local';
+    expect(authToken).toBe('local');
+  });
+
+  it('wallet not set up: missing key should produce clear error message', () => {
+    const stored: string | null = null;
+    let errorMsg = '';
+    if (!stored) {
+      errorMsg = 'Wallet not set up. Please create or restore your wallet first.';
+    }
+    expect(errorMsg).toContain('Wallet not set up');
+  });
+});

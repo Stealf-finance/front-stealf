@@ -1,11 +1,9 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Connection, Transaction } from "@solana/web3.js";
 import { useTurnkey } from "@turnkey/react-native-wallet-kit";
-import * as SecureStore from "expo-secure-store";
 import { useAuthenticatedApi } from "../services/clientStealf";
-import { createSeedVaultWallet } from "../services/solanaWalletBridge";
+import { createColdWallet } from "../services/solanaWalletBridge";
 import { useAuth } from "../contexts/AuthContext";
-import { useSession } from "../contexts/SessionContext";
 
 const RPC_ENDPOINT = process.env.EXPO_PUBLIC_SOLANA_RPC_URL || "";
 const lendingConnection = new Connection(RPC_ENDPOINT, "confirmed");
@@ -60,7 +58,6 @@ async function signAndBroadcastTx(
   api: ReturnType<typeof useAuthenticatedApi>,
   isWalletAuth: boolean,
   userData: any,
-  setMWAInProgress: (val: boolean) => void,
   signAndSendTransaction: any,
   wallets: any
 ): Promise<string> {
@@ -73,25 +70,17 @@ async function signAndBroadcastTx(
       userData?.authMethod === "wallet";
 
     if (isSeekerWallet) {
-      const authToken = await SecureStore.getItemAsync("mwa_auth_token");
-      if (!authToken) throw new Error("MWA auth token not found");
-
-      const bridge = createSeedVaultWallet(
-        userData!.stealf_wallet || userData!.cash_wallet!,
-        authToken
+      // Cold wallet: sign locally using key from SecureStore
+      const bridge = createColdWallet(
+        userData!.stealf_wallet || userData!.cash_wallet!
       );
-      setMWAInProgress(true);
-      try {
-        const signedBytes = await bridge.signTransaction(new Uint8Array(txBytes));
-        const txSignature = await lendingConnection.sendRawTransaction(
-          Buffer.from(signedBytes),
-          { skipPreflight: true, preflightCommitment: "confirmed" }
-        );
-        await lendingConnection.confirmTransaction(txSignature, "confirmed");
-        return txSignature;
-      } finally {
-        setMWAInProgress(false);
-      }
+      const signedBytes = await bridge.signTransaction(new Uint8Array(txBytes));
+      const txSignature = await lendingConnection.sendRawTransaction(
+        Buffer.from(signedBytes),
+        { skipPreflight: true, preflightCommitment: "confirmed" }
+      );
+      await lendingConnection.confirmTransaction(txSignature, "confirmed");
+      return txSignature;
     } else {
       // Turnkey backend sign-and-send
       const hexTx = Buffer.from(
@@ -130,7 +119,6 @@ export function useDepositCollateral() {
   const queryClient = useQueryClient();
   const { signAndSendTransaction, wallets } = useTurnkey();
   const { isWalletAuth, userData } = useAuth();
-  const { setMWAInProgress } = useSession();
 
   return useMutation({
     mutationFn: async ({ amount }: { amount: number }) => {
@@ -144,7 +132,6 @@ export function useDepositCollateral() {
         api,
         isWalletAuth,
         userData,
-        setMWAInProgress,
         signAndSendTransaction,
         wallets
       );
@@ -170,7 +157,6 @@ export function useBorrowUsdc() {
   const queryClient = useQueryClient();
   const { signAndSendTransaction, wallets } = useTurnkey();
   const { isWalletAuth, userData } = useAuth();
-  const { setMWAInProgress } = useSession();
 
   return useMutation({
     mutationFn: async ({ amount }: { amount: number }) => {
@@ -184,7 +170,6 @@ export function useBorrowUsdc() {
         api,
         isWalletAuth,
         userData,
-        setMWAInProgress,
         signAndSendTransaction,
         wallets
       );
@@ -210,7 +195,6 @@ export function useRepayUsdc() {
   const queryClient = useQueryClient();
   const { signAndSendTransaction, wallets } = useTurnkey();
   const { isWalletAuth, userData } = useAuth();
-  const { setMWAInProgress } = useSession();
 
   return useMutation({
     mutationFn: async ({ amount }: { amount: number }) => {
@@ -224,7 +208,6 @@ export function useRepayUsdc() {
         api,
         isWalletAuth,
         userData,
-        setMWAInProgress,
         signAndSendTransaction,
         wallets
       );
@@ -250,7 +233,6 @@ export function useWithdrawCollateral() {
   const queryClient = useQueryClient();
   const { signAndSendTransaction, wallets } = useTurnkey();
   const { isWalletAuth, userData } = useAuth();
-  const { setMWAInProgress } = useSession();
 
   return useMutation({
     mutationFn: async ({ amount }: { amount: number }) => {
@@ -264,7 +246,6 @@ export function useWithdrawCollateral() {
         api,
         isWalletAuth,
         userData,
-        setMWAInProgress,
         signAndSendTransaction,
         wallets
       );
