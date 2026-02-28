@@ -42,7 +42,13 @@ export default {
       favicon: "./src/assets/logo-transparent.png"
     },
     plugins: [
-      "expo-secure-store"
+      "expo-secure-store",
+      [
+        "expo-local-authentication",
+        {
+          faceIDPermission: "Stealf uses Face ID to protect access to your wallet."
+        }
+      ]
     ],
   }
 };
