@@ -311,7 +311,7 @@ export default function MooveScreen({ onBack, direction = 'toCash' }: MooveScree
       }, 2000);
 
     } catch (error: any) {
-      console.error('Move failed:', error);
+      __DEV__ && console.error('Move failed:', error);
       Alert.alert('Error', error?.message || 'Failed to move funds');
     } finally {
       setLoading(false);

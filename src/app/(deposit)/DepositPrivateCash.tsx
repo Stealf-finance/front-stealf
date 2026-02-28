@@ -101,8 +101,6 @@ export default function DepositPrivateCash({ onBack, walletType = 'cash' }: Depo
         session.token
       );
 
-      console.log('[DepositPrivateCash] Deposit successful:', transfer.transferId);
-
       Alert.alert(
         'Success',
         `Deposit of ${amount} USD completed successfully!`,
@@ -117,7 +115,7 @@ export default function DepositPrivateCash({ onBack, walletType = 'cash' }: Depo
         ]
       );
     } catch (err: any) {
-      console.error('[DepositPrivateCash] Deposit error:', err);
+      __DEV__ && console.error('[DepositPrivateCash] Deposit error:', err);
       Alert.alert(
         'Deposit Failed',
         err.message || 'An error occurred while processing your deposit'

@@ -83,7 +83,7 @@ export default function DepositWithdrawModal({
       }
       setStep("success");
     } catch (error: any) {
-      console.error(`${mode} error:`, error);
+      __DEV__ && console.error(`${mode} error:`, error);
       setStep("input");
       Alert.alert(
         "Error",

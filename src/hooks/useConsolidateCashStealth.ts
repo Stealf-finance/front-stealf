@@ -91,7 +91,7 @@ export function useConsolidateCashStealth(): ConsolidateState {
           __DEV__ && console.log(`[Consolidate] Payment ${paymentId} consolidated, tx: ${txSignature.slice(0, 12)}`);
         } catch (err: any) {
           errors++;
-          console.error(`[Consolidate] Failed for payment ${paymentId}:`, err?.message);
+          __DEV__ && console.error(`[Consolidate] Failed for payment ${paymentId}:`, err?.message);
         }
       }
 

@@ -50,17 +50,17 @@ class SocketService {
     this.socket.on('disconnect', (reason) => {
 
       if (!this.isDisconnectingManually && reason !== 'io client disconnect') {
-        console.error('Socket disconnected:', reason);
+        __DEV__ && console.error('Socket disconnected:', reason);
       }
       this.isDisconnectingManually = false;
     });
 
     this.socket.on('connect_error', (error) => {
-      console.error('Socket connection error:', error.message);
+      __DEV__ && console.error('Socket connection error:', error.message);
     });
 
     this.socket.on('error', (error) => {
-      console.error('Socket error:', error);
+      __DEV__ && console.error('Socket error:', error);
     });
 
     // Listen to private balance updates

@@ -120,7 +120,7 @@ export default function SendConfirmation({ amount, token, onBack, onClose, onSuc
       ]).start();
 
     } catch (err: any) {
-      if (!err.isGuard) console.error('Transaction error:', err);
+      if (!err.isGuard) __DEV__ && console.error('Transaction error:', err);
       Alert.alert(
         err.isGuard ? 'Validation Error' : 'Transaction Failed',
         err.message || 'An error occurred while sending the transaction'

@@ -150,7 +150,7 @@ export function useSendTransaction() {
             return txId;
         } catch (error: any){
             if (!error.isGuard) {
-                console.error('[useSendTransaction] Transaction error:', error.message);
+                __DEV__ && console.error('[useSendTransaction] Transaction error:', error.message);
             }
             setError(error.message);
             throw error;

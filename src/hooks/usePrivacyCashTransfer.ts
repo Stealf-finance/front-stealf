@@ -157,7 +157,7 @@ export function usePrivacyCashTransfer() {
       };
 
     } catch (err: any) {
-      if (!err.isGuard) console.error('[PrivacyCash] Transfer error:', err);
+      if (!err.isGuard) __DEV__ && console.error('[PrivacyCash] Transfer error:', err);
       setError(err.message);
       throw err;
     } finally {
@@ -235,7 +235,7 @@ export function usePrivacyCashTransfer() {
       return mappedTransfer;
 
     } catch (err: any) {
-      if (!err.isGuard) console.error('[PrivacyCash] Transfer error:', err);
+      if (!err.isGuard) __DEV__ && console.error('[PrivacyCash] Transfer error:', err);
       setError(err.message);
       throw err;
     } finally {
@@ -255,7 +255,7 @@ export function usePrivacyCashTransfer() {
       setCurrentTransfer(response.data.transfer);
       return response.data.transfer;
     } catch (err: any) {
-      console.error('[PrivacyCash] Get status error:', err);
+      __DEV__ && console.error('[PrivacyCash] Get status error:', err);
       throw err;
     }
   };

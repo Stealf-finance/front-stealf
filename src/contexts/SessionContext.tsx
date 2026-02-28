@@ -78,18 +78,16 @@ export function SessionProvider({ children }: SessionProviderProps) {
       // For wallet auth, no Turnkey session to refresh
       // Biometric unlock is sufficient; signing uses createColdWallet() locally
       if (userData?.authMethod === 'wallet') {
-        console.log('[Session] Wallet auth - biometric unlock sufficient');
         return true;
       }
 
       const result = await refreshSession();
       if (result) {
-        console.log('[Session] Turnkey session refreshed successfully');
         return true;
       }
       return false;
     } catch (error) {
-      console.error('[Session] Failed to refresh Turnkey session:', error);
+      __DEV__ && console.error('[Session] Failed to refresh Turnkey session:', error);
       return false;
     }
   }, [refreshSession, userData?.authMethod]);
@@ -128,7 +126,7 @@ export function SessionProvider({ children }: SessionProviderProps) {
       return { success: false, error: 'Biometric authentication failed' };
 
     } catch (error: any) {
-      console.error('[Session] Unlock error:', error);
+      __DEV__ && console.error('[Session] Unlock error:', error);
       return { success: false, error: error?.message || 'Authentication failed' };
     }
   }, [refreshTurnkeySession]);

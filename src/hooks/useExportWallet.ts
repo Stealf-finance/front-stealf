@@ -44,7 +44,7 @@ export function useExportWallet() {
         mnemonic
       };
     } catch (error: any) {
-      console.error("Export wallet failed:", error);
+      __DEV__ && console.error("Export wallet failed:", error);
       return {
         success: false,
         error: error?.message || "Failed to export wallet"
@@ -100,7 +100,7 @@ export function useExportWallet() {
         mnemonic
       };
     } catch (error: any) {
-      console.error("Export wallet by address failed:", error);
+      __DEV__ && console.error("Export wallet by address failed:", error);
       return {
         success: false,
         error: error?.message || "Failed to export wallet"
@@ -133,7 +133,7 @@ export function useExportWallet() {
         error: "No cold wallet found in SecureStore."
       };
     } catch (error: any) {
-      console.error("Export cold wallet failed:", error);
+      __DEV__ && console.error("Export cold wallet failed:", error);
       return {
         success: false,
         error: error?.message || "Failed to export cold wallet from SecureStore"

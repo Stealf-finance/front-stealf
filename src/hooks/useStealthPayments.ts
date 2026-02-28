@@ -134,7 +134,7 @@ export function useStealthPayments(): StealthPaymentsState {
 
         return sig;
       } catch (err: any) {
-        console.error('[spendPayment] ERROR:', err?.message, err);
+        __DEV__ && console.error('[spendPayment] ERROR:', err?.message, err);
         setError(err?.message || 'Failed to spend payment');
         return null;
       }

@@ -80,7 +80,7 @@ export function useSetupWallet() {
 
       return { success: true, walletAddress, mnemonic };
     } catch (error: any) {
-      console.error("Create local wallet failed:", error);
+      __DEV__ && console.error("Create local wallet failed:", error);
       return { success: false, error: error?.message || "Failed to create wallet" };
     } finally {
       setLoading(false);
@@ -108,7 +108,7 @@ export function useSetupWallet() {
 
       return { success: true, walletAddress };
     } catch (error: any) {
-      console.error("Import wallet from mnemonic failed:", error);
+      __DEV__ && console.error("Import wallet from mnemonic failed:", error);
       return { success: false, error: error?.message || "Failed to import wallet" };
     } finally {
       setLoading(false);

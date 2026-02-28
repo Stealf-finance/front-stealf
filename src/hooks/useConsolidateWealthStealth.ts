@@ -89,7 +89,7 @@ export function useConsolidateWealthStealth(): ConsolidateState {
           __DEV__ && console.log(`[WealthConsolidate] Payment ${payment._id} consolidated, tx: ${txSignature.slice(0, 12)}`);
         } catch (err: any) {
           errors++;
-          console.error(`[WealthConsolidate] Failed for payment ${payment._id}:`, err?.message);
+          __DEV__ && console.error(`[WealthConsolidate] Failed for payment ${payment._id}:`, err?.message);
         }
       }
 

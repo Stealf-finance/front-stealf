@@ -95,7 +95,7 @@ export function useWalletAuth() {
         authToken: "local",
       };
     } catch (err: any) {
-      console.error("[useWalletAuth] connectWallet error:", err);
+      __DEV__ && console.error("[useWalletAuth] connectWallet error:", err);
       const errorMsg = err?.message || "Failed to connect wallet";
       setError(errorMsg);
       setLoading(false);
@@ -176,7 +176,7 @@ export function useWalletAuth() {
         setLoading(false);
         return { success: true };
       } catch (err: any) {
-        console.error("[useWalletAuth] signUpWithWallet error:", err);
+        __DEV__ && console.error("[useWalletAuth] signUpWithWallet error:", err);
         const errorMsg = err?.message || "Failed to sign up with wallet";
         setError(errorMsg);
         setLoading(false);
@@ -247,7 +247,7 @@ export function useWalletAuth() {
       setLoading(false);
       return { success: true };
     } catch (err: any) {
-      console.error("[useWalletAuth] signInWithWallet error:", err);
+      __DEV__ && console.error("[useWalletAuth] signInWithWallet error:", err);
       const errorMsg = err?.message || "Failed to sign in with wallet";
       setError(errorMsg);
       setLoading(false);

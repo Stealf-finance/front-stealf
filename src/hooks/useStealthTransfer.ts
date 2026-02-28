@@ -153,7 +153,7 @@ export function useStealthTransfer(): StealthTransferState {
         return { txSignature: txSig!, stealthAddress: stealthAddress!, ephemeralR: ephemeralR!, viewTag: viewTag!, pointsEarned: earnedPts };
       } catch (err) {
         const e = err as any;
-        console.error('[StealthTransfer] ERROR:', e?.message, e);
+        __DEV__ && console.error('[StealthTransfer] ERROR:', e?.message, e);
         setError(e?.message || 'Transfer failed');
         return null;
       } finally {

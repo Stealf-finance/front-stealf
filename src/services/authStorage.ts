@@ -15,7 +15,7 @@ export const authStorage = {
       await SecureStore.setItemAsync(USER_DATA_KEY, JSON.stringify(userData));
       if (__DEV__) console.log('User data saved successfully in SecureStore');
     } catch (error) {
-      console.error('Failed to save user data to SecureStore:', error);
+      __DEV__ && console.error('Failed to save user data to SecureStore:', error);
     }
   },
   /**
@@ -26,7 +26,7 @@ export const authStorage = {
       const userData = await SecureStore.getItemAsync(USER_DATA_KEY);
       return userData ? JSON.parse(userData) : null;
     } catch (error) {
-      console.error('Failed to get user data from SecureStore:', error);
+      __DEV__ && console.error('Failed to get user data from SecureStore:', error);
       return null;
     }
   },
@@ -38,7 +38,7 @@ export const authStorage = {
       await SecureStore.deleteItemAsync(USER_DATA_KEY);
       if (__DEV__) console.log('User data cleared from SecureStore');
     } catch (error) {
-      console.error('Failed to clear user data from SecureStore:', error);
+      __DEV__ && console.error('Failed to clear user data from SecureStore:', error);
     }
   }
 }

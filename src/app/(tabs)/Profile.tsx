@@ -21,12 +21,11 @@ export default function ProfileScreen({ onBack, onNavigateToPage, onLogout, curr
   const handleLogout = async () => {
     try {
       setUserData(null);
-      console.log('User logged out');
       if (onLogout) {
         onLogout();
       }
     } catch (error) {
-      console.error('Error logging out:', error);
+      __DEV__ && console.error('Error logging out:', error);
       if (onLogout) {
         onLogout();
       }

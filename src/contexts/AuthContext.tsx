@@ -108,7 +108,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setUserDataState(null);
       socketService.disconnect();
     } catch (error) {
-      console.error('Logout error:', error);
+      __DEV__ && console.error('Logout error:', error);
     }
   };
 
