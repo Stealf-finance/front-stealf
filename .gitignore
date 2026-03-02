@@ -6,5 +6,8 @@ dist/
 *.tgz
 .env
 .env.local
+.env.backup
+*.backup
 .DS_Store
 src/.DS_Store
+coverage/
