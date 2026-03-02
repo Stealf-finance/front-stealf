@@ -3,6 +3,7 @@ import { useTurnkey } from '@turnkey/react-native-wallet-kit';
 import { authStorage } from '../services/authStorage';
 import { socketService } from '../services/socketService';
 import { walletKeyCache } from '../services/walletKeyCache';
+import { umbraClearSeed } from '../services/umbra';
 
 interface UserData {
   email?: string;
@@ -67,6 +68,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       await turnkeyLogout();
       await authStorage.clearUserData();
       await walletKeyCache.clearAll();
+      await umbraClearSeed();
       setUserDataState(null);
       socketService.disconnect();
     } catch (error) {

@@ -11,7 +11,7 @@ const RPC_ENDPOINT = process.env.EXPO_PUBLIC_SOLANA_RPC_URL || "";
 export interface LendingPosition {
   collateralSol: number;
   borrowedUsdc: number;
-  healthFactor: number; // -1 = pas d'emprunt (infinity en JSON)
+  healthFactor: number;
   liquidationPrice: number;
   maxBorrowable: number;
   availableToWithdraw: number;
