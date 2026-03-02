@@ -38,7 +38,8 @@ export default function SavingsScreen() {
 
   // Arcium: balance snapshots + proof from snapshots
   const { data: snapshots = [] } = useYieldSnapshots(selectedSolVault);
-  const canProve = activeTab === "sol" && snapshots.length >= 2;
+  // Beta: proof-from-snapshots hidden until Arcium MPC is stable on devnet
+  const canProve = false;
   const proofParams = canProve
     ? {
         startIndex: snapshots[0].snapshotIndex,
