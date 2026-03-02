@@ -19,7 +19,7 @@
     "@react-navigation/native": "^7.1.17",
     "@react-navigation/stack": "^7.4.8",
     "@solana/spl-memo": "^0.2.5",
-    "@solana/spl-token": "^0.1.8",
+    "@solana/spl-token": "^0.4.14",
     "@solana/web3.js": "^1.98.4",
     "@stealf/wallet-link-sdk": "file:../backend-stealf/sdk",
     "@tanstack/react-query": "^5.90.18",

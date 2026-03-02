@@ -85,7 +85,8 @@ export function useAuthFlow() {
   const handleWalletChoice = useCallback(async (
     choice: WalletSetupChoice,
     email: string,
-    pseudo: string
+    pseudo: string,
+    preAuthToken?: string
   ): Promise<WalletChoiceResult> => {
     setLoading(true);
     setScreenState('creatingWallet');
@@ -105,12 +106,17 @@ export function useAuthFlow() {
       }
 
       // Register with backend
+      const headers: Record<string, string> = {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${sessionToken}`,
+      };
+      if (preAuthToken) {
+        headers['X-Preauth-Token'] = preAuthToken;
+      }
+
       const response = await fetch(`${API_URL}/api/users/auth`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${sessionToken}`,
-        },
+        headers,
         body: JSON.stringify({
           email,
           pseudo,
@@ -182,14 +188,19 @@ export function useAuthFlow() {
   /**
    * Resend magic link to user's email
    */
-  const handleResendMagicLink = async (params: Pick<UseAuthFlowParams, 'email' | 'pseudo' | 'setLoading'>) => {
-    const { email, pseudo, setLoading: setLoadingParam } = params;
+  const handleResendMagicLink = async (params: Pick<UseAuthFlowParams, 'email' | 'pseudo' | 'setLoading'> & { preAuthToken?: string }) => {
+    const { email, pseudo, setLoading: setLoadingParam, preAuthToken } = params;
 
     setLoadingParam(true);
     try {
+      const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+      if (preAuthToken) {
+        headers['Authorization'] = `Bearer ${preAuthToken}`;
+      }
+
       const response = await fetch(`${API_URL}/api/users/send-magic-link`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers,
         body: JSON.stringify({ email, pseudo }),
       });
 

@@ -2,7 +2,6 @@ import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator } from 'react-native';
 import { useAuth } from '../../contexts/AuthContext';
 import { useWalletInfos } from '../../hooks/useWalletInfos';
-import { usePrivacyBalance } from '../../hooks/usePrivacyBalance';
 
 
 import DepositIcon from '../../assets/buttons/deposit.svg';
@@ -29,8 +28,6 @@ export default function BalanceCardPrivacy({
   const { balance, tokens, isLoadingBalance, balanceError } = useWalletInfos(
     userData?.stealf_wallet || ''
   );
-
-  const { totalUSD: privacyCashUSD } = usePrivacyBalance();
 
   const totalUSD = balance || 0;
 
@@ -98,7 +95,7 @@ export default function BalanceCardPrivacy({
       {/* Privacy cash */}
       <View style={styles.privacySection}>
         <Text style={styles.privacyLabel}>Privacy cash</Text>
-        <Text style={styles.privacyAmount}>{privacyCashUSD.toFixed(2)} SOL</Text>
+        <Text style={styles.privacyAmount}>0 SOL</Text>
       </View>
 
       {/* Assets Section */}

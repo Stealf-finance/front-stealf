@@ -1,47 +1,34 @@
 import React, { useRef, useEffect, useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Animated, Easing, ScrollView } from 'react-native';
+import { View, Text, StyleSheet, Animated, Easing, TouchableOpacity } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import BalanceCardPrivacy from '../../components/features/PrivacyBalanceCard';
 import TransactionHistory from '../../components/TransactionHistory';
 import AddFundsPrivacyModal from '../../components/AddFundsPrivacyModal';
-import SendPrivacyModal from '../../components/SendPrivacyModal';
-import { useAuth } from '../../contexts/AuthContext';
-import { useWalletInfos } from '../../hooks/useWalletInfos';
-import { usePrivacyBalance } from '../../hooks/usePrivacyBalance';
+import { useYieldDashboard } from '../../hooks/useYield';
 import type { PageType } from '../../navigation/types';
 
 interface PrivacyScreenProps {
   onNavigateToPage: (page: PageType) => void;
-  onOpenSendPrivate: (transferType: 'basic' | 'private') => void;
   onOpenMoove: () => void;
   onOpenAddFundsPrivacy: () => void;
   onOpenDepositPrivateCash: () => void;
   onOpenProfile: () => void;
   onOpenInfo: () => void;
   userEmail?: string;
-  username?: string;
   currentPage?: PageType;
 }
 
 export default function PrivacyScreen({
   onNavigateToPage,
-  onOpenSendPrivate,
   onOpenMoove,
   onOpenAddFundsPrivacy,
   onOpenDepositPrivateCash,
-  onOpenProfile,
   onOpenInfo,
-  userEmail,
-  username,
   currentPage = 'privacy',
 }: PrivacyScreenProps) {
   const [showAddFundsModal, setShowAddFundsModal] = useState(false);
-  const [showSendPrivacyModal, setShowSendPrivacyModal] = useState(false);
-  const [selectedTransferType, setSelectedTransferType] = useState<'basic' | 'private' | null>(null);
   const slideUpAnim = useRef(new Animated.Value(100)).current;
-
-  const { userData } = useAuth();
-  const { balance: basicBalance } = useWalletInfos(userData?.stealf_wallet || '');
-  const { totalUSD: privacyBalance } = usePrivacyBalance();
+  const { data: dashboard } = useYieldDashboard();
 
   useEffect(() => {
     if (currentPage === 'privacy') {
@@ -60,50 +47,64 @@ export default function PrivacyScreen({
     setShowAddFundsModal(true);
   };
 
-  const handleSelectPrivateCash = () => {
-    setShowAddFundsModal(false);
-    onOpenDepositPrivateCash();
-  };
-
   const handleSelectSimpleDeposit = () => {
     setShowAddFundsModal(false);
     onOpenAddFundsPrivacy();
   };
 
-  const handleSendPress = () => {
-    setShowSendPrivacyModal(true);
-  };
-
-  const handleSelectBasicTransfer = () => {
-    setSelectedTransferType('basic');
-    setShowSendPrivacyModal(false);
-    onOpenSendPrivate('basic');
-  };
-
-  const handleSelectPrivateTransfer = () => {
-    setSelectedTransferType('private');
-    setShowSendPrivacyModal(false);
-    onOpenSendPrivate('private');
+  const handleSelectPrivateCash = () => {
+    setShowAddFundsModal(false);
+    onOpenDepositPrivateCash();
   };
 
   return (
     <View style={styles.container}>
-      <ScrollView
-        contentContainerStyle={styles.scrollContent}
-        showsVerticalScrollIndicator={false}
-      >
-          {/* Header Spacer */}
           <View style={styles.headerSpacer} />
-
-          {/* Balance Card */}
           <View style={styles.cardsContainer}>
             <BalanceCardPrivacy
-              onWithdraw={handleSendPress}
               onTopUp={handleAddFundsPress}
               onExchange={onOpenMoove}
               onMore={onOpenInfo}
             />
           </View>
+
+          {/* Savings shortcut */}
+          <Animated.View
+            style={[
+              styles.savingsCardWrapper,
+              {
+                transform: [{ translateY: slideUpAnim }],
+                opacity: slideUpAnim.interpolate({
+                  inputRange: [0, 100],
+                  outputRange: [1, 0],
+                }),
+              }
+            ]}
+          >
+            <TouchableOpacity
+              style={styles.savingsCard}
+              onPress={() => onNavigateToPage('savings')}
+              activeOpacity={0.75}
+            >
+              <View style={styles.savingsCardLeft}>
+                <View style={styles.savingsCardIcon}>
+                  <Ionicons name="trending-up" size={18} color="#4ADE80" />
+                </View>
+                <View>
+                  <Text style={styles.savingsCardTitle}>Savings</Text>
+                  <Text style={styles.savingsCardSub}>
+                    {dashboard?.balance?.currentValue != null && dashboard.balance.currentValue > 0
+                      ? `${dashboard.balance.currentValue.toFixed(4)} SOL staked`
+                      : 'No active deposit'}
+                  </Text>
+                </View>
+              </View>
+              <View style={styles.savingsCardRight}>
+                <Text style={styles.savingsCardCta}>View</Text>
+                <Ionicons name="chevron-forward" size={14} color="#4ADE80" />
+              </View>
+            </TouchableOpacity>
+          </Animated.View>
 
           {/* Recent Activity */}
           <Animated.View
@@ -120,13 +121,9 @@ export default function PrivacyScreen({
           >
             <View style={styles.activityHeader}>
               <Text style={styles.activityTitle}>Transactions</Text>
-              <TouchableOpacity onPress={() => onNavigateToPage('transactionHistory')}>
-                <Text style={styles.seeAllText}>See All</Text>
-              </TouchableOpacity>
             </View>
-            <TransactionHistory limit={2} walletType="privacy" />
+            <TransactionHistory limit={50} walletType="privacy" />
           </Animated.View>
-      </ScrollView>
 
           {/* Add Funds Modal */}
           <AddFundsPrivacyModal
@@ -135,17 +132,6 @@ export default function PrivacyScreen({
             onSelectPrivateCash={handleSelectPrivateCash}
             onSelectSimpleDeposit={handleSelectSimpleDeposit}
           />
-
-          {/* Send Privacy Modal */}
-          <SendPrivacyModal
-            visible={showSendPrivacyModal}
-            onClose={() => setShowSendPrivacyModal(false)}
-            onSelectBasicTransfer={handleSelectBasicTransfer}
-            onSelectPrivateTransfer={handleSelectPrivateTransfer}
-            username={username}
-            basicTransferBalance={basicBalance || 0}
-            privateTransferBalance={privacyBalance}
-          />
       </View>
   );
 }
@@ -153,10 +139,8 @@ export default function PrivacyScreen({
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    paddingBottom: 10,
     backgroundColor: 'transparent',
-  },
-  scrollContent: {
-    paddingBottom: 40,
   },
   headerSpacer: {
     height: 110,
@@ -168,6 +152,7 @@ const styles = StyleSheet.create({
     position: 'relative',
   },
   activityContainer: {
+    flex: 1,
     paddingHorizontal: 20,
     marginTop: 15,
   },
@@ -182,21 +167,54 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: 'white',
   },
-  seeAllText: {
-    fontSize: 14,
-    fontWeight: '500',
-    color: 'rgba(255, 255, 255, 0.6)',
+  savingsCardWrapper: {
+    paddingHorizontal: 20,
+    marginTop: 10,
+    marginBottom: 4,
   },
-  titleContainer: {
+  savingsCard: {
+    flexDirection: 'row',
     alignItems: 'center',
-    marginTop: 0,
-    marginBottom: 16,
+    justifyContent: 'space-between',
+    backgroundColor: 'rgba(74,222,128,0.07)',
+    borderWidth: 1,
+    borderColor: 'rgba(74,222,128,0.18)',
+    borderRadius: 16,
+    paddingVertical: 14,
+    paddingHorizontal: 16,
   },
-  pageTitle: {
-    fontSize: 28,
-    fontWeight: '600',
+  savingsCardLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  savingsCardIcon: {
+    width: 36,
+    height: 36,
+    borderRadius: 10,
+    backgroundColor: 'rgba(74,222,128,0.12)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  savingsCardTitle: {
+    fontSize: 15,
     color: 'white',
-    letterSpacing: 0.5,
     fontFamily: 'Sansation-Bold',
+  },
+  savingsCardSub: {
+    fontSize: 12,
+    color: 'rgba(255,255,255,0.45)',
+    fontFamily: 'Sansation-Regular',
+    marginTop: 2,
+  },
+  savingsCardRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 2,
+  },
+  savingsCardCta: {
+    fontSize: 13,
+    color: '#4ADE80',
+    fontFamily: 'Sansation-Regular',
   },
 });

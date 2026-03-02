@@ -19,6 +19,7 @@ import { useFonts } from 'expo-font';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useSendTransaction } from '../../hooks/useSendSimpleTransaction';
 import { useAuth } from '../../contexts/AuthContext';
+import { USDC_MINT, USDC_DECIMALS } from '../../constants/solana';
 
 interface SendConfirmationProps {
   amount: string;
@@ -54,17 +55,22 @@ export default function SendConfirmation({ amount, onBack, onClose, onSuccess }:
         throw new Error('Invalid destination address');
       }
 
-      // USDC transfer (amount entered = USDC amount)
-      const USDC_MINT = 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v';
-      const USDC_DECIMALS = 6;
-      const amountUSDC = parseFloat(amount);
+      // --- MAINNET: USDC transfer ---
+      // const amountUSDC = parseFloat(amount);
+      // const signature = await sendTransaction(
+      //   userData.cash_wallet,
+      //   externalAddress,
+      //   amountUSDC,
+      //   USDC_MINT,
+      //   USDC_DECIMALS,
+      // );
 
+      // --- DEVNET: Native SOL transfer ---
+      const amountSOL = parseFloat(amount);
       const signature = await sendTransaction(
         userData.cash_wallet,
         externalAddress,
-        amountUSDC,
-        USDC_MINT,
-        USDC_DECIMALS,
+        amountSOL,
       );
 
       setTransactionSignature(signature);
@@ -148,7 +154,8 @@ export default function SendConfirmation({ amount, onBack, onClose, onSuccess }:
           {/* Amount */}
           <View style={styles.section}>
             <Text style={styles.label}>Amount</Text>
-            <Text style={styles.value}>{amount} USDC</Text>
+            {/* MAINNET: {amount} USDC */}
+            <Text style={styles.value}>{amount} SOL</Text>
           </View>
 
           {/* Network */}

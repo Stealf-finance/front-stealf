@@ -45,13 +45,10 @@ export function useUmbra() {
     []
   );
 
-  // --- Registration (one-time) ---
 
   const register = useCallback(async (): Promise<string[] | null> => {
     return wrap("register", () => umbraRegister());
   }, [wrap]);
-
-  // --- Deposit: public → encrypted ---
 
   const deposit = useCallback(
     async (mint: string, amount: bigint): Promise<string | null> => {
@@ -60,8 +57,6 @@ export function useUmbra() {
     [wrap]
   );
 
-  // --- Withdraw: encrypted → public ---
-
   const withdraw = useCallback(
     async (mint: string, amount: bigint): Promise<string | null> => {
       return wrap("withdraw", () => umbraWithdraw(mint, amount));
@@ -69,7 +64,6 @@ export function useUmbra() {
     [wrap]
   );
 
-  // --- Send private via mixer ---
 
   const sendPrivate = useCallback(
     async (
@@ -84,7 +78,6 @@ export function useUmbra() {
     [wrap]
   );
 
-  // --- Self-shield (break on-chain link) ---
 
   const selfShield = useCallback(
     async (mint: string, amount: bigint): Promise<string[] | null> => {
@@ -93,7 +86,6 @@ export function useUmbra() {
     [wrap]
   );
 
-  // --- Fetch claimable UTXOs ---
 
   const fetchClaimable = useCallback(
     async (
@@ -107,7 +99,6 @@ export function useUmbra() {
     [wrap]
   );
 
-  // --- Claim all pending UTXOs ---
 
   const claimAll = useCallback(
     async (utxos: ClaimableUtxos): Promise<string[] | null> => {

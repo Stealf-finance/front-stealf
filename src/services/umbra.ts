@@ -9,9 +9,8 @@ import {
   getFetchClaimableUtxosFunction,
   getClaimSelfClaimableUtxoIntoEncryptedBalanceFunction,
   getClaimReceiverClaimableUtxoIntoEncryptedBalanceFunction,
-  type IUmbraClient,
-  type IUmbraSigner,
 } from "@umbra-privacy/sdk";
+import type { IUmbraClient, IUmbraSigner } from "@umbra-privacy/sdk/interfaces";
 import {
   getUserRegistrationProver,
   getCreateReceiverClaimableUtxoFromEncryptedBalanceProver,
@@ -19,9 +18,11 @@ import {
   getClaimSelfClaimableUtxoIntoEncryptedBalanceProver,
   getClaimReceiverClaimableUtxoIntoEncryptedBalanceProver,
 } from "@umbra-privacy/web-zk-prover";
-import * as SecureStore from "expo-secure-store";
 import bs58 from "bs58";
 import { walletKeyCache } from "./walletKeyCache";
+import { masterSeedStorage, umbraClearSeed } from "./umbraSeed";
+
+export { umbraClearSeed };
 
 // --- Config ---
 
@@ -29,33 +30,6 @@ const RPC_URL = process.env.EXPO_PUBLIC_SOLANA_RPC_URL || "";
 const WSS_URL = process.env.EXPO_PUBLIC_SOLANA_WSS_URL || "";
 const INDEXER_URL = "https://acqzie0a1h.execute-api.eu-central-1.amazonaws.com";
 const NETWORK = "devnet" as const;
-
-const MASTER_SEED_KEY = "umbra_master_seed";
-const KEYCHAIN_OPTIONS: SecureStore.SecureStoreOptions = {
-  keychainService: "com.stealf.wallet",
-  keychainAccessible: SecureStore.AFTER_FIRST_UNLOCK,
-};
-
-
-const masterSeedStorage = {
-  async load(): Promise<Uint8Array | null> {
-    try {
-      const stored = await SecureStore.getItemAsync(MASTER_SEED_KEY, KEYCHAIN_OPTIONS);
-      if (!stored) return null;
-      return Uint8Array.from(Buffer.from(stored, "base64"));
-    } catch {
-      return null;
-    }
-  },
-
-  async store(seed: Uint8Array): Promise<void> {
-    const encoded = Buffer.from(seed).toString("base64");
-    try {
-      await SecureStore.deleteItemAsync(MASTER_SEED_KEY, KEYCHAIN_OPTIONS);
-    } catch (_) {}
-    await SecureStore.setItemAsync(MASTER_SEED_KEY, encoded, KEYCHAIN_OPTIONS);
-  },
-};
 
 
 async function createStealfSigner(): Promise<IUmbraSigner> {
@@ -97,7 +71,7 @@ export async function getUmbraClient(): Promise<IUmbraClient> {
       deferMasterSeedSignature: true,
     },
     {
-      masterSeedStorage,
+      masterSeedStorage: masterSeedStorage as any,
     }
   );
 
@@ -136,7 +110,7 @@ export async function umbraDeposit(
   const deposit = getDirectDepositIntoEncryptedBalanceFunction({ client });
 
   const destination = destinationAddress || client.signer.address;
-  return deposit(destination as any, mint as any, amount);
+  return deposit(destination as any, mint as any, amount as any);
 }
 
 
@@ -149,7 +123,7 @@ export async function umbraWithdraw(
   const withdraw = getDirectWithdrawIntoPublicBalanceV3Function({ client });
 
   const destination = destinationAddress || client.signer.address;
-  return withdraw(destination as any, mint as any, amount);
+  return withdraw(destination as any, mint as any, amount as any);
 }
 
 
@@ -168,7 +142,7 @@ export async function umbraSendPrivate(
   return createUtxo({
     destinationAddress: recipientAddress as any,
     mint: mint as any,
-    amount,
+    amount: amount as any,
   });
 }
 
@@ -187,7 +161,7 @@ export async function umbraSelfShield(
   return createUtxo({
     destinationAddress: client.signer.address as any,
     mint: mint as any,
-    amount,
+    amount: amount as any,
   });
 }
 
@@ -217,15 +191,12 @@ export async function umbraClaimSelfUtxos(utxos: any[]): Promise<string[]> {
   const zkProver = getClaimSelfClaimableUtxoIntoEncryptedBalanceProver();
   const claim = getClaimSelfClaimableUtxoIntoEncryptedBalanceFunction(
     { client },
-    { zkProver }
+    { zkProver } as any
   );
 
-  const signatures: string[] = [];
-  for (const utxo of utxos) {
-    const sig = await claim({ utxos: [utxo] });
-    signatures.push(...sig);
-  }
-  return signatures;
+  // claim takes utxos array directly, returns { signatures: Record<number, string[]> }
+  const result = await claim(utxos);
+  return Object.values(result.signatures).flat();
 }
 
 export async function umbraClaimReceivedUtxos(utxos: any[]): Promise<string[]> {
@@ -235,21 +206,11 @@ export async function umbraClaimReceivedUtxos(utxos: any[]): Promise<string[]> {
   const zkProver = getClaimReceiverClaimableUtxoIntoEncryptedBalanceProver();
   const claim = getClaimReceiverClaimableUtxoIntoEncryptedBalanceFunction(
     { client },
-    { zkProver }
+    { zkProver } as any
   );
 
-  const signatures: string[] = [];
-  for (const utxo of utxos) {
-    const sig = await claim({ utxos: [utxo] });
-    signatures.push(...sig);
-  }
-  return signatures;
+  const result = await claim(utxos);
+  return Object.values(result.signatures).flat();
 }
 
 
-export async function umbraClearSeed(): Promise<void> {
-  try {
-    await SecureStore.deleteItemAsync(MASTER_SEED_KEY, KEYCHAIN_OPTIONS);
-  } catch (_) {}
-  clearUmbraClient();
-}

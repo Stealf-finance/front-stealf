@@ -51,6 +51,7 @@ export default function SignUpScreen({ onSwitchToSignIn }: SignUpScreenProps = {
       email,
       pseudo,
       setLoading,
+      preAuthToken: preAuthToken || undefined,
     });
 
     if (!result.success) {
@@ -79,7 +80,7 @@ export default function SignUpScreen({ onSwitchToSignIn }: SignUpScreenProps = {
   };
 
   if (step === 'verified' && email && pseudo) {
-    return <VerifiedScreen email={email} pseudo={pseudo} onBack={() => setStep('email')} />;
+    return <VerifiedScreen email={email} pseudo={pseudo} preAuthToken={preAuthToken} onBack={() => setStep('email')} />;
   }
 
   return (

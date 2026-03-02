@@ -11,6 +11,7 @@ import SendPrivateScreen from '../app/(send)/SendPrivate';
 import MooveScreen from '../app/(send)/moove';
 import AddFundsScreen from '../app/(add)/AddFunds';
 import AddFundsPrivacyScreen from '../app/(add)/AddFundsPrivacy';
+import DepositPrivateCashScreen from '../app/(deposit)/DepositPrivateCash';
 import ProfileScreen from '../app/(tabs)/Profile';
 import SavingsScreen from '../app/(savings)/SavingsScreen';
 import InfoScreen from '../app/(infos)/InfoScreen';
@@ -18,7 +19,6 @@ import TransactionHistoryScreen from '../app/(infos)/TransactionHistoryScreen';
 import { useAuth } from '../contexts/AuthContext';
 import { animateScreenTransition } from '../utils/animations';
 import type { PageType } from './types';
-import { Image } from 'react-native';
 import { RevolutPager, RevolutPagerRef } from './swipePager';
 import { WelcomeLoader } from '../components/WelcomeLoader';
 import Logo from '../assets/logo/logo.svg';
@@ -28,45 +28,48 @@ export default function AppNavigator() {
   const { isAuthenticated, userData, logout, loading } = useAuth();
   const [currentPage, setCurrentPage] = useState<PageType>('home');
   const [currentScreen, setCurrentScreen] = useState<'main' | 'send' | 'sendPrivate' | 'moove' | 'addFunds' | 'addFundsPrivacy' | 'depositPrivateCash' | 'info' | 'transactionHistory'>('main');
-  const [isCardScreenOpen, setIsCardScreenOpen] = useState(false);
   const [authMode, setAuthMode] = useState<'signin' | 'signup'>('signin');
   const [depositWalletType, setDepositWalletType] = useState<'cash' | 'privacy'>('cash');
   const [previousPage, setPreviousPage] = useState<PageType>('home');
-  const [transferType, setTransferType] = useState<'basic' | 'private'>('private');
+  const [mooveDirection, setMooveDirection] = useState<'toPrivacy' | 'toCash'>('toCash');
   const [txHistoryWalletType, setTxHistoryWalletType] = useState<'cash' | 'privacy'>('cash');
   const [infoSource, setInfoSource] = useState<'home' | 'privacy'>('home');
 
   const screenFadeAnim = useRef(new Animated.Value(1)).current;
   const screenSlideAnim = useRef(new Animated.Value(0)).current;
 
-  // Welcome loader: only show when transitioning from non-auth to auth
-  const [showWelcome, setShowWelcome] = useState(false);
-  const [welcomeFadeOut, setWelcomeFadeOut] = useState(false);
-  const wasAuthenticated = useRef(isAuthenticated);
+  // Splash overlay — starts opaque, covers everything until app is ready
+  const [splashVisible, setSplashVisible] = useState(true);
+  const [splashFading, setSplashFading] = useState(false);
   const { isLoadingBalance } = useWalletInfos(userData?.cash_wallet || '');
 
+  // Dismiss splash when auth is resolved + data loaded (or not authenticated)
   useEffect(() => {
-    if (isAuthenticated && !wasAuthenticated.current) {
-      // Just became authenticated, show welcome loader
-      setShowWelcome(true);
-      setWelcomeFadeOut(false);
+    if (loading || splashFading) return;
+    if (!isAuthenticated) {
+      setSplashVisible(false);
+      return;
     }
-    wasAuthenticated.current = isAuthenticated;
-  }, [isAuthenticated]);
-
-  useEffect(() => {
-    if (showWelcome && isAuthenticated && !isLoadingBalance) {
-      const timer = setTimeout(() => setWelcomeFadeOut(true), 300);
+    if (!isLoadingBalance) {
+      const timer = setTimeout(() => setSplashFading(true), 1500);
       return () => clearTimeout(timer);
     }
-  }, [showWelcome, isAuthenticated, isLoadingBalance]);
+  }, [loading, isAuthenticated, isLoadingBalance, splashFading]);
+
+  // Reset splash for next login after logout
+  useEffect(() => {
+    if (!isAuthenticated) {
+      setSplashVisible(true);
+      setSplashFading(false);
+    }
+  }, [isAuthenticated]);
 
   const handleWelcomeDone = useCallback(() => {
-    setShowWelcome(false);
-    setWelcomeFadeOut(false);
+    setSplashVisible(false);
+    setSplashFading(false);
   }, []);
 
-  const pageOrder: PageType[] = ['privacy', 'home', 'savings', 'profile'];
+  const pageOrder: PageType[] = ['home', 'privacy', 'savings', 'profile'];
   const getPageIndex = (page: PageType) => pageOrder.indexOf(page);
   const getPageFromIndex = (index: number) => pageOrder[index];
 
@@ -137,20 +140,7 @@ export default function AppNavigator() {
     setCurrentScreen('main');
   };
 
-  if (loading) {
-    return (
-      <View style={styles.splashContainer}>
-        <StatusBar style="light" />
-        <Image
-          source={require('../assets/logo-transparent.png')}
-          style={styles.splashLogo}
-          resizeMode="contain"
-        />
-      </View>
-    );
-  }
-
-  if (!isAuthenticated) {
+  if (!isAuthenticated && !splashVisible) {
     if (authMode === 'signin') {
       return <SignInScreen onSwitchToSignUp={() => setAuthMode('signup')} />;
     }
@@ -162,7 +152,7 @@ export default function AppNavigator() {
       <StatusBar style="light" />
 
       {/* Minimal NavBar - Fixed at top */}
-      {(currentScreen === 'main' && !isCardScreenOpen) && (
+      {currentScreen === 'main' && (
         <View style={styles.fixedNavBar}>
           <MinimalNavBar
             onOpenProfile={handleOpenProfile}
@@ -181,19 +171,16 @@ export default function AppNavigator() {
             initialIndex={getPageIndex(currentPage)}
             pages={[
               {
-                key: 'privacy',
+                key: 'home',
                 render: () => (
-                  <PrivacyScreen
+                  <HomeScreen
                     onNavigateToPage={handleNavigateToPage}
-                    onOpenSendPrivate={(type: 'basic' | 'private') => {
-                      setTransferType(type);
-                      handleOpenScreen('sendPrivate');
-                    }}
-                    onOpenMoove={() => handleOpenScreen('moove')}
-                    onOpenAddFundsPrivacy={() => handleOpenScreen('addFundsPrivacy')}
-                    onOpenDepositPrivateCash={handleOpenDepositPrivateCashFromPrivacy}
+                    onOpenAddFunds={() => handleOpenScreen('addFunds')}
+                    onOpenSend={() => handleOpenScreen('send')}
+                    onOpenMoove={() => { setMooveDirection('toPrivacy'); handleOpenScreen('moove'); }}
+                    onOpenDepositPrivateCash={handleOpenDepositPrivateCashFromHome}
                     onOpenProfile={handleOpenProfile}
-                    onOpenInfo={handleOpenInfoFromPrivacy}
+                    onOpenInfo={handleOpenInfoFromHome}
                     userEmail={userData?.email}
                     username={userData?.username}
                     currentPage={currentPage}
@@ -201,17 +188,16 @@ export default function AppNavigator() {
                 ),
               },
               {
-                key: 'home',
+                key: 'privacy',
                 render: () => (
-                  <HomeScreen
+                  <PrivacyScreen
                     onNavigateToPage={handleNavigateToPage}
-                    onOpenAddFunds={() => handleOpenScreen('addFunds')}
-                    onOpenSend={() => handleOpenScreen('send')}
-                    onOpenDepositPrivateCash={handleOpenDepositPrivateCashFromHome}
+                    onOpenMoove={() => { setMooveDirection('toCash'); handleOpenScreen('moove'); }}
+                    onOpenAddFundsPrivacy={() => handleOpenScreen('addFundsPrivacy')}
+                    onOpenDepositPrivateCash={handleOpenDepositPrivateCashFromPrivacy}
                     onOpenProfile={handleOpenProfile}
-                    onOpenInfo={handleOpenInfoFromHome}
+                    onOpenInfo={handleOpenInfoFromPrivacy}
                     userEmail={userData?.email}
-                    username={userData?.username}
                     currentPage={currentPage}
                   />
                 ),
@@ -241,19 +227,21 @@ export default function AppNavigator() {
         )}
 
         {currentScreen === 'send' && <SendScreen onBack={handleBackToMain} />}
-        {currentScreen === 'sendPrivate' && <SendPrivateScreen onBack={handleBackToMain} transferType={transferType} />}
+        {currentScreen === 'sendPrivate' && <SendPrivateScreen onBack={handleBackToMain} transferType="private" />}
         {currentScreen === 'moove' && <MooveScreen onBack={handleBackToMain} />}
         {currentScreen === 'addFunds' && <AddFundsScreen onBack={handleBackToMain} />}
         {currentScreen === 'addFundsPrivacy' && <AddFundsPrivacyScreen onBack={handleBackToMain} />}
+        {currentScreen === 'depositPrivateCash' && <DepositPrivateCashScreen onBack={handleBackToMain} walletType={depositWalletType} />}
         {currentScreen === 'info' && <InfoScreen onBack={handleBackToMain} source={infoSource} />}
         {currentScreen === 'transactionHistory' && <TransactionHistoryScreen onClose={handleBackToMain} walletType={txHistoryWalletType} />}
       </View>
 
-      {showWelcome && (
+      {splashVisible && (
         <View style={styles.welcomeOverlay}>
           <WelcomeLoader
             logo={<Logo width={80} height={80} />}
-            fadeOutTrigger={welcomeFadeOut}
+            startOpaque
+            fadeOutTrigger={splashFading}
             onFadeOutEnd={handleWelcomeDone}
           />
         </View>
@@ -278,16 +266,6 @@ const styles = StyleSheet.create({
   },
   mainContainer: {
     flex: 1,
-  },
-  splashContainer: {
-    flex: 1,
-    backgroundColor: '#000000',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  splashLogo: {
-    width: 150,
-    height: 150,
   },
   welcomeOverlay: {
     ...StyleSheet.absoluteFillObject,

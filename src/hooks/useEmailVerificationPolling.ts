@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 
 const API_URL = process.env.EXPO_PUBLIC_API_URL;
-const POLLING_INTERVAL = 1500; // 1.5 seconds
+const POLLING_INTERVAL = 1500;
 
 interface VerificationResult {
   verified: boolean;
@@ -36,11 +36,12 @@ export function useEmailVerificationPolling({
 
       try {
         const response = await fetch(
-          `${API_URL}/api/users/check-verification?token=${preAuthToken}`,
+          `${API_URL}/api/users/check-verification`,
           {
             method: 'GET',
             headers: {
               'Content-Type': 'application/json',
+              'Authorization': `Bearer ${preAuthToken}`,
             },
           }
         );

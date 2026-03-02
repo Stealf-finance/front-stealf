@@ -11,7 +11,6 @@ import { StatusBar } from 'expo-status-bar';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useFonts } from 'expo-font';
 import { useAuth } from '../../contexts/AuthContext';
-import { usePrivacyBalance } from '../../hooks/usePrivacyBalance';
 import { useWalletInfos } from '../../hooks/useWalletInfos';
 import { useSwapApi } from '../../services/swapService';
 import { Keypair, VersionedTransaction } from '@solana/web3.js';
@@ -74,7 +73,6 @@ export default function MooveScreen({ onBack }: MooveScreenProps) {
   const [loading, setLoading] = useState(false);
 
   const { userData } = useAuth();
-  const { usdcBalance: cashUsdcBalance } = usePrivacyBalance();
   const { tokens: privacyTokens } = useWalletInfos(userData?.stealf_wallet || '');
   const { order, execute } = useSwapApi();
   const selectedToken = privacyTokens[selectedTokenIndex] || null;
@@ -267,7 +265,7 @@ export default function MooveScreen({ onBack }: MooveScreenProps) {
               <View style={styles.cardLeft}>
                 <Text style={styles.cardLabel}>Cash</Text>
                 <Text style={styles.balanceSubtext}>
-                  {cashUsdcBalance.toFixed(3)} usdc
+                  0 usdcr
                 </Text>
               </View>
               <Text style={[styles.cardAmountRight, amount ? styles.cardAmountActive : null]}>

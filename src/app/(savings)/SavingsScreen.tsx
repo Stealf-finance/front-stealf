@@ -15,6 +15,7 @@ import { useYieldSnapshots } from "../../hooks/useYieldSnapshots";
 import { useYieldProofFromSnapshots } from "../../hooks/useYieldProofFromSnapshots";
 import { useWalletInfos } from "../../hooks/useWalletInfos";
 import { useAuth } from "../../contexts/AuthContext";
+import { USDC_MINT } from "../../constants/solana";
 import DepositWithdrawModal from "./DepositWithdrawModal";
 type AssetTab = "sol" | "usdc";
 
@@ -26,7 +27,6 @@ export default function SavingsScreen() {
   const [modalMode, setModalMode] = useState<"deposit" | "withdraw">("deposit");
   const [usdcComingSoonVisible, setUsdcComingSoonVisible] = useState(false);
   const [activeTab, setActiveTab] = useState<AssetTab>("sol");
-  const USDC_MINT = 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v';
   const walletSolBalance = walletTokens.find(t => t.tokenMint === null)?.balance ?? 0;
   const walletUsdcBalance = walletTokens.find(t => t.tokenMint === USDC_MINT)?.balance ?? 0;
   const walletAvailable = activeTab === 'sol' ? walletSolBalance : walletUsdcBalance;

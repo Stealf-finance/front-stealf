@@ -3,7 +3,7 @@ import { useTurnkey } from '@turnkey/react-native-wallet-kit';
 import { authStorage } from '../services/authStorage';
 import { socketService } from '../services/socketService';
 import { walletKeyCache } from '../services/walletKeyCache';
-import { umbraClearSeed } from '../services/umbra';
+import { umbraClearSeed } from '../services/umbraSeed';
 
 interface UserData {
   email?: string;
@@ -32,7 +32,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const loadAuth = async () => {
       if (session && user) {
         const storedData = await authStorage.getUserData();
-        
+
         setUserDataState({
           email: user.userEmail || storedData?.email || '',
           username: storedData?.username || '',
@@ -41,7 +41,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           subOrgId: user.userId,
         });
 
-        if (session.token){
+        // Only connect socket when user is fully registered (has stealf_wallet)
+        if (session.token && storedData?.stealf_wallet) {
           socketService.connect(session.token);
         }
       } else {
@@ -50,7 +51,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
       setLoading(false);
     };
-    
+
     loadAuth();
   }, [session, user]);
 
@@ -58,8 +59,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUserDataState(data);
     if (data === null) {
       await authStorage.clearUserData();
+      socketService.disconnect();
     } else {
       await authStorage.setUserData(data);
+      // Connect socket once user is fully registered
+      if (data.stealf_wallet && session?.token) {
+        socketService.connect(session.token);
+      }
     }
   };
 

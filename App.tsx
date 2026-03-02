@@ -20,7 +20,6 @@ const queryClient = new QueryClient({
   },
 });
 
-// Preload critical images at module load (runs once, cached forever)
 Asset.loadAsync([
   require('./src/assets/fond.png'),
   require('./src/assets/logo-transparent.png'),

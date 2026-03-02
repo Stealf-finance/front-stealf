@@ -1,5 +1,5 @@
 import React, { useRef, useEffect, useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Animated, Easing } from 'react-native';
+import { View, Text, StyleSheet, Animated, Easing } from 'react-native';
 import TransactionHistory from '../../components/TransactionHistory';
 import CashBalanceCard from '../../components/features/CashBalanceCard';
 import AddFundsModal from '../../components/AddFundsModal';
@@ -11,6 +11,7 @@ interface HomeScreenProps {
   onOpenProfile: () => void;
   onOpenAddFunds: () => void;
   onOpenSend: () => void;
+  onOpenMoove?: () => void;
   onOpenDepositPrivateCash?: () => void;
   onOpenInfo: () => void;
   userEmail?: string;
@@ -23,11 +24,13 @@ export default function HomeScreen({
   onOpenProfile,
   onOpenAddFunds,
   onOpenSend,
+  onOpenMoove,
   onOpenDepositPrivateCash,
   onOpenInfo,
   currentPage = 'home',
 }: HomeScreenProps) {
   const slideUpAnim = useRef(new Animated.Value(100)).current;
+
   const [showAddFundsModal, setShowAddFundsModal] = useState(false);
   const [showSendModal, setShowSendModal] = useState(false);
 
@@ -66,12 +69,10 @@ export default function HomeScreen({
 
   return (
     <View style={styles.container}>
-        {/* Header Spacer */}
         <View style={styles.headerSpacer} />
-
-        {/* Balance Card */}
         <CashBalanceCard
           onDeposit={handleAddFundsPress}
+          onMoove={onOpenMoove}
           onSend={() => setShowSendModal(true)}
           onBank={onOpenInfo}
         />
@@ -91,11 +92,8 @@ export default function HomeScreen({
         >
           <View style={styles.activityHeader}>
             <Text style={styles.activityTitle}>Transactions</Text>
-            <TouchableOpacity onPress={() => onNavigateToPage('transactionHistory')}>
-              <Text style={styles.seeAllText}>See All</Text>
-            </TouchableOpacity>
           </View>
-          <TransactionHistory limit={2} />
+          <TransactionHistory limit={50} />
         </Animated.View>
 
         {/* Add Funds Modal */}
@@ -128,6 +126,7 @@ const styles = StyleSheet.create({
     height: 110,
   },
   activityContainer: {
+    flex: 1,
     paddingHorizontal: 20,
     marginTop: 15,
   },
@@ -141,10 +140,5 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: '600',
     color: 'white',
-  },
-  seeAllText: {
-    fontSize: 14,
-    fontWeight: '500',
-    color: 'rgba(255, 255, 255, 0.6)',
   },
 });
