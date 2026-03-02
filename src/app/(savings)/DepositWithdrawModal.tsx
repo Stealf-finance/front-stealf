@@ -164,7 +164,7 @@ export default function DepositWithdrawModal({
             {/* Amount Display */}
             <View style={styles.amountContainer}>
               <View style={styles.amountRow}>
-                <Text style={styles.amountText}>{amount || "0"}</Text>
+                <Text style={[styles.amountText, !amount && styles.amountPlaceholder]}>{amount || "0"}</Text>
                 <Text style={styles.currencyText}>{unit}</Text>
               </View>
               <Text style={styles.balanceText}>{subtitle}</Text>
@@ -260,6 +260,9 @@ const styles = StyleSheet.create({
     fontFamily: "Sansation-Light",
     color: "#ffffff",
     letterSpacing: -2,
+  },
+  amountPlaceholder: {
+    color: "rgba(255,255,255,0.18)",
   },
   currencyText: {
     fontSize: 32,

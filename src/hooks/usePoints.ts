@@ -2,7 +2,7 @@ import { useQuery } from '@tanstack/react-query';
 import { useAuthenticatedApi } from '../services/clientStealf';
 
 export interface PointsHistoryEntry {
-  action: 'stealth_transfer' | 'yield_deposit' | 'yield_withdraw' | 'daily_bonus';
+  action: 'private transfer' | 'standard deposit' | 'private deposit' | 'yield withdrawal' | 'daily bonus';
   points: number;
   totalAfter: number;
   createdAt: string;
