@@ -1,0 +1,408 @@
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useEffect } from "react";
+import { Connection, Transaction } from "@solana/web3.js";
+import { useTurnkey } from "@turnkey/react-native-wallet-kit";
+import { useAuthenticatedApi } from "../services/clientStealf";
+import { socketService } from "../services/socketService";
+import { useAuth } from "../contexts/AuthContext";
+import { usePointsContext } from "../contexts/PointsContext";
+
+const RPC_ENDPOINT = process.env.EXPO_PUBLIC_SOLANA_RPC_URL || "";
+const yieldConnection = new Connection(RPC_ENDPOINT, "confirmed");
+
+// --- Types ---
+
+export type VaultType = "sol_jito" | "sol_marinade" | "usdc_kamino";
+
+export interface BalanceInfo {
+  totalDeposited: number;
+  currentValue: number;
+  yieldEarned: number;
+  yieldPercent: number;
+}
+
+export interface YieldBalanceResponse {
+  sol: BalanceInfo & {
+    shares: Array<{
+      vaultType: "sol_jito" | "sol_marinade";
+      deposited: number;
+      currentValue: number;
+      yield: number;
+    }>;
+  };
+  usdc: BalanceInfo;
+}
+
+export interface APYRates {
+  jitoApy: number;
+  marinadeApy: number;
+  usdcKaminoApy: number;
+  lastUpdated: string;
+}
+
+export interface YieldDashboard {
+  balance: YieldBalanceResponse["sol"];
+  apy: APYRates;
+  usdc: BalanceInfo;
+  history: Array<{
+    type: "deposit" | "withdraw";
+    amount: number;
+    vaultType: VaultType;
+    timestamp: string;
+    txSignature: string;
+  }>;
+}
+
+// --- Hooks ---
+
+export function useYieldBalance() {
+  const api = useAuthenticatedApi();
+  const queryClient = useQueryClient();
+
+  const query = useQuery<YieldBalanceResponse>({
+    queryKey: ["yield-balance"],
+    queryFn: () => api.get("/api/yield/balance"),
+    staleTime: 10000,
+    refetchInterval: 30000,
+  });
+
+  useEffect(() => {
+    const handleUpdate = () => {
+      queryClient.invalidateQueries({ queryKey: ["yield-balance"] });
+      queryClient.invalidateQueries({ queryKey: ["yield-dashboard"] });
+    };
+
+    socketService.on("private-transfer:status-update", handleUpdate);
+    return () => {
+      socketService.off("private-transfer:status-update", handleUpdate);
+    };
+  }, [queryClient]);
+
+  return query;
+}
+
+export function useYieldAPY() {
+  const api = useAuthenticatedApi();
+
+  return useQuery<APYRates>({
+    queryKey: ["yield-apy"],
+    queryFn: () => api.get("/api/yield/apy"),
+    staleTime: 300000,
+    refetchInterval: 300000,
+  });
+}
+
+export function useYieldDashboard() {
+  const api = useAuthenticatedApi();
+  const queryClient = useQueryClient();
+
+  const query = useQuery<YieldDashboard>({
+    queryKey: ["yield-dashboard"],
+    queryFn: () => api.get("/api/yield/dashboard"),
+    staleTime: 10000,
+    refetchInterval: 30000,
+  });
+
+  useEffect(() => {
+    const handleUpdate = () => {
+      queryClient.invalidateQueries({ queryKey: ["yield-dashboard"] });
+      queryClient.invalidateQueries({ queryKey: ["yield-balance"] });
+    };
+
+    socketService.on("private-transfer:status-update", handleUpdate);
+    return () => {
+      socketService.off("private-transfer:status-update", handleUpdate);
+    };
+  }, [queryClient]);
+
+  return query;
+}
+
+export function useYieldDeposit() {
+  const api = useAuthenticatedApi();
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({
+      amount,
+      vaultType,
+      isPrivate = false,
+    }: {
+      amount: number;
+      vaultType: VaultType;
+      isPrivate?: boolean;
+    }) => {
+      return api.post("/api/yield/deposit", { amount, vaultType, private: isPrivate });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["yield-balance"] });
+      queryClient.invalidateQueries({ queryKey: ["yield-dashboard"] });
+    },
+  });
+}
+
+export function useYieldWithdraw() {
+  const api = useAuthenticatedApi();
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({
+      amount,
+      vaultType,
+      isPrivate = false,
+    }: {
+      amount: number;
+      vaultType: VaultType;
+      isPrivate?: boolean;
+    }) => {
+      return api.post("/api/yield/withdraw", { amount, vaultType, private: isPrivate });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["yield-balance"] });
+      queryClient.invalidateQueries({ queryKey: ["yield-dashboard"] });
+    },
+  });
+}
+
+export function useYieldConfirm() {
+  const api = useAuthenticatedApi();
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({
+      signature,
+      type,
+      vaultType,
+      amount,
+      isPrivate = false,
+    }: {
+      signature: string;
+      type: "deposit" | "withdraw";
+      vaultType: VaultType;
+      amount?: number;
+      isPrivate?: boolean;
+    }) => {
+      return api.post("/api/yield/confirm", {
+        signature,
+        type,
+        vaultType,
+        amount,
+        private: isPrivate,
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["yield-balance"] });
+      queryClient.invalidateQueries({ queryKey: ["yield-dashboard"] });
+    },
+  });
+}
+
+// --- Combined Sign + Confirm Hooks ---
+
+/**
+ * Full deposit flow: build tx → sign via Turnkey passkey → broadcast → confirm backend.
+ */
+export function useYieldDepositAndConfirm() {
+  const api = useAuthenticatedApi();
+  const queryClient = useQueryClient();
+  const { signAndSendTransaction, wallets } = useTurnkey();
+  const { userData } = useAuth();
+  const { showToast } = usePointsContext();
+
+  return useMutation({
+    mutationFn: async ({
+      amount,
+      vaultType,
+      isPrivate = false,
+    }: {
+      amount: number;
+      vaultType: VaultType;
+      isPrivate?: boolean;
+    }) => {
+      // Step 1: Get unsigned transaction from backend
+      const buildResult = await api.post("/api/yield/deposit", {
+        amount,
+        vaultType,
+        private: isPrivate,
+      });
+
+      const txBase64: string = buildResult.transaction;
+      const txBytes = Buffer.from(txBase64, "base64");
+      const tx = Transaction.from(txBytes);
+
+      // Step 2: Sign via Turnkey passkey
+      const wallet = wallets?.[0];
+      const walletAccount = wallet?.accounts?.find(
+        (account: any) => account.address === userData?.cash_wallet
+      );
+      if (!walletAccount) throw new Error("Wallet account not found");
+
+      const hexTx = Buffer.from(
+        tx.serialize({
+          requireAllSignatures: false,
+          verifySignatures: false,
+        })
+      ).toString("hex");
+
+      const txSignature = await signAndSendTransaction({
+        walletAccount,
+        unsignedTransaction: hexTx,
+        transactionType: "TRANSACTION_TYPE_SOLANA",
+        rpcUrl: RPC_ENDPOINT,
+      });
+
+      // Step 3: Confirm with backend
+      const confirmData = await api.post("/api/yield/confirm", {
+        signature: txSignature,
+        type: "deposit",
+        vaultType,
+        amount,
+        private: isPrivate,
+      });
+
+      return { signature: txSignature, confirmData };
+    },
+    onSuccess: (data) => {
+      const pts = data.confirmData?.pointsEarned;
+      if (pts > 0) showToast(pts);
+      queryClient.invalidateQueries({ queryKey: ["points"] });
+      queryClient.invalidateQueries({ queryKey: ["yield-balance"] });
+      queryClient.invalidateQueries({ queryKey: ["yield-dashboard"] });
+    },
+  });
+}
+
+/**
+ * Full withdrawal flow: backend builds + signs tx → frontend broadcasts → confirm.
+ */
+export function useYieldWithdrawAndConfirm() {
+  const api = useAuthenticatedApi();
+  const queryClient = useQueryClient();
+  const { showToast } = usePointsContext();
+
+  return useMutation({
+    mutationFn: async ({
+      amount,
+      vaultType,
+      isPrivate = false,
+    }: {
+      amount: number;
+      vaultType: VaultType;
+      isPrivate?: boolean;
+    }) => {
+      // Step 1: Backend builds + signs the withdrawal tx
+      const buildResult = await api.post("/api/yield/withdraw", {
+        amount,
+        vaultType,
+        private: isPrivate,
+      });
+
+      // Private SOL withdraw: backend handled everything
+      if (isPrivate && vaultType !== "usdc_kamino" && buildResult.success) {
+        return { signature: buildResult.txSignature || "private", pointsEarned: buildResult.pointsEarned };
+      }
+
+      const txBase64: string = buildResult.transaction;
+      const txBytes = Buffer.from(txBase64, "base64");
+
+      // Step 2: Broadcast (authority already signed on backend)
+      const txSignature = await yieldConnection.sendRawTransaction(txBytes, {
+        skipPreflight: false,
+        preflightCommitment: "confirmed",
+      });
+
+      await yieldConnection.confirmTransaction(txSignature, "confirmed");
+
+      // Step 3: Confirm with backend
+      const confirmData = await api.post("/api/yield/confirm", {
+        signature: txSignature,
+        type: "withdraw",
+        vaultType,
+        amount,
+        private: isPrivate,
+      });
+
+      return { signature: txSignature, pointsEarned: confirmData?.pointsEarned };
+    },
+    onSuccess: (data) => {
+      const pts = (data as any).pointsEarned;
+      if (pts > 0) showToast(pts);
+      queryClient.invalidateQueries({ queryKey: ["points"] });
+      queryClient.invalidateQueries({ queryKey: ["yield-balance"] });
+      queryClient.invalidateQueries({ queryKey: ["yield-dashboard"] });
+    },
+  });
+}
+
+// --- Arcium Proof of Yield ---
+
+interface YieldProofResponse {
+  exceedsThreshold: boolean;
+  thresholdBps: number;
+  vaultType: VaultType;
+}
+
+export function useYieldProof(
+  vaultType: VaultType,
+  thresholdBps: number,
+  enabled = true
+) {
+  const api = useAuthenticatedApi();
+
+  return useQuery<YieldProofResponse>({
+    queryKey: ["yield-proof", vaultType, thresholdBps],
+    queryFn: () =>
+      api.get(
+        `/api/yield/proof?vaultType=${vaultType}&thresholdBps=${thresholdBps}`
+      ),
+    enabled: enabled && thresholdBps > 0,
+    staleTime: 60000,
+    refetchInterval: false,
+    retry: 1,
+  });
+}
+
+/**
+ * Listen for batch staking status updates via Socket.io.
+ */
+export function useBatchStatus() {
+  const queryClient = useQueryClient();
+
+  useEffect(() => {
+    const handleBatchPending = (data: any) => {
+      queryClient.setQueryData(["batch-status"], {
+        status: "pending",
+        estimatedMinutes: Math.round(data.estimatedExecutionMs / 60000),
+      });
+    };
+
+    const handleBatchComplete = () => {
+      queryClient.setQueryData(["batch-status"], { status: "complete" });
+      queryClient.invalidateQueries({ queryKey: ["yield-balance"] });
+      queryClient.invalidateQueries({ queryKey: ["yield-dashboard"] });
+      setTimeout(() => {
+        queryClient.setQueryData(["batch-status"], null);
+      }, 5000);
+    };
+
+    const handleBatchError = () => {
+      queryClient.setQueryData(["batch-status"], { status: "delayed" });
+    };
+
+    socketService.on("yield:batch:pending", handleBatchPending);
+    socketService.on("yield:batch:complete", handleBatchComplete);
+    socketService.on("yield:batch:error", handleBatchError);
+
+    return () => {
+      socketService.off("yield:batch:pending", handleBatchPending);
+      socketService.off("yield:batch:complete", handleBatchComplete);
+      socketService.off("yield:batch:error", handleBatchError);
+    };
+  }, [queryClient]);
+
+  return useQuery<{ status: string; estimatedMinutes?: number } | null>({
+    queryKey: ["batch-status"],
+    queryFn: () => null,
+    staleTime: Infinity,
+  });
+}

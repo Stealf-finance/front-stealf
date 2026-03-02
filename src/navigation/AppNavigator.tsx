@@ -12,6 +12,7 @@ import MooveScreen from '../app/(send)/moove';
 import AddFundsScreen from '../app/(add)/AddFunds';
 import AddFundsPrivacyScreen from '../app/(add)/AddFundsPrivacy';
 import ProfileScreen from '../app/(tabs)/Profile';
+import SavingsScreen from '../app/(savings)/SavingsScreen';
 import InfoScreen from '../app/(infos)/InfoScreen';
 import TransactionHistoryScreen from '../app/(infos)/TransactionHistoryScreen';
 import { useAuth } from '../contexts/AuthContext';
@@ -65,7 +66,7 @@ export default function AppNavigator() {
     setWelcomeFadeOut(false);
   }, []);
 
-  const pageOrder: PageType[] = ['privacy', 'home', 'profile'];
+  const pageOrder: PageType[] = ['privacy', 'home', 'savings', 'profile'];
   const getPageIndex = (page: PageType) => pageOrder.indexOf(page);
   const getPageFromIndex = (index: number) => pageOrder[index];
 
@@ -213,6 +214,12 @@ export default function AppNavigator() {
                     username={userData?.username}
                     currentPage={currentPage}
                   />
+                ),
+              },
+              {
+                key: 'savings',
+                render: () => (
+                  <SavingsScreen />
                 ),
               },
               {

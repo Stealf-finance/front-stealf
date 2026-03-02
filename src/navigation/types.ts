@@ -1,2 +1,2 @@
-export type PageType = 'home' | 'privacy' | 'transactionHistory' | 'profile';
+export type PageType = 'home' | 'privacy' | 'savings' | 'transactionHistory' | 'profile';
 
