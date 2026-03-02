@@ -2,11 +2,11 @@ import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 
 const ACTION_LABELS: Record<string, string> = {
-  stealth_transfer: 'Stealth transaction',
-  claim_stealth: 'Stealth transaction',
-  yield_deposit: 'Yield deposit',
-  yield_withdraw: 'Yield withdraw',
-  daily_bonus: 'Daily bonus',
+  'private transfer': 'Private transfer',
+  'standard deposit': 'Standard deposit',
+  'private deposit': 'Private deposit',
+  'yield withdrawal': 'Yield withdrawal',
+  'daily bonus': 'Daily bonus',
 };
 
 interface HistoryEntry {

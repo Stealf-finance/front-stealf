@@ -359,7 +359,7 @@ export default function MooveScreen({ onBack, direction = 'toCash' }: MooveScree
                 </TouchableOpacity>
               </View>
               <Text style={[styles.cardAmountRight, amount ? styles.cardAmountActive : null]}>
-                -{amount || '0'}
+                {amount ? `-${amount}` : '—'}
               </Text>
             </View>
 
@@ -419,7 +419,7 @@ export default function MooveScreen({ onBack, direction = 'toCash' }: MooveScree
                 </Text>
               </View>
               <Text style={[styles.cardAmountRight, amount ? styles.cardAmountActive : null]}>
-                +{amount || '0'}
+                {amount ? `+${amount}` : '—'}
               </Text>
             </View>
           </View>
@@ -427,15 +427,6 @@ export default function MooveScreen({ onBack, direction = 'toCash' }: MooveScree
 
 
 
-
-        {/* Privacy badge */}
-        <View style={styles.privacyBadgeRow}>
-          <View style={[styles.privacyBadge, isNativeSOL ? styles.privacyBadgePrivate : styles.privacyBadgePublic]}>
-            <Text style={[styles.privacyBadgeText, isNativeSOL ? styles.privacyBadgeTextPrivate : styles.privacyBadgeTextPublic]}>
-              {isNativeSOL ? '⬤  Private transfer' : '⬤  Public transfer'}
-            </Text>
-          </View>
-        </View>
 
         {/* Move Button */}
         <TouchableOpacity
@@ -879,34 +870,6 @@ const styles = StyleSheet.create({
     color: '#ffffff',
     fontSize: 16,
     fontFamily: 'Sansation-Bold',
-  },
-  privacyBadgeRow: {
-    alignItems: 'center',
-    marginBottom: 16,
-  },
-  privacyBadge: {
-    paddingHorizontal: 14,
-    paddingVertical: 6,
-    borderRadius: 20,
-    borderWidth: 1,
-  },
-  privacyBadgePrivate: {
-    backgroundColor: 'rgba(34, 197, 94, 0.08)',
-    borderColor: 'rgba(34, 197, 94, 0.25)',
-  },
-  privacyBadgePublic: {
-    backgroundColor: 'rgba(251, 146, 60, 0.08)',
-    borderColor: 'rgba(251, 146, 60, 0.25)',
-  },
-  privacyBadgeText: {
-    fontSize: 12,
-    fontFamily: 'Sansation-Regular',
-  },
-  privacyBadgeTextPrivate: {
-    color: 'rgba(34, 197, 94, 0.9)',
-  },
-  privacyBadgeTextPublic: {
-    color: 'rgba(251, 146, 60, 0.9)',
   },
   loadingCard: {
     alignItems: 'center',
