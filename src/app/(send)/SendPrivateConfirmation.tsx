@@ -20,9 +20,6 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useFonts } from 'expo-font';
 import { useAuth } from '../../contexts/AuthContext';
 import { useSendTransaction } from '../../hooks/useSendSimpleTransaction';
-import { useAuthenticatedApi } from '../../services/clientStealf';
-import { createGetSolPriceUSD } from '../../services/fetchWalletInfos';
-import { useTurnkey } from '@turnkey/react-native-wallet-kit';
 
 interface SendConfirmationProps {
   amount: string;
@@ -34,9 +31,7 @@ interface SendConfirmationProps {
 
 export default function SendConfirmation({ amount, onBack, onClose, onSuccess, transferType = 'private' }: SendConfirmationProps) {
   const { userData } = useAuth();
-  const { session } = useTurnkey();
   const { sendTransaction, loading: simpleLoading } = useSendTransaction();
-  const api = useAuthenticatedApi();
 
   const [externalAddress, setExternalAddress] = useState('');
   const [showSuccessModal, setShowSuccessModal] = useState(false);
@@ -57,29 +52,12 @@ export default function SendConfirmation({ amount, onBack, onClose, onSuccess, t
     }
 
     try {
-      if (!externalAddress) {
-        throw new Error('Invalid destination address');
-      }
-
       const amountSOL = parseFloat(amount);
-      let signature: string;
-
-      if (transferType === 'private') {
-        if (!session?.token) {
-          Alert.alert('Error', 'No session token found');
-          return;
-        }
-
-        const transfer = ' ';
-
-        signature = ' '
-      } else {
-        signature = await sendTransaction(
-          userData.stealf_wallet,
-          externalAddress,
-          amountSOL
-        );
-      }
+      const signature = await sendTransaction(
+        userData.stealf_wallet,
+        externalAddress,
+        amountSOL
+      );
 
       setTransactionSignature(signature);
       setShowSuccessModal(true);
@@ -115,7 +93,7 @@ export default function SendConfirmation({ amount, onBack, onClose, onSuccess, t
     onSuccess();
   };
 
-  const isLoading = transferType === 'private' ? " " : simpleLoading;
+  const isLoading = simpleLoading;
 
   const [fontsLoaded] = useFonts({
     'Sansation-Regular': require('../../assets/font/Sansation/Sansation-Regular.ttf'),
@@ -194,9 +172,9 @@ export default function SendConfirmation({ amount, onBack, onClose, onSuccess, t
           {/* Confirm Button */}
           <View style={styles.buttonContainer}>
             <TouchableOpacity
-              style={styles.confirmButton}
+              style={[styles.confirmButton, isLoading && { opacity: 0.5 }]}
               onPress={handleConfirm}
-              // disabled={isLoading}
+              disabled={isLoading}
               activeOpacity={0.8}
             >
               {isLoading ? (

@@ -231,7 +231,7 @@ export default function AppNavigator() {
         {currentScreen === 'moove' && <MooveScreen onBack={handleBackToMain} />}
         {currentScreen === 'addFunds' && <AddFundsScreen onBack={handleBackToMain} />}
         {currentScreen === 'addFundsPrivacy' && <AddFundsPrivacyScreen onBack={handleBackToMain} />}
-        {currentScreen === 'depositPrivateCash' && <DepositPrivateCashScreen onBack={handleBackToMain} walletType={depositWalletType} />}
+        {currentScreen === 'depositPrivateCash' && <DepositPrivateCashScreen onBack={handleBackToMain} />}
         {currentScreen === 'info' && <InfoScreen onBack={handleBackToMain} source={infoSource} />}
         {currentScreen === 'transactionHistory' && <TransactionHistoryScreen onClose={handleBackToMain} walletType={txHistoryWalletType} />}
       </View>

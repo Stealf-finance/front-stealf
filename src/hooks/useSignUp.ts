@@ -121,7 +121,6 @@ export function useAuthFlow() {
           email,
           pseudo,
           cash_wallet: cashWallet,
-          stealf_wallet: walletAddr,
         }),
       });
 
@@ -183,6 +182,7 @@ export function useAuthFlow() {
       stealf_wallet: user.stealf_wallet,
       subOrgId: user.subOrgId,
     });
+
   };
 
   /**

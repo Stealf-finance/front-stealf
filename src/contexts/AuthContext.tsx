@@ -4,6 +4,7 @@ import { authStorage } from '../services/authStorage';
 import { socketService } from '../services/socketService';
 import { walletKeyCache } from '../services/walletKeyCache';
 import { umbraClearSeed } from '../services/umbraSeed';
+import { clearUmbraState } from '../hooks/useUmbra';
 
 interface UserData {
   email?: string;
@@ -75,6 +76,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       await authStorage.clearUserData();
       await walletKeyCache.clearAll();
       await umbraClearSeed();
+      clearUmbraState();
       setUserDataState(null);
       socketService.disconnect();
     } catch (error) {

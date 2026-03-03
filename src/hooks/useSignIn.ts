@@ -67,7 +67,6 @@ export function useSignIn() {
         email: data.data.user.email,
         username: data.data.user.username || data.data.user.pseudo,
         cash_wallet: data.data.user.cash_wallet,
-        stealf_wallet: data.data.user.stealf_wallet,
         subOrgId: data.data.user.subOrgId,
       };
 

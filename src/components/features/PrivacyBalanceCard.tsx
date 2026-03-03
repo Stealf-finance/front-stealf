@@ -55,7 +55,7 @@ export default function BalanceCardPrivacy({
           <View style={styles.iconContainer}>
             <DepositIcon />
           </View>
-          <Text style={styles.actionText}>Deposit</Text>
+          <Text style={styles.actionText}>Shield</Text>
         </TouchableOpacity>
 
         <TouchableOpacity
