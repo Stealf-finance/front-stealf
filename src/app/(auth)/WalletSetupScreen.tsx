@@ -16,7 +16,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import AddIcon from '../../assets/buttons/add.svg';
 import DepositIcon from '../../assets/buttons/deposit.svg';
 import ComebackIcon from '../../assets/buttons/comeback.svg';
-import { validateMnemonic } from '../../services/transactionsGuard';
+import { validateMnemonic } from '../../services/solana/transactionsGuard';
 
 type SetupStep = 'choose' | 'importWallet' | 'showMnemonic';
 

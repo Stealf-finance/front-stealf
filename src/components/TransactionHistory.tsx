@@ -9,7 +9,7 @@ import {
   RefreshControl,
   Linking,
 } from 'react-native';
-import { useWalletInfos } from '../hooks/useWalletInfos';
+import { useWalletInfos } from '../hooks/wallet/useWalletInfos';
 import SendIcon from '../assets/buttons/send.svg';
 import ReceivedIcon from '../assets/buttons/received.svg';
 import { useAuth } from '../contexts/AuthContext';

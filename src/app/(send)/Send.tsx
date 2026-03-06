@@ -12,8 +12,8 @@ import { LinearGradient } from 'expo-linear-gradient';
 import type { SendScreenProps } from '../../types';
 import SendConfirmation from './SendConfirmation';
 import { useAuth } from '../../contexts/AuthContext';
-import { useWalletInfos } from '../../hooks/useWalletInfos';
-import { validateAmount } from '../../services/transactionsGuard';
+import { useWalletInfos } from '../../hooks/wallet/useWalletInfos';
+import { validateAmount } from '../../services/solana/transactionsGuard';
 
 export default function SendScreen({ onBack }: SendScreenProps) {
   const [amount, setAmount] = useState('');

@@ -9,11 +9,11 @@ import {
   Modal,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import { useYieldDashboard, useBatchStatus, type VaultType } from "../../hooks/useYield";
+import { useYieldDashboard, useBatchStatus, type VaultType } from "../../hooks/yield/useYield";
 
-import { useYieldSnapshots } from "../../hooks/useYieldSnapshots";
-import { useYieldProofFromSnapshots } from "../../hooks/useYieldProofFromSnapshots";
-import { useWalletInfos } from "../../hooks/useWalletInfos";
+import { useYieldSnapshots } from "../../hooks/yield/useYieldSnapshots";
+import { useYieldProofFromSnapshots } from "../../hooks/yield/useYieldProofFromSnapshots";
+import { useWalletInfos } from "../../hooks/wallet/useWalletInfos";
 import { useAuth } from "../../contexts/AuthContext";
 import { USDC_MINT } from "../../constants/solana";
 import DepositWithdrawModal from "./DepositWithdrawModal";

@@ -13,7 +13,7 @@ import {
   ScrollView,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import { useSignIn } from '../../hooks/useSignIn';
+import { useSignIn } from '../../hooks/auth/useSignIn';
 import ComebackIcon from '../../assets/buttons/comeback.svg';
 
 interface SignInScreenProps {

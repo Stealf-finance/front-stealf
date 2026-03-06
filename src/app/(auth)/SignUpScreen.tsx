@@ -14,8 +14,8 @@ import {
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import VerifiedScreen from './VerifiedScreen';
-import { useAuthFlow } from '../../hooks/useSignUp';
-import { useEmailVerificationPolling } from '../../hooks/useEmailVerificationPolling';
+import { useAuthFlow } from '../../hooks/auth/useSignUp';
+import { useEmailVerificationPolling } from '../../hooks/auth/useEmailVerificationPolling';
 
 interface SignUpScreenProps {
   onSwitchToSignIn?: () => void;

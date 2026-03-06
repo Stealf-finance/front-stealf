@@ -9,7 +9,7 @@ import {
   ActivityIndicator,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import { useYieldDepositAndConfirm, useYieldWithdrawAndConfirm, type VaultType } from "../../hooks/useYield";
+import { useYieldDepositAndConfirm, useYieldWithdrawAndConfirm, type VaultType } from "../../hooks/yield/useYield";
 
 type ModalMode = "deposit" | "withdraw";
 

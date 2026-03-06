@@ -1,7 +1,7 @@
 import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator } from 'react-native';
 import { useAuth } from '../../contexts/AuthContext';
-import { useWalletInfos } from '../../hooks/useWalletInfos';
+import { useWalletInfos } from '../../hooks/wallet/useWalletInfos';
 
 
 import DepositIcon from '../../assets/buttons/deposit.svg';

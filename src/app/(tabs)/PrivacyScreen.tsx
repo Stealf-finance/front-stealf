@@ -4,7 +4,7 @@ import { Ionicons } from '@expo/vector-icons';
 import BalanceCardPrivacy from '../../components/features/PrivacyBalanceCard';
 import TransactionHistory from '../../components/TransactionHistory';
 import AddFundsPrivacyModal from '../../components/AddFundsPrivacyModal';
-import { useYieldDashboard } from '../../hooks/useYield';
+import { useYieldDashboard } from '../../hooks/yield/useYield';
 import type { PageType } from '../../navigation/types';
 
 interface PrivacyScreenProps {

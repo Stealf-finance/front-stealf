@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
-import { useAuthenticatedApi } from '../services/clientStealf';
+import { useAuthenticatedApi } from '../services/api/clientStealf';
 
 export interface PointsHistoryEntry {
   action: 'private transfer' | 'standard deposit' | 'private deposit' | 'yield withdrawal' | 'daily bonus';

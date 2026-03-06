@@ -15,7 +15,7 @@ import { StatusBar } from 'expo-status-bar';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useFonts } from 'expo-font';
 import { LAMPORTS_PER_SOL } from '@solana/web3.js';
-import { useUmbra } from '../../hooks/useUmbra';
+import { useUmbra } from '../../hooks/transactions/useUmbra';
 import { SOL_MINT } from '../../constants/solana';
 import type { SendScreenProps } from '../../types';
 

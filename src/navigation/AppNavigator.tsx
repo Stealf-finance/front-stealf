@@ -22,7 +22,7 @@ import type { PageType } from './types';
 import { RevolutPager, RevolutPagerRef } from './swipePager';
 import { WelcomeLoader } from '../components/WelcomeLoader';
 import Logo from '../assets/logo/logo.svg';
-import { useWalletInfos } from '../hooks/useWalletInfos';
+import { useWalletInfos } from '../hooks/wallet/useWalletInfos';
 
 export default function AppNavigator() {
   const { isAuthenticated, userData, logout, loading } = useAuth();

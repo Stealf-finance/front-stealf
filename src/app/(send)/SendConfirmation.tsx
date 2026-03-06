@@ -17,7 +17,7 @@ import {
 import * as Clipboard from 'expo-clipboard';
 import { useFonts } from 'expo-font';
 import { LinearGradient } from 'expo-linear-gradient';
-import { useSendTransaction } from '../../hooks/useSendSimpleTransaction';
+import { useSendTransaction } from '../../hooks/transactions/useSendSimpleTransaction';
 import { useAuth } from '../../contexts/AuthContext';
 import { USDC_MINT, USDC_DECIMALS } from '../../constants/solana';
 

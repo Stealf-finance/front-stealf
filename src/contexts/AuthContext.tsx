@@ -1,10 +1,10 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { useTurnkey } from '@turnkey/react-native-wallet-kit';
-import { authStorage } from '../services/authStorage';
-import { socketService } from '../services/socketService';
-import { walletKeyCache } from '../services/walletKeyCache';
-import { umbraClearSeed } from '../services/umbraSeed';
-import { clearUmbraState } from '../hooks/useUmbra';
+import { authStorage } from '../services/auth/authStorage';
+import { socketService } from '../services/real-time/socketService';
+import { walletKeyCache } from '../services/cache/walletKeyCache';
+import { umbraClearSeed } from '../services/solana/umbraSeed';
+import { clearUmbraState } from '../hooks/transactions/useUmbra';
 
 interface UserData {
   email?: string;

@@ -20,7 +20,7 @@ import {
   useWithdrawCollateral,
   type LendingPosition,
   type LendingRates,
-} from "../../hooks/useLending";
+} from "../../hooks/yield/useLending";
 const API_URL = process.env.EXPO_PUBLIC_API_URL || "";
 
 function useSolPrice() {

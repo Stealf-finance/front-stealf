@@ -10,7 +10,7 @@ import {
 import ComebackIcon from '../../assets/buttons/comeback.svg';
 
 import WalletSetupScreen, { WalletSetupChoice } from './WalletSetupScreen';
-import { useAuthFlow } from '../../hooks/useSignUp';
+import { useAuthFlow } from '../../hooks/auth/useSignUp';
 import { LinearGradient } from 'expo-linear-gradient';
 
 interface VerifiedScreenProps {

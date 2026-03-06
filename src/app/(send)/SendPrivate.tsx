@@ -12,7 +12,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useFonts } from 'expo-font';
 import type { SendScreenProps } from '../../types';
 import { useAuth } from '../../contexts/AuthContext';
-import { useWalletInfos } from '../../hooks/useWalletInfos';
+import { useWalletInfos } from '../../hooks/wallet/useWalletInfos';
 import SendPrivateConfirmation from './SendPrivateConfirmation';
 
 export default function SendScreen({ onBack, transferType }: SendScreenProps) {

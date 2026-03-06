@@ -1,5 +1,5 @@
 import { use, useEffect } from 'react';
-import { socketService } from '../services/socketService';
+import { socketService } from '../services/real-time/socketService';
 
 export function useSocket(event: string, callback: (...args: any[]) => void) {
     useEffect(() => {

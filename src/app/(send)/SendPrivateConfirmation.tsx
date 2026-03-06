@@ -19,7 +19,7 @@ import { StatusBar } from 'expo-status-bar';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useFonts } from 'expo-font';
 import { useAuth } from '../../contexts/AuthContext';
-import { useSendTransaction } from '../../hooks/useSendSimpleTransaction';
+import { useSendTransaction } from '../../hooks/transactions/useSendSimpleTransaction';
 
 interface SendConfirmationProps {
   amount: string;

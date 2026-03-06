@@ -8,5 +8,8 @@
     "**/*.ts",
     "**/*.tsx",
     "src/types/**/*.d.ts"
+  ],
+  "exclude": [
+    "modules/mopro-ffi"
   ]
 }

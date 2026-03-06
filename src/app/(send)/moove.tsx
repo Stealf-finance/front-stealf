@@ -11,14 +11,14 @@ import { StatusBar } from 'expo-status-bar';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useFonts } from 'expo-font';
 import { useAuth } from '../../contexts/AuthContext';
-import { useWalletInfos } from '../../hooks/useWalletInfos';
-import { useSwapApi } from '../../services/swapService';
+import { useWalletInfos } from '../../hooks/wallet/useWalletInfos';
+import { useSwapApi } from '../../services/solana/swapService';
 import { Keypair, VersionedTransaction } from '@solana/web3.js';
 import bs58 from 'bs58';
 import * as bip39 from 'bip39';
 import { hmac } from '@noble/hashes/hmac';
 import { sha512 } from '@noble/hashes/sha512';
-import { walletKeyCache } from '../../services/walletKeyCache';
+import { walletKeyCache } from '../../services/cache/walletKeyCache';
 
 import ArrowIcon from '../../assets/buttons/arrow.svg';
 import ComebackIcon from '../../assets/buttons/comeback.svg';

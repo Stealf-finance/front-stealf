@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useState, useCallback, useEffect, useRef, ReactNode } from 'react';
 import * as LocalAuthentication from 'expo-local-authentication';
 import { useTurnkey } from '@turnkey/react-native-wallet-kit';
-import { sessionHandler } from '../services/sessionHandler';
+import { sessionHandler } from '../services/auth/sessionHandler';
 import { useAppState } from '../hooks/useAppState';
 import { useAuth } from './AuthContext';
 import LockScreen from '../app/(lock)/LockScreen';
