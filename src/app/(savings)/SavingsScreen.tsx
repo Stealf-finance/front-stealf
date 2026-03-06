@@ -92,7 +92,6 @@ export default function SavingsScreen() {
       <View style={styles.content}>
         {/* Header */}
         <View style={styles.header}>
-          <Text style={styles.headerTitle}>Savings</Text>
           <Text style={styles.headerSubtitle}>Earn yield on your assets</Text>
         </View>
 

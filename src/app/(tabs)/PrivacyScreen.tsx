@@ -1,11 +1,16 @@
 import React, { useRef, useEffect, useState } from 'react';
-import { View, Text, StyleSheet, Animated, Easing, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, Animated, Easing, TouchableOpacity, Alert } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import BalanceCardPrivacy from '../../components/features/PrivacyBalanceCard';
 import TransactionHistory from '../../components/TransactionHistory';
 import AddFundsPrivacyModal from '../../components/AddFundsPrivacyModal';
+import WalletSetupScreen, { WalletSetupChoice } from '../(auth)/WalletSetupScreen';
 import { useYieldDashboard } from '../../hooks/yield/useYield';
+import { useAuth } from '../../contexts/AuthContext';
+import { useSetupWallet } from '../../hooks/wallet/useInitPrivateWallet';
 import type { PageType } from '../../navigation/types';
+
+const API_URL = process.env.EXPO_PUBLIC_API_URL;
 
 interface PrivacyScreenProps {
   onNavigateToPage: (page: PageType) => void;
@@ -27,8 +32,51 @@ export default function PrivacyScreen({
   currentPage = 'privacy',
 }: PrivacyScreenProps) {
   const [showAddFundsModal, setShowAddFundsModal] = useState(false);
+  const [generatedMnemonic, setGeneratedMnemonic] = useState<string | undefined>();
+  const [pendingWalletAddress, setPendingWalletAddress] = useState<string | null>(null);
   const slideUpAnim = useRef(new Animated.Value(100)).current;
   const { data: dashboard } = useYieldDashboard();
+  const { userData, setUserData } = useAuth();
+  const setupWallet = useSetupWallet();
+
+  const hasPrivacyWallet = !!userData?.stealf_wallet;
+
+  const handleWalletSetup = async (choice: WalletSetupChoice) => {
+    if (choice.mode === 'create') {
+      // Second call = user confirmed mnemonic
+      if (generatedMnemonic && pendingWalletAddress) {
+        await registerPrivacyWallet(pendingWalletAddress);
+        setGeneratedMnemonic(undefined);
+        setPendingWalletAddress(null);
+        return;
+      }
+      // First call = create wallet, show mnemonic
+      const result = await setupWallet.handleCreateWallet();
+      if (!result.success) {
+        Alert.alert('Error', result.error || 'Failed to create wallet');
+        return;
+      }
+      setPendingWalletAddress(result.walletAddress || '');
+      setGeneratedMnemonic(result.mnemonic);
+      return;
+    }
+
+    if (choice.mode === 'import') {
+      const result = await setupWallet.handleImportWallet(choice.mnemonic);
+      if (!result.success) {
+        Alert.alert('Error', result.error || 'Failed to import wallet');
+        return;
+      }
+      await registerPrivacyWallet(result.walletAddress || '');
+    }
+  };
+
+  const registerPrivacyWallet = async (walletAddress: string) => {
+    // Update userData locally
+    if (userData) {
+      setUserData({ ...userData, stealf_wallet: walletAddress });
+    }
+  };
 
   useEffect(() => {
     if (currentPage === 'privacy') {
@@ -56,6 +104,16 @@ export default function PrivacyScreen({
     setShowAddFundsModal(false);
     onOpenDepositPrivateCash();
   };
+
+  if (!hasPrivacyWallet) {
+    return (
+      <WalletSetupScreen
+        onComplete={handleWalletSetup}
+        loading={setupWallet.loading}
+        generatedMnemonic={generatedMnemonic}
+      />
+    );
+  }
 
   return (
     <View style={styles.container}>

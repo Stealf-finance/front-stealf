@@ -42,8 +42,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           subOrgId: user.userId,
         });
 
-        // Only connect socket when user is fully registered (has stealf_wallet)
-        if (session.token && storedData?.stealf_wallet) {
+        if (session.token && storedData?.cash_wallet) {
           socketService.connect(session.token);
         }
       } else {
@@ -63,8 +62,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       socketService.disconnect();
     } else {
       await authStorage.setUserData(data);
-      // Connect socket once user is fully registered
-      if (data.stealf_wallet && session?.token) {
+      if (data.cash_wallet && session?.token) {
         socketService.connect(session.token);
       }
     }
@@ -84,7 +82,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  const isAuthenticated = !!session && !!user && !!userDataState?.stealf_wallet;
+  const isAuthenticated = !!session && !!user && !!userDataState?.cash_wallet;
 
   return (
     <AuthContext.Provider

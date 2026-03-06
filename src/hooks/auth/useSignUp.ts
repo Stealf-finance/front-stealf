@@ -48,7 +48,7 @@ export function useAuthFlow() {
   /**
    * Step 1: Create passkey and cash wallet via Turnkey
    */
-  const createPasskey = useCallback(async (email: string): Promise<PasskeyResult> => {
+  const createPasskey = useCallback(async (email: string, pseudo: string, preAuthToken?: string): Promise<PasskeyResult> => {
     try {
       const authResult = await signUpWithPasskey({
         createSubOrgParams: {
@@ -67,7 +67,31 @@ export function useAuthFlow() {
       if (!cashAddr) throw new Error('Failed to retrieve cash wallet address');
 
       setCashWallet(cashAddr);
-      setScreenState('walletSetup');
+
+      // Register with backend immediately (skip private wallet setup)
+      const headers: Record<string, string> = {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`,
+      };
+      if (preAuthToken) {
+        headers['X-Preauth-Token'] = preAuthToken;
+      }
+
+      const response = await fetch(`${API_URL}/api/users/auth`, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({ email, pseudo, cash_wallet: cashAddr }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to authenticate with backend');
+      }
+
+      const data = await response.json();
+      if (!data.data?.user) throw new Error('Backend did not return user data');
+
+      finishAuth(data.data.user, pseudo);
 
       return { success: true, sessionToken: token, cashWallet: cashAddr };
     } catch (err: any) {

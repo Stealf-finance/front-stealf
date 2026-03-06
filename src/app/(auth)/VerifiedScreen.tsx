@@ -31,9 +31,9 @@ export default function VerifiedScreen({ email, pseudo, preAuthToken, onBack }: 
     handleMnemonicConfirmed,
   } = useAuthFlow();
 
-  // Step 1: Create passkey on mount
+  // Step 1: Create passkey and register on mount
   useEffect(() => {
-    createPasskey(email);
+    createPasskey(email, pseudo, preAuthToken);
   }, [email]);
 
   // Step 2: Handle wallet setup choice

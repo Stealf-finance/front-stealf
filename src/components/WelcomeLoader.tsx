@@ -6,7 +6,7 @@ type Props = {
   visible?: boolean;             // affiche/masque le loader
   startOpaque?: boolean;        // démarre opaque (pas d'animation d'entrée)
   durationInMs?: number;         // vitesse d'arrivée
-  fadeOutTrigger?: boolean;      // déclenche la sortie (quand data loaded)
+  fadeOutTrigger?: boolean;
   onFadeOutEnd?: () => void;
 };
 
