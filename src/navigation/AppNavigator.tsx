@@ -46,6 +46,23 @@ export default function AppNavigator() {
   const [splashFading, setSplashFading] = useState(false);
   const { isLoadingBalance } = useWalletInfos(userData?.cash_wallet || '');
 
+  const wasAuthenticated = useRef(isAuthenticated);
+
+  // Show splash when user just authenticated (login/signup transition)
+  useEffect(() => {
+    if (!wasAuthenticated.current && isAuthenticated) {
+      // Just logged in — show loading screen while data loads
+      setSplashVisible(true);
+      setSplashFading(false);
+    }
+    if (wasAuthenticated.current && !isAuthenticated) {
+      // Just logged out — reset for next login
+      setSplashVisible(false);
+      setSplashFading(false);
+    }
+    wasAuthenticated.current = isAuthenticated;
+  }, [isAuthenticated]);
+
   // Dismiss splash when auth is resolved + data loaded (or not authenticated)
   useEffect(() => {
     if (loading || splashFading) return;
@@ -53,19 +70,11 @@ export default function AppNavigator() {
       setSplashVisible(false);
       return;
     }
-    if (!isLoadingBalance) {
-      const timer = setTimeout(() => setSplashFading(true), 1500);
+    if (splashVisible && !isLoadingBalance) {
+      const timer = setTimeout(() => setSplashFading(true), 800);
       return () => clearTimeout(timer);
     }
-  }, [loading, isAuthenticated, isLoadingBalance, splashFading]);
-
-  // Reset splash for next login after logout
-  useEffect(() => {
-    if (!isAuthenticated) {
-      setSplashVisible(true);
-      setSplashFading(false);
-    }
-  }, [isAuthenticated]);
+  }, [loading, isAuthenticated, isLoadingBalance, splashFading, splashVisible]);
 
   const handleWelcomeDone = useCallback(() => {
     setSplashVisible(false);
@@ -142,18 +151,23 @@ export default function AppNavigator() {
     setOverlayScreen(null);
   };
 
+  const handleShowLoader = useCallback(() => {
+    setSplashVisible(true);
+    setSplashFading(false);
+  }, []);
+
   if (!isAuthenticated && !splashVisible) {
     if (authMode === 'signin') {
-      return <SignInScreen onSwitchToSignUp={() => setAuthMode('signup')} />;
+      return <SignInScreen onSwitchToSignUp={() => setAuthMode('signup')} onAuthStart={handleShowLoader} />;
     }
-    return <SignUpScreen onSwitchToSignIn={() => setAuthMode('signin')} />;
+    return <SignUpScreen onSwitchToSignIn={() => setAuthMode('signin')} onAuthStart={handleShowLoader} />;
   }
 
   const renderOverlayScreen = () => {
     switch (overlayScreen) {
       case 'send': return <SendScreen onBack={handleBackToMain} />;
       case 'sendPrivate': return <SendPrivateScreen onBack={handleBackToMain} transferType="private" />;
-      case 'moove': return <MooveScreen onBack={handleBackToMain} />;
+      case 'moove': return <MooveScreen onBack={handleBackToMain} direction={mooveDirection} />;
       case 'addFunds': return <AddFundsScreen onBack={handleBackToMain} />;
       case 'addFundsPrivacy': return <AddFundsPrivacyScreen onBack={handleBackToMain} />;
       case 'depositPrivateCash': return <DepositPrivateCashScreen onBack={handleBackToMain} />;

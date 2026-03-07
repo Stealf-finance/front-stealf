@@ -2,10 +2,10 @@ import React, { useEffect, useRef } from "react";
 import { View, StyleSheet, Animated, Easing, StatusBar } from "react-native";
 
 type Props = {
-  logo: React.ReactNode;         // <Image .../> ou <Svg .../>
-  visible?: boolean;             // affiche/masque le loader
-  startOpaque?: boolean;        // démarre opaque (pas d'animation d'entrée)
-  durationInMs?: number;         // vitesse d'arrivée
+  logo: React.ReactNode;
+  visible?: boolean;
+  startOpaque?: boolean;
+  durationInMs?: number;
   fadeOutTrigger?: boolean;
   onFadeOutEnd?: () => void;
 };
@@ -20,15 +20,31 @@ export function WelcomeLoader({
 }: Props) {
   const scale = useRef(new Animated.Value(startOpaque ? 1 : 0.6)).current;
   const opacity = useRef(new Animated.Value(startOpaque ? 1 : 0)).current;
+  const spin = useRef(new Animated.Value(0)).current;
+
+  // Spinner rotation loop
+  useEffect(() => {
+    if (!visible) return;
+
+    const loop = Animated.loop(
+      Animated.timing(spin, {
+        toValue: 1,
+        duration: 1200,
+        easing: Easing.linear,
+        useNativeDriver: true,
+      })
+    );
+    loop.start();
+
+    return () => loop.stop();
+  }, [visible, spin]);
 
   useEffect(() => {
     if (!visible || startOpaque) return;
 
-    // Reset
     scale.setValue(0.6);
     opacity.setValue(0);
 
-    // Pop-in
     Animated.parallel([
       Animated.timing(opacity, {
         toValue: 1,
@@ -68,12 +84,27 @@ export function WelcomeLoader({
 
   if (!visible) return null;
 
+  const spinRotation = spin.interpolate({
+    inputRange: [0, 1],
+    outputRange: ['0deg', '360deg'],
+  });
+
   return (
     <View style={styles.container}>
       <StatusBar barStyle="light-content" />
       <Animated.View style={{ opacity, transform: [{ scale }] }}>
         {logo}
       </Animated.View>
+
+      <Animated.View
+        style={[
+          styles.spinner,
+          {
+            opacity,
+            transform: [{ rotate: spinRotation }],
+          },
+        ]}
+      />
     </View>
   );
 }
@@ -84,5 +115,14 @@ const styles = StyleSheet.create({
     backgroundColor: "#000",
     justifyContent: "center",
     alignItems: "center",
+  },
+  spinner: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    borderWidth: 2,
+    borderColor: 'rgba(255, 255, 255, 0.08)',
+    borderTopColor: 'rgba(255, 255, 255, 0.4)',
+    marginTop: 32,
   },
 });

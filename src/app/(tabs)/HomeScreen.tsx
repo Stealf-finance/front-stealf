@@ -1,5 +1,5 @@
 import React, { useRef, useEffect, useState } from 'react';
-import { View, Text, StyleSheet, Animated, Easing, TouchableOpacity, Image } from 'react-native';
+import { View, Text, StyleSheet, Animated, Easing, TouchableOpacity, Image, Alert } from 'react-native';
 import TransactionHistory from '../../components/TransactionHistory';
 import CashBalanceCard from '../../components/features/CashBalanceCard';
 import AddFundsModal from '../../components/AddFundsModal';
@@ -91,7 +91,11 @@ export default function HomeScreen({
               />
 
               <View style={styles.bankCardRight}>
-                <TouchableOpacity style={styles.bankCardAction} activeOpacity={0.7}>
+                <TouchableOpacity
+                  style={styles.bankCardAction}
+                  activeOpacity={0.7}
+                  onPress={() => Alert.alert('Coming soon', 'Bank accounts will be available soon.')}
+                >
                   <SendIcon width={16} height={16} />
                   <Text style={styles.bankCardActionText} numberOfLines={1}>Get bank account</Text>
                 </TouchableOpacity>

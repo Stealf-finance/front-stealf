@@ -199,7 +199,7 @@ export default function SendConfirmation({ amount, onBack, onClose, onSuccess }:
           <View style={styles.section}>
             <Text style={styles.label}>Amount</Text>
             {/* MAINNET: {amount} USDC */}
-            <Text style={styles.value}>{amount} SOL</Text>
+            <Text style={styles.value}>${amount}</Text>
           </View>
 
           {/* Network */}

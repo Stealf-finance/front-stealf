@@ -37,6 +37,9 @@ export default function SendScreen({ onBack }: SendScreenProps) {
 
   const handleNumberPress = (num: string) => {
     if (num === '.' && amount.includes('.')) return;
+    if (amount.includes('.') && num !== '.' && amount.split('.')[1].length >= 2) return;
+    const digits = amount.replace('.', '');
+    if (num !== '.' && digits.length >= 8) return;
     setAmount(prev => prev + num);
   };
 
@@ -96,8 +99,8 @@ export default function SendScreen({ onBack }: SendScreenProps) {
         {/* Amount Display */}
         <View style={styles.amountContainer}>
           <View style={styles.amountRow}>
-            <Text style={styles.amountText}>{amount || '0'}</Text>
             <Text style={styles.currencyText}>$</Text>
+            <Text style={styles.amountText}>{amount || '0'}</Text>
           </View>
           <Text style={styles.balanceText}>Your balance ${totalUSD.toFixed(2)}</Text>
         </View>
