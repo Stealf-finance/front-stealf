@@ -1,6 +1,7 @@
 import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import TransactionHistory from '../../components/TransactionHistory';
+import ComebackIcon from '../../assets/buttons/comeback.svg';
 
 interface TransactionHistoryScreenProps {
   onClose: () => void;
@@ -12,7 +13,7 @@ export default function TransactionHistoryScreen({ onClose, walletType = 'cash' 
     <View style={styles.container}>
       <View style={styles.header}>
         <TouchableOpacity onPress={onClose} style={styles.backButton}>
-          <Text style={styles.backIcon}>←</Text>
+          <ComebackIcon width={18} height={18} />
         </TouchableOpacity>
         <Text style={styles.title}>Transaction History</Text>
         <View style={styles.placeholder} />

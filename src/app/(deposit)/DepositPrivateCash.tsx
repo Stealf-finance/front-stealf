@@ -18,6 +18,7 @@ import { LAMPORTS_PER_SOL } from '@solana/web3.js';
 import { useUmbra } from '../../hooks/transactions/useUmbra';
 import { SOL_MINT } from '../../constants/solana';
 import type { SendScreenProps } from '../../types';
+import ComebackIcon from '../../assets/buttons/comeback.svg';
 
 export default function DepositPrivateCash({ onBack }: SendScreenProps) {
   const [amount, setAmount] = useState('');
@@ -111,7 +112,7 @@ export default function DepositPrivateCash({ onBack }: SendScreenProps) {
         {/* Header */}
         <View style={styles.header}>
           <TouchableOpacity style={styles.headerButton} onPress={onBack} activeOpacity={0.8}>
-            <Text style={styles.headerButtonIcon}>←</Text>
+            <ComebackIcon width={18} height={18} />
           </TouchableOpacity>
           <Text style={styles.headerTitle}>Shield</Text>
           <TouchableOpacity style={styles.headerButton} onPress={onBack} activeOpacity={0.8}>

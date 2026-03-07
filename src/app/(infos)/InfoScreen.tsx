@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Alert, ActivityIndicator } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import ComebackIcon from '../../assets/buttons/comeback.svg';
 import * as Clipboard from 'expo-clipboard';
 import * as LocalAuthentication from 'expo-local-authentication';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -22,13 +23,11 @@ export default function InfoScreen({ onBack, source }: InfoScreenProps) {
 
   const handleExportWallet = async () => {
     if (source === 'home') {
-      // Cash wallet - always in Turnkey
       if (!userData?.cash_wallet) {
         return { success: false, error: 'Cash wallet not found' };
       }
       return exportWalletByAddress(userData.cash_wallet);
     } else {
-      // Privacy wallet - always stored locally
       return exportColdWallet();
     }
   };
@@ -48,7 +47,7 @@ export default function InfoScreen({ onBack, source }: InfoScreenProps) {
       {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity onPress={onBack} style={styles.backButton}>
-          <Text style={styles.backIcon}>←</Text>
+          <ComebackIcon width={18} height={18} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>{getTitle()}</Text>
         <View style={styles.placeholder} />

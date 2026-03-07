@@ -35,13 +35,13 @@ export default function CashBalanceCard({
     <View style={styles.container}>
       {/* Total */}
       <View style={styles.totalSection}>
-        <Text style={styles.totalLabel}>Total</Text>
+        <Text style={styles.totalLabel}>Total Balance</Text>
         {isLoadingBalance ? (
           <ActivityIndicator size="small" color="#ffffff" />
         ) : balanceError ? (
           <Text style={styles.totalAmount}>0</Text>
         ) : (
-          <Text style={styles.totalAmount}>{totalUSD.toFixed(0)} USD</Text>
+          <Text style={styles.totalAmount}>${totalUSD.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</Text>
         )}
       </View>
 
@@ -57,7 +57,7 @@ export default function CashBalanceCard({
           <View style={styles.iconContainer}>
             <DepositIcon />
           </View>
-          <Text style={styles.actionText}>Deposit</Text>
+          <Text style={styles.actionText}>Receive</Text>
         </TouchableOpacity>
 
         <TouchableOpacity
@@ -94,17 +94,6 @@ export default function CashBalanceCard({
         </TouchableOpacity>
       </View>
 
-      {/* Cards Section */}
-      <View style={styles.cardsSection}>
-        <Text style={styles.cardsTitle}>Cards</Text>
-        <TouchableOpacity style={styles.cardItem} activeOpacity={0.8}>
-          <Image
-            source={require('../../assets/stealf-card.png')}
-            style={styles.cardImage}
-            resizeMode="cover"
-          />
-        </TouchableOpacity>
-      </View>
     </View>
   );
 }
@@ -173,8 +162,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 32,
-    paddingHorizontal: 10,
+    marginBottom: 20,
   },
   actionButton: {
     alignItems: 'center',

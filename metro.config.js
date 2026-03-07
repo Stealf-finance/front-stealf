@@ -20,6 +20,8 @@ const moduleOverrides = {
   ffjavascript: path.resolve(__dirname, 'node_modules/ffjavascript/build/browser.esm.js'),
   // Subpath exports not resolvable with unstable_enablePackageExports=false
   '@bufbuild/protobuf/codegenv2': path.resolve(__dirname, 'node_modules/@bufbuild/protobuf/dist/cjs/codegenv2/index.js'),
+  // ethers v6: Metro can't resolve .cjs without extension mapping
+  '@adraffy/ens-normalize': path.resolve(__dirname, 'node_modules/ethers/node_modules/@adraffy/ens-normalize/dist/index.mjs'),
 };
 
 const originalResolveRequest = config.resolver.resolveRequest;

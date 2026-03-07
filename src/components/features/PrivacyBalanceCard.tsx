@@ -41,7 +41,7 @@ export default function BalanceCardPrivacy({
         ) : balanceError ? (
           <Text style={styles.totalAmount}>0</Text>
         ) : (
-          <Text style={styles.totalAmount}>{totalUSD.toFixed(0)} USD</Text>
+          <Text style={styles.totalAmount}>${totalUSD.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</Text>
         )}
       </View>
 

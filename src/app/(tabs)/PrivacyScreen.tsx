@@ -8,9 +8,10 @@ import WalletSetupScreen, { WalletSetupChoice } from '../(auth)/WalletSetupScree
 import { useYieldDashboard } from '../../hooks/yield/useYield';
 import { useAuth } from '../../contexts/AuthContext';
 import { useSetupWallet } from '../../hooks/wallet/useInitPrivateWallet';
+import { useAuthenticatedApi } from '../../services/api/clientStealf';
+import { socketService } from '../../services/real-time/socketService';
+import { useQueryClient } from '@tanstack/react-query';
 import type { PageType } from '../../navigation/types';
-
-const API_URL = process.env.EXPO_PUBLIC_API_URL;
 
 interface PrivacyScreenProps {
   onNavigateToPage: (page: PageType) => void;
@@ -38,6 +39,8 @@ export default function PrivacyScreen({
   const { data: dashboard } = useYieldDashboard();
   const { userData, setUserData } = useAuth();
   const setupWallet = useSetupWallet();
+  const api = useAuthenticatedApi();
+  const queryClient = useQueryClient();
 
   const hasPrivacyWallet = !!userData?.stealf_wallet;
 
@@ -72,7 +75,14 @@ export default function PrivacyScreen({
   };
 
   const registerPrivacyWallet = async (walletAddress: string) => {
-    // Update userData locally
+    try {
+      await api.post('/api/wallet/privacy-wallet', { walletAddress });
+    } catch (err: any) {
+      if (__DEV__) console.error('Failed to register privacy wallet:', err);
+      Alert.alert('Error', err?.message || 'Failed to save wallet to server');
+      return;
+    }
+    socketService.subscribeToWallet(walletAddress);
     if (userData) {
       setUserData({ ...userData, stealf_wallet: walletAddress });
     }

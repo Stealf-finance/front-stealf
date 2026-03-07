@@ -119,11 +119,6 @@ export default function TransactionHistory({
         </TouchableOpacity>
       ))}
 
-      {!isCompactMode && displayedTransactions.length > 0 && (
-        <TouchableOpacity style={styles.viewAllButton} onPress={handleRefresh}>
-          <Text style={styles.viewAllText}>Refresh</Text>
-        </TouchableOpacity>
-      )}
     </>
   );
 

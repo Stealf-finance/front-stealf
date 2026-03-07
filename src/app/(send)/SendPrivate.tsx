@@ -8,6 +8,7 @@ import {
   Alert,
 } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
+import ComebackIcon from '../../assets/buttons/comeback.svg';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useFonts } from 'expo-font';
 import type { SendScreenProps } from '../../types';
@@ -84,7 +85,7 @@ export default function SendScreen({ onBack, transferType }: SendScreenProps) {
         {/* Header */}
         <View style={styles.header}>
           <TouchableOpacity style={styles.backButton} onPress={onBack} activeOpacity={0.8}>
-            <Text style={styles.backArrow}>←</Text>
+            <ComebackIcon width={18} height={18} />
           </TouchableOpacity>
           <Text style={styles.headerTitle}>Transfer</Text>
           <TouchableOpacity style={styles.closeButton} onPress={onBack} activeOpacity={0.8}>

@@ -63,10 +63,6 @@ class SocketService {
       console.error('Socket error:', error);
     });
 
-    // Listen to private balance updates
-    this.socket.on('private-balance:updated', (data: { userId: string; balances: PrivacyBalances; timestamp: string }) => {
-      this.privacyBalances = data.balances;
-    });
   }
 
   disconnect() {
@@ -79,12 +75,12 @@ class SocketService {
   }
 
   subscribeToWallet(walletAddress: string) {
-    if (!this.socket?.connected) {
-      return;
-    }
-
-    this.socket.emit('subscribe:wallet', walletAddress);
     this.subscribedWallets.add(walletAddress);
+
+    if (this.socket?.connected) {
+      this.socket.emit('subscribe:wallet', walletAddress);
+    }
+    // If not connected yet, will be emitted on 'connect' via the forEach loop
   }
 
   unsubscribeFromWallet(walletAddress: string) {

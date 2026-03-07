@@ -1,9 +1,10 @@
 import React, { useRef, useEffect, useState } from 'react';
-import { View, Text, StyleSheet, Animated, Easing } from 'react-native';
+import { View, Text, StyleSheet, Animated, Easing, TouchableOpacity, Image } from 'react-native';
 import TransactionHistory from '../../components/TransactionHistory';
 import CashBalanceCard from '../../components/features/CashBalanceCard';
 import AddFundsModal from '../../components/AddFundsModal';
 import SendModal from '../../components/SendModal';
+import SendIcon from '../../assets/buttons/send.svg';
 import type { PageType } from '../../navigation/types';
 
 interface HomeScreenProps {
@@ -70,12 +71,34 @@ export default function HomeScreen({
   return (
     <View style={styles.container}>
         <View style={styles.headerSpacer} />
+
         <CashBalanceCard
           onDeposit={handleAddFundsPress}
           onMoove={onOpenMoove}
           onSend={() => setShowSendModal(true)}
           onBank={onOpenInfo}
         />
+
+        <View style={styles.bankCardWrapper}>
+          <View style={styles.bankCard}>
+            <Text style={styles.bankCardTitle}>Bank without limits</Text>
+
+            <View style={styles.bankCardRow}>
+              <Image
+                source={require('../../assets/stealf-card.png')}
+                style={styles.cardImage}
+                resizeMode="contain"
+              />
+
+              <View style={styles.bankCardRight}>
+                <TouchableOpacity style={styles.bankCardAction} activeOpacity={0.7}>
+                  <SendIcon width={16} height={16} />
+                  <Text style={styles.bankCardActionText} numberOfLines={1}>Get bank account</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          </View>
+        </View>
 
         {/* Recent Activity */}
         <Animated.View
@@ -128,7 +151,6 @@ const styles = StyleSheet.create({
   activityContainer: {
     flex: 1,
     paddingHorizontal: 20,
-    marginTop: 15,
   },
   activityHeader: {
     flexDirection: 'row',
@@ -140,5 +162,56 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: '600',
     color: 'white',
+  },
+  bankCardWrapper: {
+    paddingHorizontal: 20,
+    marginTop: 20,
+    marginBottom: 35,
+  },
+  bankCard: {
+    backgroundColor: 'rgba(255, 255, 255, 0.06)',
+    borderRadius: 20,
+    paddingVertical: 20,
+    paddingHorizontal: 20,
+    width: '100%',
+  },
+  bankCardTitle: {
+    fontSize: 22,
+    color: 'white',
+    fontFamily: 'Sansation-Bold',
+    marginBottom: 18,
+  },
+  bankCardRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  cardImage: {
+    width: 120,
+    height: 76,
+    marginRight: 16,
+  },
+  bankCardRight: {
+    flex: 1,
+    justifyContent: 'center',
+    gap: 10,
+  },
+  bankCardSubtitle: {
+    fontSize: 14,
+    color: 'rgba(255, 255, 255, 0.45)',
+    fontFamily: 'Sansation-Regular',
+  },
+  bankCardAction: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    borderRadius: 26,
+    paddingVertical: 14,
+    paddingHorizontal: 24,
+    gap: 12,
+  },
+  bankCardActionText: {
+    fontSize: 13,
+    color: 'white',
+    fontFamily: 'Sansation-Bold',
   },
 });

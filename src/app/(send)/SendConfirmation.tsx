@@ -4,22 +4,20 @@ import {
   Text,
   StyleSheet,
   TouchableOpacity,
-  ActivityIndicator,
-  Modal,
   Animated,
   TextInput,
   KeyboardAvoidingView,
   Platform,
   ScrollView,
-  Linking,
   Alert,
 } from 'react-native';
-import * as Clipboard from 'expo-clipboard';
+import ComebackIcon from '../../assets/buttons/comeback.svg';
 import { useFonts } from 'expo-font';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useSendTransaction } from '../../hooks/transactions/useSendSimpleTransaction';
 import { useAuth } from '../../contexts/AuthContext';
 import { USDC_MINT, USDC_DECIMALS } from '../../constants/solana';
+import SlideToConfirm from '../../components/SlideToConfirm';
 
 interface SendConfirmationProps {
   amount: string;
@@ -33,11 +31,11 @@ export default function SendConfirmation({ amount, onBack, onClose, onSuccess }:
   const { sendTransaction, loading } = useSendTransaction();
 
   const [externalAddress, setExternalAddress] = useState('');
-  const [showSuccessModal, setShowSuccessModal] = useState(false);
-  const [transactionSignature, setTransactionSignature] = useState<string | null>(null);
+  const [showSuccess, setShowSuccess] = useState(false);
 
-  const successAnimation = useRef(new Animated.Value(0)).current;
-  const checkmarkScale = useRef(new Animated.Value(0)).current;
+  const fadeAnim = useRef(new Animated.Value(0)).current;
+  const checkScale = useRef(new Animated.Value(0)).current;
+  const contentFade = useRef(new Animated.Value(0)).current;
 
   const handleConfirm = async () => {
     if (!externalAddress) {
@@ -51,10 +49,6 @@ export default function SendConfirmation({ amount, onBack, onClose, onSuccess }:
     }
 
     try {
-      if (!externalAddress) {
-        throw new Error('Invalid destination address');
-      }
-
       // --- MAINNET: USDC transfer ---
       // const amountUSDC = parseFloat(amount);
       // const signature = await sendTransaction(
@@ -67,26 +61,33 @@ export default function SendConfirmation({ amount, onBack, onClose, onSuccess }:
 
       // --- DEVNET: Native SOL transfer ---
       const amountSOL = parseFloat(amount);
-      const signature = await sendTransaction(
+      await sendTransaction(
         userData.cash_wallet,
         externalAddress,
         amountSOL,
       );
 
-      setTransactionSignature(signature);
-      setShowSuccessModal(true);
+      // Show success
+      setShowSuccess(true);
       Animated.sequence([
-        Animated.timing(successAnimation, {
+        Animated.timing(fadeAnim, {
           toValue: 1,
-          duration: 300,
+          duration: 400,
           useNativeDriver: true,
         }),
-        Animated.spring(checkmarkScale, {
-          toValue: 1,
-          friction: 4,
-          tension: 40,
-          useNativeDriver: true,
-        }),
+        Animated.parallel([
+          Animated.spring(checkScale, {
+            toValue: 1,
+            friction: 5,
+            tension: 60,
+            useNativeDriver: true,
+          }),
+          Animated.timing(contentFade, {
+            toValue: 1,
+            duration: 500,
+            useNativeDriver: true,
+          }),
+        ]),
       ]).start();
 
     } catch (err: any) {
@@ -98,12 +99,14 @@ export default function SendConfirmation({ amount, onBack, onClose, onSuccess }:
     }
   };
 
-  const closeSuccessModal = () => {
-    setShowSuccessModal(false);
-    successAnimation.setValue(0);
-    checkmarkScale.setValue(0);
-    setTransactionSignature(null);
+  const handleNewTransfer = () => {
     onSuccess();
+  };
+
+  const handleBackToHome = () => {
+    onSuccess();
+    if (onClose) onClose();
+    else onBack();
   };
 
   const isLoading = loading;
@@ -116,6 +119,47 @@ export default function SendConfirmation({ amount, onBack, onClose, onSuccess }:
 
   if (!fontsLoaded) {
     return null;
+  }
+
+  if (showSuccess) {
+    return (
+      <View style={styles.container}>
+        <Animated.View style={[styles.successScreen, { opacity: fadeAnim }]}>
+          {/* Checkmark */}
+          <Animated.View style={[styles.checkCircle, { transform: [{ scale: checkScale }] }]}>
+            <Text style={styles.checkText}>{'✓'}</Text>
+          </Animated.View>
+
+          {/* Info */}
+          <Animated.View style={[styles.successInfo, { opacity: contentFade }]}>
+            <Text style={styles.successTitle}>Sent</Text>
+            <Text style={styles.successAmount}>{amount} SOL</Text>
+            <Text style={styles.successAddress}>
+              {externalAddress.substring(0, 6)}...{externalAddress.substring(externalAddress.length - 4)}
+            </Text>
+          </Animated.View>
+
+          {/* Actions */}
+          <Animated.View style={[styles.successActions, { opacity: contentFade }]}>
+            <TouchableOpacity
+              style={styles.primaryAction}
+              onPress={handleNewTransfer}
+              activeOpacity={0.8}
+            >
+              <Text style={styles.primaryActionText}>Make new transfer</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.secondaryAction}
+              onPress={handleBackToHome}
+              activeOpacity={0.8}
+            >
+              <Text style={styles.secondaryActionText}>Back to home</Text>
+            </TouchableOpacity>
+          </Animated.View>
+        </Animated.View>
+      </View>
+    );
   }
 
   return (
@@ -131,7 +175,7 @@ export default function SendConfirmation({ amount, onBack, onClose, onSuccess }:
         {/* Header */}
         <View style={styles.header}>
           <TouchableOpacity style={styles.backButton} onPress={onBack} activeOpacity={0.8}>
-            <Text style={styles.backArrow}>←</Text>
+            <ComebackIcon width={18} height={18} />
           </TouchableOpacity>
           <Text style={styles.headerTitle}>Confirm</Text>
           <TouchableOpacity style={styles.closeButton} onPress={onClose || onBack} activeOpacity={0.8}>
@@ -161,7 +205,7 @@ export default function SendConfirmation({ amount, onBack, onClose, onSuccess }:
           {/* Network */}
           <View style={styles.section}>
             <Text style={styles.label}>Network</Text>
-            <Text style={styles.value}>Solana</Text>
+            <Text style={styles.value}>Solana Devnet</Text>
           </View>
 
           {/* To */}
@@ -182,105 +226,12 @@ export default function SendConfirmation({ amount, onBack, onClose, onSuccess }:
             </View>
           </View>
 
-          {/* Confirm Button */}
+          {/* Slide to Confirm */}
           <View style={styles.buttonContainer}>
-            <TouchableOpacity
-              style={styles.confirmButton}
-              onPress={handleConfirm}
-              disabled={isLoading}
-              activeOpacity={0.8}
-            >
-              {isLoading ? (
-                <ActivityIndicator color="#000" />
-              ) : (
-                <Text style={styles.confirmButtonText}>Confirm</Text>
-              )}
-            </TouchableOpacity>
+            <SlideToConfirm onConfirm={handleConfirm} loading={isLoading} />
           </View>
         </ScrollView>
         </KeyboardAvoidingView>
-
-        {/* Success Modal */}
-        <Modal
-          transparent={true}
-          visible={showSuccessModal}
-          animationType="none"
-          onRequestClose={closeSuccessModal}
-        >
-          <TouchableOpacity
-            style={styles.modalOverlay}
-            activeOpacity={1}
-            onPress={closeSuccessModal}
-          >
-            <TouchableOpacity
-              activeOpacity={1}
-              onPress={(e) => e.stopPropagation()}
-            >
-              <Animated.View
-                style={[
-                  styles.modalContent,
-                  {
-                    opacity: successAnimation,
-                    transform: [
-                      {
-                        scale: successAnimation.interpolate({
-                          inputRange: [0, 1],
-                          outputRange: [0.8, 1],
-                        }),
-                      },
-                    ],
-                  },
-                ]}
-              >
-                <Animated.View
-                  style={[
-                    styles.checkmarkCircle,
-                    {
-                      transform: [{ scale: checkmarkScale }],
-                    },
-                  ]}
-                >
-                  <Text style={styles.checkmark}>✓</Text>
-                </Animated.View>
-
-                <Text style={styles.successTitle}>Transaction Sent</Text>
-                <Text style={styles.successMessage}>
-                  Your transaction has been successfully sent
-                </Text>
-
-                {transactionSignature && transactionSignature !== 'COMPLETED' && (
-                  <TouchableOpacity
-                    style={styles.signatureContainer}
-                    onPress={async () => {
-                      await Clipboard.setStringAsync(transactionSignature);
-                    }}
-                    activeOpacity={0.7}
-                  >
-                    <Text style={styles.signatureLabel}>Signature (tap to copy):</Text>
-                    <Text style={styles.signatureText}>
-                      {transactionSignature.substring(0, 20)}...
-                    </Text>
-                  </TouchableOpacity>
-                )}
-
-                <TouchableOpacity
-                  style={styles.viewExplorerButton}
-
-                  activeOpacity={0.8}
-                >
-                </TouchableOpacity>
-
-                <TouchableOpacity
-                  style={[styles.viewExplorerButton, { marginTop: 10, backgroundColor: 'rgba(255, 255, 255, 0.1)', borderColor: 'rgba(255, 255, 255, 0.3)' }]}
-                  onPress={closeSuccessModal}
-                  activeOpacity={0.8}
-                >
-                  <Text style={[styles.viewExplorerText, { color: 'white' }]}>Close</Text>
-                </TouchableOpacity>
-              </Animated.View>
-            </TouchableOpacity>
-          </TouchableOpacity>
-        </Modal>
       </LinearGradient>
     </View>
   );
@@ -289,6 +240,7 @@ export default function SendConfirmation({ amount, onBack, onClose, onSuccess }:
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    backgroundColor: '#000',
   },
   background: {
     flex: 1,
@@ -309,19 +261,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  backArrow: {
-    fontSize: 18,
-    color: 'white',
-    fontWeight: 'bold',
-  },
   headerTitle: {
     fontSize: 20,
     fontWeight: '600',
     color: 'white',
     fontFamily: 'Sansation-Bold',
-  },
-  placeholder: {
-    width: 40,
   },
   closeButton: {
     width: 40,
@@ -377,94 +321,75 @@ const styles = StyleSheet.create({
     paddingHorizontal: 32,
     paddingBottom: 40,
   },
-  confirmButton: {
+  // Success screen
+  successScreen: {
+    flex: 1,
+    backgroundColor: '#000',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 40,
+  },
+  checkCircle: {
+    width: 72,
+    height: 72,
+    borderRadius: 36,
+    borderWidth: 2,
+    borderColor: 'rgba(255, 255, 255, 0.15)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 40,
+  },
+  checkText: {
+    fontSize: 32,
+    color: 'white',
+    fontWeight: '300',
+  },
+  successInfo: {
+    alignItems: 'center',
+    marginBottom: 60,
+  },
+  successTitle: {
+    fontSize: 16,
+    color: 'rgba(255, 255, 255, 0.4)',
+    fontFamily: 'Sansation-Regular',
+    marginBottom: 8,
+  },
+  successAmount: {
+    fontSize: 36,
+    color: 'white',
+    fontFamily: 'Sansation-Light',
+    fontWeight: '300',
+    marginBottom: 12,
+  },
+  successAddress: {
+    fontSize: 14,
+    color: 'rgba(255, 255, 255, 0.3)',
+    fontFamily: 'Sansation-Regular',
+  },
+  successActions: {
+    width: '100%',
+    gap: 12,
+  },
+  primaryAction: {
     backgroundColor: 'rgba(240, 235, 220, 0.95)',
-    paddingVertical: 18,
+    paddingVertical: 16,
     borderRadius: 30,
     alignItems: 'center',
   },
-  confirmButtonText: {
-    fontSize: 17,
+  primaryActionText: {
+    fontSize: 16,
     fontWeight: '600',
     color: '#000',
     fontFamily: 'Sansation-Bold',
   },
-  // Modal styles
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.8)',
-    justifyContent: 'center',
+  secondaryAction: {
+    paddingVertical: 16,
+    borderRadius: 30,
     alignItems: 'center',
   },
-  modalContent: {
-    backgroundColor: 'rgba(0, 0, 0, 0.90)',
-    borderRadius: 25,
-    padding: 30,
-    alignItems: 'center',
-    width: '80%',
-    borderWidth: 1,
-    borderColor: 'rgba(100, 255, 100, 0.2)',
-  },
-  checkmarkCircle: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    backgroundColor: 'rgba(100, 255, 100, 0.2)',
-    borderWidth: 3,
-    borderColor: '#00ff88',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: 20,
-  },
-  checkmark: {
-    color: '#00ff88',
-    fontSize: 40,
-    fontWeight: 'bold',
-  },
-  successTitle: {
-    color: '#00ff88',
-    fontSize: 24,
-    fontWeight: 'bold',
-    marginBottom: 10,
-    fontFamily: 'Sansation-Bold',
-  },
-  successMessage: {
-    color: 'rgba(255, 255, 255, 0.8)',
-    fontSize: 14,
-    textAlign: 'center',
-    marginBottom: 20,
+  secondaryActionText: {
+    fontSize: 16,
+    color: 'rgba(255, 255, 255, 0.4)',
     fontFamily: 'Sansation-Regular',
-  },
-  signatureContainer: {
-    backgroundColor: 'rgba(255, 255, 255, 0.05)',
-    borderRadius: 12,
-    padding: 12,
-    marginBottom: 20,
-    width: '100%',
-  },
-  signatureLabel: {
-    color: 'rgba(255, 255, 255, 0.5)',
-    fontSize: 12,
-    marginBottom: 4,
-    fontFamily: 'Sansation-Regular',
-  },
-  signatureText: {
-    color: 'rgba(255, 255, 255, 0.9)',
-    fontSize: 12,
-    fontFamily: 'Sansation-Regular',
-  },
-  viewExplorerButton: {
-    backgroundColor: 'rgba(100, 255, 100, 0.2)',
-    borderRadius: 20,
-    paddingHorizontal: 30,
-    paddingVertical: 12,
-    borderWidth: 1,
-    borderColor: '#00ff88',
-  },
-  viewExplorerText: {
-    color: '#00ff88',
-    fontSize: 14,
-    fontWeight: 'bold',
-    fontFamily: 'Sansation-Bold',
   },
 });
