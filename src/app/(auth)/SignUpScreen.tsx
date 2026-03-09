@@ -21,9 +21,10 @@ import { useWalletAuth } from '../../hooks/useWalletAuth';
 
 interface SignUpScreenProps {
   onSwitchToSignIn?: () => void;
+  onAuthStart?: () => void;
 }
 
-export default function SignUpScreen({ onSwitchToSignIn }: SignUpScreenProps = {}){
+export default function SignUpScreen({ onSwitchToSignIn, onAuthStart }: SignUpScreenProps = {}){
   const authFlow = useAuthFlow();
   const { isMWAAvailable } = useMWAAvailability();
   const walletAuth = useWalletAuth();
@@ -106,7 +107,7 @@ export default function SignUpScreen({ onSwitchToSignIn }: SignUpScreenProps = {
   };
 
   if (step === 'verified' && email && pseudo) {
-    return <VerifiedScreen email={email} pseudo={pseudo} onBack={() => setStep('email')} />;
+    return <VerifiedScreen email={email} pseudo={pseudo} preAuthToken={preAuthToken} onBack={() => setStep('email')} onAuthStart={onAuthStart} />;
   }
 
   return (

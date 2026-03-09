@@ -16,10 +16,12 @@ import { LinearGradient } from 'expo-linear-gradient';
 interface VerifiedScreenProps {
   email: string;
   pseudo: string;
+  preAuthToken?: string | null;
   onBack?: () => void;
+  onAuthStart?: () => void;
 }
 
-export default function VerifiedScreen({ email, pseudo, onBack }: VerifiedScreenProps) {
+export default function VerifiedScreen({ email, pseudo, preAuthToken, onBack, onAuthStart }: VerifiedScreenProps) {
   const {
     screenState,
     loading,
@@ -87,6 +89,7 @@ export default function VerifiedScreen({ email, pseudo, onBack }: VerifiedScreen
   }
 
   if (screenState === 'creatingWallet') {
+    onAuthStart?.();
     return <View style={styles.container} />;
   }
 

@@ -39,6 +39,9 @@ export default function SendScreen({ onBack, transferType }: SendScreenProps) {
 
   const handleNumberPress = (num: string) => {
     if (num === '.' && amount.includes('.')) return;
+    if (amount.includes('.') && num !== '.' && amount.split('.')[1].length >= 2) return;
+    const digits = amount.replace('.', '');
+    if (num !== '.' && digits.length >= 8) return;
     setAmount(prev => prev + num);
   };
 

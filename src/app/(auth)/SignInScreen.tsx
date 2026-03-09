@@ -21,9 +21,10 @@ import ComebackIcon from '../../assets/buttons/comeback.svg';
 
 interface SignInScreenProps {
   onSwitchToSignUp?: () => void;
+  onAuthStart?: () => void;
 }
 
-export default function SignInScreen({ onSwitchToSignUp }: SignInScreenProps = {}) {
+export default function SignInScreen({ onSwitchToSignUp, onAuthStart }: SignInScreenProps = {}) {
   const {
     loading,
     needsSeedImport,
@@ -38,6 +39,7 @@ export default function SignInScreen({ onSwitchToSignUp }: SignInScreenProps = {
   const [mnemonic, setMnemonic] = useState('');
 
   const handleSignIn = async () => {
+    onAuthStart?.();
     const result = await signInWithPasskey();
 
     if (!result.success) {
@@ -175,15 +177,12 @@ export default function SignInScreen({ onSwitchToSignUp }: SignInScreenProps = {
 
           {/* Sign In Button */}
           <TouchableOpacity
-            style={[styles.button, loading && styles.buttonDisabled]}
+            style={styles.button}
             onPress={handleSignIn}
             disabled={loading}
+            activeOpacity={0.8}
           >
-            {loading ? (
-              <ActivityIndicator color="#000" />
-            ) : (
-              <Text style={styles.buttonText}>Sign In with Passkey</Text>
-            )}
+            <Text style={styles.buttonText}>Sign In with Passkey</Text>
           </TouchableOpacity>
 
           {/* Wallet Sign In Button */}

@@ -4,10 +4,10 @@ import {
   Text,
   StyleSheet,
   TouchableOpacity,
+  Animated,
   Alert,
   ScrollView,
   Modal,
-  Animated,
   ActivityIndicator,
 } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
@@ -35,6 +35,7 @@ import ComebackIcon from '../../assets/buttons/comeback.svg';
 
 const SECURE_STORE_KEY = 'stealf_private_key';
 const MNEMONIC_STORE_KEY = 'stealf_wallet_mnemonic';
+
 const HARDENED_OFFSET = 0x80000000;
 
 function derivePath(path: string, seed: Uint8Array): { key: Uint8Array } {
@@ -70,7 +71,6 @@ async function getPrivacyKeypair(): Promise<Keypair> {
     const { key } = derivePath("m/44'/501'/0'/0'", new Uint8Array(seed));
     return Keypair.fromSeed(key);
   }
-
   throw new Error('No privacy wallet key found');
 }
 
@@ -112,24 +112,17 @@ export default function MooveScreen({ onBack, direction = 'toCash' }: MooveScree
   const selectedToken = sourceTokens[selectedTokenIndex] || null;
   const isNativeSOL = !selectedToken?.tokenMint || selectedToken.tokenMint === SOL_MINT;
 
-  useEffect(() => {
-    if (selectedTokenIndex >= privacyTokens.length && privacyTokens.length > 0) {
-      setSelectedTokenIndex(0);
-    }
-  }, [privacyTokens.length, selectedTokenIndex]);
-
   const [fontsLoaded] = useFonts({
     'Sansation-Regular': require('../../assets/font/Sansation/Sansation-Regular.ttf'),
     'Sansation-Bold': require('../../assets/font/Sansation/Sansation-Bold.ttf'),
     'Sansation-Light': require('../../assets/font/Sansation/Sansation-Light.ttf'),
   });
 
-  if (!fontsLoaded) {
-    return null;
-  }
+  if (!fontsLoaded) return null;
 
   const handleNumberPress = (num: string) => {
     if (num === '.' && amount.includes('.')) return;
+    if (amount.includes('.') && num !== '.' && amount.split('.')[1].length >= 2) return;
     const digits = amount.replace('.', '');
     if (num !== '.' && digits.length >= 8) return;
     setAmount(prev => prev + num);
@@ -140,22 +133,8 @@ export default function MooveScreen({ onBack, direction = 'toCash' }: MooveScree
   };
 
   const handleMove = async () => {
-    if (!amount || amount.trim() === '' || isNaN(parseFloat(amount)) || parseFloat(amount) <= 0) {
-      Alert.alert('Error', 'Please enter a valid amount');
-      return;
-    }
-
-    if (!selectedToken) {
-      Alert.alert('Error', 'No token selected');
-      return;
-    }
-
     const amountNum = parseFloat(amount);
-
-    if (amountNum > selectedToken.balance) {
-      Alert.alert('Error', 'Insufficient balance');
-      return;
-    }
+    if (!amount || isNaN(amountNum) || amountNum <= 0) return;
 
     if (!fromWallet || !toWallet) {
       Alert.alert('Error', 'Wallets not found');
@@ -402,11 +381,9 @@ export default function MooveScreen({ onBack, direction = 'toCash' }: MooveScree
             )}
           </View>
 
-          {/* Static Arrow */}
-          <View style={styles.arrowButton}>
-            <View style={{ transform: [{ rotate: '180deg' }] }}>
-              <ArrowIcon width={24} height={24}/>
-            </View>
+          {/* Arrow */}
+          <View style={styles.arrowContainer}>
+            <ArrowIcon width={22} height={22} />
           </View>
 
           {/* Destination Card */}
@@ -425,71 +402,43 @@ export default function MooveScreen({ onBack, direction = 'toCash' }: MooveScree
           </View>
         </View>
 
-
-
+        {/* Amount Display */}
+        <View style={styles.amountContainer}>
+          <Text style={styles.amountText}>{amount || '0'}</Text>
+          <Text style={styles.amountSymbol}>{selectedToken?.tokenSymbol || 'SOL'}</Text>
+        </View>
 
         {/* Move Button */}
         <TouchableOpacity
-          style={[styles.moveButton, loading && styles.moveButtonDisabled]}
+          style={[styles.moveButton, (!amount || loading) && styles.moveButtonDisabled]}
           onPress={handleMove}
+          disabled={!amount || loading}
           activeOpacity={0.8}
-          disabled={loading}
         >
-          <Text style={styles.moveButtonText}>{loading ? 'Moving...' : 'Move'}</Text>
+          {loading ? (
+            <ActivityIndicator color="#000" />
+          ) : (
+            <Text style={styles.moveButtonText}>Move</Text>
+          )}
         </TouchableOpacity>
 
         {/* Custom Keyboard */}
         <View style={styles.keyboard}>
-          <View style={styles.keyboardRow}>
-            <TouchableOpacity style={styles.key} onPress={() => handleNumberPress('1')}>
-              <Text style={styles.keyText}>1</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.key} onPress={() => handleNumberPress('2')}>
-              <Text style={styles.keyText}>2</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.key} onPress={() => handleNumberPress('3')}>
-              <Text style={styles.keyText}>3</Text>
-            </TouchableOpacity>
-          </View>
-
-          <View style={styles.keyboardRow}>
-            <TouchableOpacity style={styles.key} onPress={() => handleNumberPress('4')}>
-              <Text style={styles.keyText}>4</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.key} onPress={() => handleNumberPress('5')}>
-              <Text style={styles.keyText}>5</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.key} onPress={() => handleNumberPress('6')}>
-              <Text style={styles.keyText}>6</Text>
-            </TouchableOpacity>
-          </View>
-
-          <View style={styles.keyboardRow}>
-            <TouchableOpacity style={styles.key} onPress={() => handleNumberPress('7')}>
-              <Text style={styles.keyText}>7</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.key} onPress={() => handleNumberPress('8')}>
-              <Text style={styles.keyText}>8</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.key} onPress={() => handleNumberPress('9')}>
-              <Text style={styles.keyText}>9</Text>
-            </TouchableOpacity>
-          </View>
-
-          <View style={styles.keyboardRow}>
-            <TouchableOpacity style={styles.key} onPress={() => handleNumberPress('.')}>
-              <Text style={styles.keyText}>.</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.key} onPress={() => handleNumberPress('0')}>
-              <Text style={styles.keyText}>0</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.key} onPress={handleDelete}>
-              <Text style={styles.keyText}>⌫</Text>
-            </TouchableOpacity>
-          </View>
+          {[['1','2','3'],['4','5','6'],['7','8','9'],['.','0','⌫']].map((row, i) => (
+            <View key={i} style={styles.keyboardRow}>
+              {row.map(key => (
+                <TouchableOpacity
+                  key={key}
+                  style={styles.key}
+                  onPress={() => key === '⌫' ? handleDelete() : handleNumberPress(key)}
+                >
+                  <Text style={styles.keyText}>{key}</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          ))}
         </View>
       </LinearGradient>
-
 
       {/* Loading Overlay */}
       <Modal visible={loading} transparent animationType="fade">
@@ -535,6 +484,7 @@ export default function MooveScreen({ onBack, direction = 'toCash' }: MooveScree
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    backgroundColor: '#000',
   },
   background: {
     flex: 1,
@@ -555,11 +505,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  backArrow: {
-    fontSize: 18,
-    color: 'white',
-    fontWeight: 'bold',
-  },
   headerTitle: {
     fontSize: 20,
     fontWeight: '600',
@@ -569,62 +514,16 @@ const styles = StyleSheet.create({
   placeholder: {
     width: 40,
   },
-  tokenSelector: {
-    maxHeight: 44,
-    marginTop: 12,
-  },
-  tokenSelectorContainer: {
-    gap: 8,
-  },
-  tokenChip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-    borderRadius: 20,
-    backgroundColor: 'rgba(45, 45, 45, 0.6)',
-    borderWidth: 1,
-    borderColor: 'transparent',
-  },
-  tokenChipSelected: {
-    backgroundColor: 'rgba(255, 255, 255, 0.12)',
-    borderColor: 'rgba(255, 255, 255, 0.3)',
-  },
-  tokenChipSymbol: {
-    fontSize: 14,
-    color: 'rgba(255, 255, 255, 0.5)',
-    fontFamily: 'Sansation-Bold',
-    fontWeight: '600',
-  },
-  tokenChipSymbolSelected: {
-    color: '#ffffff',
-  },
-  tokenChipBalance: {
-    fontSize: 13,
-    color: 'rgba(255, 255, 255, 0.3)',
-    fontFamily: 'Sansation-Regular',
-  },
-  tokenChipBalanceSelected: {
-    color: 'rgba(255, 255, 255, 0.6)',
-  },
   balancesContainer: {
-    paddingHorizontal: 40,
-    marginTop: 8,
-    marginBottom: 20,
+    paddingHorizontal: 24,
+    marginBottom: 16,
   },
   balanceCard: {
-    backgroundColor: 'rgba(45, 45, 45, 0.6)',
-    borderRadius: 16,
-    padding: 18,
-    marginBottom: 12,
-    minHeight: 100,
-  },
-  sourceCard: {
-    backgroundColor: 'rgba(45, 45, 45, 0.6)',
-  },
-  cardSpacer: {
-    height: 12,
+    backgroundColor: 'rgba(255, 255, 255, 0.06)',
+    borderRadius: 20,
+    paddingVertical: 20,
+    paddingHorizontal: 20,
+    marginBottom: 2,
   },
   cardRow: {
     flexDirection: 'row',
@@ -634,118 +533,125 @@ const styles = StyleSheet.create({
   cardLeft: {
     flex: 1,
   },
-  cardAmountRight: {
-    fontSize: 38,
-    color: 'rgba(255, 255, 255, 0.15)',
-    fontFamily: 'Sansation-Bold',
-    fontWeight: '600',
-  },
-  cardAmountActive: {
-    color: '#ffffff',
-  },
-  cardHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 8,
-  },
   cardLabel: {
-    fontSize: 22,
+    fontSize: 18,
     color: '#ffffff',
     fontFamily: 'Sansation-Bold',
     fontWeight: '600',
     marginBottom: 4,
-  },
-  minusSign: {
-    fontSize: 28,
-    color: 'white',
-    fontFamily: 'Sansation-Light',
-  },
-  balanceAmount: {
-    fontSize: 36,
-    color: 'white',
-    fontWeight: '300',
-    fontFamily: 'Sansation-Light',
-    marginBottom: 4,
-    height: 45,
   },
   balanceSubtext: {
-    fontSize: 16,
-    color: 'rgba(255, 255, 255, 0.5)',
+    fontSize: 13,
+    color: 'rgba(255,255,255,0.35)',
     fontFamily: 'Sansation-Regular',
   },
   tokenDropdown: {
     flexDirection: 'row',
     alignItems: 'center',
-    alignSelf: 'flex-start',
-    gap: 6,
-    marginTop: 6,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 20,
-    backgroundColor: 'rgba(255, 255, 255, 0.08)',
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.15)',
+    gap: 4,
   },
   tokenDropdownText: {
-    fontSize: 14,
-    color: 'rgba(255, 255, 255, 0.7)',
-    fontFamily: 'Sansation-Bold',
+    fontSize: 13,
+    color: 'rgba(255,255,255,0.55)',
+    fontFamily: 'Sansation-Regular',
   },
   tokenDropdownChevron: {
     fontSize: 12,
-    color: 'rgba(255, 255, 255, 0.5)',
+    color: 'rgba(255,255,255,0.4)',
   },
   tokenDropdownChevronOpen: {
     transform: [{ rotate: '180deg' }],
   },
-  arrowButton: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
+  tokenSelector: {
+    marginTop: 12,
+  },
+  tokenSelectorContainer: {
+    gap: 8,
+    paddingRight: 8,
+  },
+  tokenChip: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 12,
+    backgroundColor: 'rgba(255,255,255,0.05)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.1)',
+    alignItems: 'center',
+  },
+  tokenChipSelected: {
+    backgroundColor: 'rgba(255,255,255,0.12)',
+    borderColor: 'rgba(255,255,255,0.3)',
+  },
+  tokenChipSymbol: {
+    fontSize: 13,
+    color: 'rgba(255,255,255,0.5)',
+    fontFamily: 'Sansation-Bold',
+  },
+  tokenChipSymbolSelected: {
+    color: '#fff',
+  },
+  tokenChipBalance: {
+    fontSize: 11,
+    color: 'rgba(255,255,255,0.3)',
+    fontFamily: 'Sansation-Regular',
+  },
+  tokenChipBalanceSelected: {
+    color: 'rgba(255,255,255,0.6)',
+  },
+  cardAmountRight: {
+    fontSize: 28,
+    color: 'rgba(255, 255, 255, 0.15)',
+    fontFamily: 'Sansation-Light',
+    fontWeight: '300',
+  },
+  cardAmountActive: {
+    color: '#ffffff',
+  },
+  arrowContainer: {
+    alignSelf: 'center',
+    width: 36,
+    height: 36,
+    borderRadius: 18,
     backgroundColor: '#ffffff',
     alignItems: 'center',
     justifyContent: 'center',
-    alignSelf: 'center',
-    marginVertical: -24,
+    marginVertical: -18,
     zIndex: 10,
   },
-  noteContainer: {
-    marginHorizontal: 24,
-    marginBottom: 16,
-    paddingHorizontal: 20,
-    paddingVertical: 16,
-    backgroundColor: 'rgba(45, 45, 45, 0.4)',
-    borderRadius: 12,
+  amountContainer: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+    alignItems: 'baseline',
+    justifyContent: 'center',
+    paddingHorizontal: 24,
+    marginBottom: 20,
+    gap: 8,
   },
-  notePlaceholder: {
-    fontSize: 15,
-    color: 'rgba(255, 255, 255, 0.4)',
-    fontFamily: 'Sansation-Regular',
+  amountText: {
+    fontSize: 60,
+    fontWeight: '300',
+    color: 'white',
+    fontFamily: 'Sansation-Light',
   },
-  noteCounter: {
-    fontSize: 13,
-    color: 'rgba(255, 255, 255, 0.3)',
-    fontFamily: 'Sansation-Regular',
+  amountSymbol: {
+    fontSize: 24,
+    color: 'rgba(255,255,255,0.4)',
+    fontFamily: 'Sansation-Light',
   },
   moveButton: {
-    backgroundColor: '#ffffff',
-    marginHorizontal: 24,
+    backgroundColor: 'rgba(240, 235, 220, 0.95)',
+    marginHorizontal: 40,
     paddingVertical: 18,
     borderRadius: 30,
     alignItems: 'center',
     marginBottom: 20,
   },
   moveButtonDisabled: {
-    opacity: 0.5,
+    opacity: 0.4,
   },
   moveButtonText: {
     fontSize: 17,
     fontWeight: '600',
-    color: '#000000',
+    color: '#000',
     fontFamily: 'Sansation-Bold',
   },
   keyboard: {
@@ -827,49 +733,6 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontFamily: 'Sansation-Bold',
     fontWeight: '700',
-  },
-  claimOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.75)',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: 32,
-  },
-  claimCard: {
-    backgroundColor: '#1a1a1a',
-    borderRadius: 20,
-    padding: 28,
-    alignItems: 'center',
-    width: '100%',
-    borderWidth: 1,
-    borderColor: 'rgba(139,92,246,0.3)',
-  },
-  claimTitle: {
-    fontSize: 20,
-    color: '#ffffff',
-    fontFamily: 'Sansation-Bold',
-    marginBottom: 10,
-  },
-  claimSubtext: {
-    fontSize: 14,
-    color: 'rgba(255,255,255,0.55)',
-    fontFamily: 'Sansation-Regular',
-    textAlign: 'center',
-    marginBottom: 24,
-    lineHeight: 20,
-  },
-  claimButton: {
-    backgroundColor: '#8B5CF6',
-    borderRadius: 16,
-    paddingVertical: 14,
-    paddingHorizontal: 40,
-    alignItems: 'center',
-    width: '100%',
-  },
-  claimButtonText: {
-    color: '#ffffff',
-    fontSize: 16,
-    fontFamily: 'Sansation-Bold',
   },
   loadingCard: {
     alignItems: 'center',
