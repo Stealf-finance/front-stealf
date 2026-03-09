@@ -1,36 +1,35 @@
-import { Animated } from 'react-native';
+import { Animated, Dimensions, Easing } from 'react-native';
 
+const SCREEN_HEIGHT = Dimensions.get('window').height;
 
-export const animateScreenTransition = (
-  fadeAnim: Animated.Value,
+/**
+ * Slide screen in from bottom (open)
+ */
+export const animateScreenIn = (
   slideAnim: Animated.Value,
-  onComplete: () => void
+  callback?: () => void
 ) => {
-  Animated.parallel([
-    Animated.timing(fadeAnim, {
-      toValue: 0,
-      duration: 200,
-      useNativeDriver: true,
-    }),
-    Animated.timing(slideAnim, {
-      toValue: 50,
-      duration: 200,
-      useNativeDriver: true,
-    }),
-  ]).start(() => {
-    onComplete();
-    slideAnim.setValue(-50);
-    Animated.parallel([
-      Animated.timing(fadeAnim, {
-        toValue: 1,
-        duration: 200,
-        useNativeDriver: true,
-      }),
-      Animated.timing(slideAnim, {
-        toValue: 0,
-        duration: 200,
-        useNativeDriver: true,
-      }),
-    ]).start();
-  });
+  slideAnim.setValue(SCREEN_HEIGHT);
+  Animated.spring(slideAnim, {
+    toValue: 0,
+    damping: 22,
+    stiffness: 200,
+    mass: 0.8,
+    useNativeDriver: true,
+  }).start(callback);
+};
+
+/**
+ * Slide screen out to bottom (close)
+ */
+export const animateScreenOut = (
+  slideAnim: Animated.Value,
+  callback?: () => void
+) => {
+  Animated.timing(slideAnim, {
+    toValue: SCREEN_HEIGHT,
+    duration: 250,
+    easing: Easing.in(Easing.cubic),
+    useNativeDriver: true,
+  }).start(callback);
 };

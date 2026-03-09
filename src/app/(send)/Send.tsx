@@ -7,6 +7,7 @@ import {
   Alert,
 } from 'react-native';
 import { useFonts } from 'expo-font';
+import ComebackIcon from '../../assets/buttons/comeback.svg';
 import { LinearGradient } from 'expo-linear-gradient';
 import type { SendScreenProps } from '../../types';
 import SendConfirmation from './SendConfirmation';
@@ -98,7 +99,7 @@ export default function SendScreen({ onBack }: SendScreenProps) {
         {/* Header */}
         <View style={styles.header}>
           <TouchableOpacity style={styles.backButton} onPress={onBack} activeOpacity={0.8}>
-            <Text style={styles.backArrow}>←</Text>
+            <ComebackIcon width={18} height={18} />
           </TouchableOpacity>
           <Text style={styles.headerTitle}>Transfer</Text>
           <View style={styles.placeholder} />

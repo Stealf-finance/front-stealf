@@ -8,6 +8,7 @@ import {
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useFonts } from 'expo-font';
+import ComebackIcon from '../../assets/buttons/comeback.svg';
 import QRCode from 'react-native-qrcode-svg';
 import * as Clipboard from 'expo-clipboard';
 import type { AddFundsScreenProps } from '../../types';
@@ -62,7 +63,7 @@ export default function AddFundsScreen({ onBack }: AddFundsScreenProps) {
         {/* Header */}
         <View style={styles.header}>
           <TouchableOpacity style={styles.backButton} onPress={onBack} activeOpacity={0.8}>
-            <Text style={styles.backArrow}>←</Text>
+            <ComebackIcon width={18} height={18} />
           </TouchableOpacity>
           <Text style={styles.headerTitle}>Add Funds</Text>
           <View style={styles.placeholder} />

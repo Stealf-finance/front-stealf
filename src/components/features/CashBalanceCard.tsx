@@ -186,7 +186,7 @@ export default function CashBalanceCard({
           <View style={styles.iconContainer}>
             <DepositIcon />
           </View>
-          <Text style={styles.actionText}>Deposit</Text>
+          <Text style={styles.actionText}>Receive</Text>
         </TouchableOpacity>
 
         <TouchableOpacity style={styles.actionButton} onPress={onMoove} activeOpacity={0.7}>
@@ -326,8 +326,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 32,
-    paddingHorizontal: 10,
+    marginBottom: 20,
   },
   actionButton: {
     alignItems: 'center',

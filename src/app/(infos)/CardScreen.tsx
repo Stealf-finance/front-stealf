@@ -1,6 +1,7 @@
 import React, { useRef } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ImageBackground, Animated, Easing, Image } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
+import ComebackIcon from '../../assets/buttons/comeback.svg';
 
 interface CardScreenProps {
   onClose: () => void;
@@ -49,7 +50,7 @@ export default function CardScreen({ onClose, cardType }: CardScreenProps) {
         style={styles.backButton}
         onPress={handleClose}
       >
-        <Text style={styles.backButtonText}>←</Text>
+        <ComebackIcon width={18} height={18} />
       </TouchableOpacity>
 
       {/* Titre de la carte */}

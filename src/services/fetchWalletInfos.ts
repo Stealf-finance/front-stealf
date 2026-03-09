@@ -11,7 +11,5 @@ export const createGetSolPriceUSD = (api: ReturnType<typeof import('./clientStea
   return () => api.get(`/api/users/sol-price`);
 };
 
-export const createGetPrivacyBalance = (api: ReturnType<typeof import('./clientStealf').useAuthenticatedApi>, cash_wallet: string) => {
-  return () => api.get(`/api/wallet/privacybalance/${cash_wallet}`);
-};
+
 

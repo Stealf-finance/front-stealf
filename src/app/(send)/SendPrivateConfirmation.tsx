@@ -5,16 +5,15 @@ import {
   StyleSheet,
   TouchableOpacity,
   Alert,
-  ActivityIndicator,
-  Modal,
   Animated,
   TextInput,
   KeyboardAvoidingView,
   Platform,
   ScrollView,
+  Modal,
+  ActivityIndicator,
   Linking,
 } from 'react-native';
-import * as Clipboard from 'expo-clipboard';
 import { StatusBar } from 'expo-status-bar';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useFonts } from 'expo-font';
@@ -28,6 +27,8 @@ import { useTurnkey } from '@turnkey/react-native-wallet-kit';
 import { usePrivacyBalance } from '../../hooks/usePrivacyBalance';
 import { useStealthTransfer } from '../../hooks/useStealthTransfer';
 import { useStealthAddress } from '../../hooks/useStealthAddress';
+import ComebackIcon from '../../assets/buttons/comeback.svg';
+import * as Clipboard from 'expo-clipboard';
 
 interface SendConfirmationProps {
   amount: string;
@@ -78,8 +79,16 @@ export default function SendConfirmation({ amount, onBack, onClose, onSuccess, t
     }
   };
 
+  const fadeAnim = useRef(new Animated.Value(0)).current;
+  const checkScale = useRef(new Animated.Value(0)).current;
+  const contentFade = useRef(new Animated.Value(0)).current;
   const successAnimation = useRef(new Animated.Value(0)).current;
   const checkmarkScale = useRef(new Animated.Value(0)).current;
+
+  const closeSuccessModal = () => {
+    setShowSuccessModal(false);
+    onSuccess();
+  };
 
   const handleConfirm = async () => {
     // Stealth mode : utiliser useStealthTransfer
@@ -150,19 +159,9 @@ export default function SendConfirmation({ amount, onBack, onClose, onSuccess, t
 
       setTransactionSignature(signature);
       setShowSuccessModal(true);
-
       Animated.sequence([
-        Animated.timing(successAnimation, {
-          toValue: 1,
-          duration: 300,
-          useNativeDriver: true,
-        }),
-        Animated.spring(checkmarkScale, {
-          toValue: 1,
-          friction: 4,
-          tension: 40,
-          useNativeDriver: true,
-        }),
+        Animated.timing(successAnimation, { toValue: 1, duration: 300, useNativeDriver: true }),
+        Animated.spring(checkmarkScale, { toValue: 1, friction: 4, tension: 40, useNativeDriver: true }),
       ]).start();
 
     } catch (err: any) {
@@ -174,11 +173,7 @@ export default function SendConfirmation({ amount, onBack, onClose, onSuccess, t
     }
   };
 
-  const closeSuccessModal = () => {
-    setShowSuccessModal(false);
-    successAnimation.setValue(0);
-    checkmarkScale.setValue(0);
-    setTransactionSignature(null);
+  const handleNewTransfer = () => {
     onSuccess();
   };
 
@@ -208,7 +203,7 @@ export default function SendConfirmation({ amount, onBack, onClose, onSuccess, t
         {/* Header */}
         <View style={styles.header}>
           <TouchableOpacity style={styles.backButton} onPress={onBack} activeOpacity={0.8}>
-            <Text style={styles.backArrow}>←</Text>
+            <ComebackIcon width={18} height={18} />
           </TouchableOpacity>
           <Text style={styles.headerTitle}>Confirm</Text>
           <TouchableOpacity style={styles.closeButton} onPress={onClose || onBack} activeOpacity={0.8}>
@@ -408,6 +403,7 @@ export default function SendConfirmation({ amount, onBack, onClose, onSuccess, t
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    backgroundColor: '#000',
   },
   background: {
     flex: 1,
@@ -428,19 +424,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  backArrow: {
-    fontSize: 18,
-    color: 'white',
-    fontWeight: 'bold',
-  },
   headerTitle: {
     fontSize: 20,
     fontWeight: '600',
     color: 'white',
     fontFamily: 'Sansation-Bold',
-  },
-  placeholder: {
-    width: 40,
   },
   closeButton: {
     width: 40,
@@ -493,7 +481,7 @@ const styles = StyleSheet.create({
     fontFamily: 'Sansation-Regular',
   },
   buttonContainer: {
-    paddingHorizontal: 32,
+    paddingHorizontal: 0,
     paddingBottom: 40,
   },
   confirmButton: {
@@ -508,7 +496,78 @@ const styles = StyleSheet.create({
     color: '#000',
     fontFamily: 'Sansation-Bold',
   },
-  // Modal styles
+  // Success screen
+  successScreen: {
+    flex: 1,
+    backgroundColor: '#000',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 40,
+  },
+  checkCircle: {
+    width: 72,
+    height: 72,
+    borderRadius: 36,
+    borderWidth: 2,
+    borderColor: 'rgba(255, 255, 255, 0.15)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 40,
+  },
+  checkText: {
+    fontSize: 32,
+    color: 'white',
+    fontWeight: '300',
+  },
+  successInfo: {
+    alignItems: 'center',
+    marginBottom: 60,
+  },
+  successTitle: {
+    fontSize: 20,
+    color: 'white',
+    fontFamily: 'Sansation-Bold',
+    fontWeight: '700',
+    marginBottom: 10,
+  },
+  successAmount: {
+    fontSize: 36,
+    color: 'white',
+    fontFamily: 'Sansation-Light',
+    fontWeight: '300',
+    marginBottom: 12,
+  },
+  successAddress: {
+    fontSize: 14,
+    color: 'rgba(255, 255, 255, 0.3)',
+    fontFamily: 'Sansation-Regular',
+  },
+  successActions: {
+    width: '100%',
+    gap: 12,
+  },
+  primaryAction: {
+    backgroundColor: 'rgba(240, 235, 220, 0.95)',
+    paddingVertical: 16,
+    borderRadius: 30,
+    alignItems: 'center',
+  },
+  primaryActionText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#000',
+    fontFamily: 'Sansation-Bold',
+  },
+  secondaryAction: {
+    paddingVertical: 16,
+    borderRadius: 30,
+    alignItems: 'center',
+  },
+  secondaryActionText: {
+    fontSize: 16,
+    color: 'rgba(255, 255, 255, 0.4)',
+    fontFamily: 'Sansation-Regular',
+  },
   modalOverlay: {
     flex: 1,
     backgroundColor: 'rgba(0, 0, 0, 0.8)',
@@ -516,43 +575,37 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   modalContent: {
-    backgroundColor: 'rgba(0, 0, 0, 0.90)',
+    backgroundColor: 'rgba(15, 15, 15, 0.98)',
     borderRadius: 25,
-    padding: 30,
+    padding: 32,
     alignItems: 'center',
-    width: '80%',
+    width: 300,
     borderWidth: 1,
-    borderColor: 'rgba(100, 255, 100, 0.2)',
+    borderColor: 'rgba(255, 255, 255, 0.12)',
   },
   checkmarkCircle: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    backgroundColor: 'rgba(100, 255, 100, 0.2)',
-    borderWidth: 3,
-    borderColor: '#00ff88',
-    justifyContent: 'center',
+    width: 72,
+    height: 72,
+    borderRadius: 36,
+    backgroundColor: 'rgba(0, 200, 120, 0.15)',
+    borderWidth: 2,
+    borderColor: 'rgba(0, 200, 120, 0.5)',
     alignItems: 'center',
+    justifyContent: 'center',
     marginBottom: 20,
   },
   checkmark: {
-    color: '#00ff88',
-    fontSize: 40,
+    color: '#00c878',
+    fontSize: 32,
     fontWeight: 'bold',
-  },
-  successTitle: {
-    color: '#00ff88',
-    fontSize: 24,
-    fontWeight: 'bold',
-    marginBottom: 10,
-    fontFamily: 'Sansation-Bold',
   },
   successMessage: {
-    color: 'rgba(255, 255, 255, 0.8)',
+    color: 'rgba(255, 255, 255, 0.55)',
     fontSize: 14,
-    textAlign: 'center',
-    marginBottom: 20,
     fontFamily: 'Sansation-Regular',
+    textAlign: 'center',
+    lineHeight: 22,
+    marginBottom: 20,
   },
   pointsBadge: {
     paddingHorizontal: 14,
