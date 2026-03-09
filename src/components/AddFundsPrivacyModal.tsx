@@ -7,19 +7,19 @@ import {
   Modal,
 } from 'react-native';
 
-interface AddFundsPrivacyModalProps {
+interface AddFundsModalProps {
   visible: boolean;
   onClose: () => void;
-  onSelectPrivateCash: () => void;
-  onSelectSimpleDeposit: () => void;
+  onSelectStablecoin: () => void;
+  onSelectPrivateCash?: () => void;
 }
 
-export default function AddFundsPrivacyModal({
+export default function AddFundsModal({
   visible,
   onClose,
+  onSelectStablecoin,
   onSelectPrivateCash,
-  onSelectSimpleDeposit,
-}: AddFundsPrivacyModalProps) {
+}: AddFundsModalProps) {
   return (
     <Modal
       visible={visible}
@@ -36,7 +36,7 @@ export default function AddFundsPrivacyModal({
         <View style={styles.sheet}>
           {/* Header */}
           <View style={styles.header}>
-            <Text style={styles.title}>Deposit</Text>
+            <Text style={styles.title}>Receive funds</Text>
             <TouchableOpacity style={styles.closeBtn} onPress={onClose} activeOpacity={0.8}>
               <Text style={styles.closeBtnText}>✕</Text>
             </TouchableOpacity>
@@ -46,28 +46,26 @@ export default function AddFundsPrivacyModal({
           <View style={styles.optionsContainer}>
             <TouchableOpacity
               style={styles.optionButton}
-              onPress={onSelectPrivateCash}
+              onPress={onSelectStablecoin}
               activeOpacity={0.7}
             >
               <View style={styles.optionContent}>
                 <View style={styles.optionTextContainer}>
-                  <Text style={styles.optionTitle}>Deposit private cash</Text>
+                  <Text style={styles.optionTitle}>Receive crypto</Text>
+                    <Text style={styles.optionDescription}>
+                      Receive from a wallet address
+                    </Text>
                 </View>
                 <Text style={styles.arrow}>›</Text>
               </View>
             </TouchableOpacity>
 
             <TouchableOpacity
-              style={styles.optionButton}
-              onPress={onSelectSimpleDeposit}
-              activeOpacity={0.7}
+              style={[styles.optionButton, styles.disabledButton]}
+              disabled
+              activeOpacity={1}
             >
-              <View style={styles.optionContent}>
-                <View style={styles.optionTextContainer}>
-                  <Text style={styles.optionTitle}>Simple deposit</Text>
-                </View>
-                <Text style={styles.arrow}>›</Text>
-              </View>
+
             </TouchableOpacity>
           </View>
         </View>
@@ -125,6 +123,9 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: 'rgba(255, 255, 255, 0.08)',
   },
+  disabledButton: {
+    opacity: 0.5,
+  },
   optionContent: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -138,6 +139,11 @@ const styles = StyleSheet.create({
     fontWeight: '500',
     color: 'white',
     marginBottom: 2,
+    fontFamily: 'Sansation-Regular',
+  },
+  optionDescription: {
+    fontSize: 13,
+    color: 'rgba(255, 255, 255, 0.4)',
     fontFamily: 'Sansation-Regular',
   },
   arrow: {

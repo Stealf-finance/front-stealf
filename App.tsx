@@ -4,7 +4,6 @@ import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { useFonts } from 'expo-font';
 import { Asset } from 'expo-asset';
 import { AuthProvider } from './src/contexts/AuthContext';
-import { PointsProvider } from './src/contexts/PointsContext';
 import AppNavigator from './src/navigation/AppNavigator';
 import { TurnkeyProvider } from '@turnkey/react-native-wallet-kit';
 import { TURNKEY_CONFIG, TURNKEY_CALLBACKS } from './src/constants/turnkey';
@@ -41,9 +40,7 @@ export default function App() {
       <QueryClientProvider client={queryClient}>
         <TurnkeyProvider config={TURNKEY_CONFIG} callbacks={TURNKEY_CALLBACKS}>
           <AuthProvider>
-            <PointsProvider>
-              <AppNavigator />
-            </PointsProvider>
+            <AppNavigator />
           </AuthProvider>
         </TurnkeyProvider>
       </QueryClientProvider>

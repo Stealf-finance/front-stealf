@@ -5,7 +5,6 @@ import { useTurnkey } from "@turnkey/react-native-wallet-kit";
 import { useAuthenticatedApi } from "../../services/api/clientStealf";
 import { socketService } from "../../services/real-time/socketService";
 import { useAuth } from "../../contexts/AuthContext";
-import { usePointsContext } from "../../contexts/PointsContext";
 
 const RPC_ENDPOINT = process.env.EXPO_PUBLIC_SOLANA_RPC_URL || "";
 const yieldConnection = new Connection(RPC_ENDPOINT, "confirmed");
@@ -207,7 +206,6 @@ export function useYieldDepositAndConfirm() {
   const queryClient = useQueryClient();
   const { signAndSendTransaction, wallets } = useTurnkey();
   const { userData } = useAuth();
-  const { showToast } = usePointsContext();
 
   return useMutation({
     mutationFn: async ({
@@ -262,10 +260,7 @@ export function useYieldDepositAndConfirm() {
 
       return { signature: txSignature, confirmData };
     },
-    onSuccess: (data) => {
-      const pts = data.confirmData?.pointsEarned;
-      if (pts > 0) showToast(pts);
-      queryClient.invalidateQueries({ queryKey: ["points"] });
+    onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["yield-balance"] });
       queryClient.invalidateQueries({ queryKey: ["yield-dashboard"] });
     },
@@ -278,7 +273,6 @@ export function useYieldDepositAndConfirm() {
 export function useYieldWithdrawAndConfirm() {
   const api = useAuthenticatedApi();
   const queryClient = useQueryClient();
-  const { showToast } = usePointsContext();
 
   return useMutation({
     mutationFn: async ({
@@ -299,7 +293,7 @@ export function useYieldWithdrawAndConfirm() {
 
       // Private SOL withdraw: backend handled everything
       if (isPrivate && vaultType !== "usdc_kamino" && buildResult.success) {
-        return { signature: buildResult.txSignature || "private", pointsEarned: buildResult.pointsEarned };
+        return { signature: buildResult.txSignature || "private" };
       }
 
       const txBase64: string = buildResult.transaction;
@@ -314,7 +308,7 @@ export function useYieldWithdrawAndConfirm() {
       await yieldConnection.confirmTransaction(txSignature, "confirmed");
 
       // Step 3: Confirm with backend
-      const confirmData = await api.post("/api/yield/confirm", {
+      await api.post("/api/yield/confirm", {
         signature: txSignature,
         type: "withdraw",
         vaultType,
@@ -322,12 +316,9 @@ export function useYieldWithdrawAndConfirm() {
         private: isPrivate,
       });
 
-      return { signature: txSignature, pointsEarned: confirmData?.pointsEarned };
+      return { signature: txSignature };
     },
-    onSuccess: (data) => {
-      const pts = (data as any).pointsEarned;
-      if (pts > 0) showToast(pts);
-      queryClient.invalidateQueries({ queryKey: ["points"] });
+    onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["yield-balance"] });
       queryClient.invalidateQueries({ queryKey: ["yield-dashboard"] });
     },

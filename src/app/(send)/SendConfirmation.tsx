@@ -21,13 +21,15 @@ import SlideToConfirm from '../../components/SlideToConfirm';
 
 interface SendConfirmationProps {
   amount: string;
+  walletType?: 'cash' | 'stealf';
   onBack: () => void;
   onClose?: () => void;
   onSuccess: () => void;
 }
 
-export default function SendConfirmation({ amount, onBack, onClose, onSuccess }: SendConfirmationProps) {
+export default function SendConfirmation({ amount, walletType = 'cash', onBack, onClose, onSuccess }: SendConfirmationProps) {
   const { userData } = useAuth();
+  const senderWallet = walletType === 'stealf' ? userData?.stealf_wallet : userData?.cash_wallet;
   const { sendTransaction, loading } = useSendTransaction();
 
   const [externalAddress, setExternalAddress] = useState('');
@@ -43,7 +45,7 @@ export default function SendConfirmation({ amount, onBack, onClose, onSuccess }:
       return;
     }
 
-    if (!userData?.cash_wallet) {
+    if (!senderWallet) {
       Alert.alert('Error', 'No wallet found');
       return;
     }
@@ -52,7 +54,7 @@ export default function SendConfirmation({ amount, onBack, onClose, onSuccess }:
       // --- MAINNET: USDC transfer ---
       // const amountUSDC = parseFloat(amount);
       // const signature = await sendTransaction(
-      //   userData.cash_wallet,
+      //   senderWallet,
       //   externalAddress,
       //   amountUSDC,
       //   USDC_MINT,
@@ -62,7 +64,7 @@ export default function SendConfirmation({ amount, onBack, onClose, onSuccess }:
       // --- DEVNET: Native SOL transfer ---
       const amountSOL = parseFloat(amount);
       await sendTransaction(
-        userData.cash_wallet,
+        senderWallet,
         externalAddress,
         amountSOL,
       );

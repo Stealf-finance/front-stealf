@@ -26,7 +26,7 @@ import { useWalletInfos } from '../hooks/wallet/useWalletInfos';
 
 const SCREEN_HEIGHT = Dimensions.get('window').height;
 
-type OverlayScreen = 'send' | 'sendPrivate' | 'moove' | 'addFunds' | 'addFundsPrivacy' | 'depositPrivateCash' | 'info' | 'transactionHistory';
+type OverlayScreen = 'send' | 'sendPrivate' | 'moove' | 'addFunds' | 'addFundsPrivacy' | 'depositPrivateCash' | 'info' | 'transactionHistory' | 'savings';
 
 export default function AppNavigator() {
   const { isAuthenticated, userData, logout, loading } = useAuth();
@@ -37,6 +37,7 @@ export default function AppNavigator() {
   const [previousPage, setPreviousPage] = useState<PageType>('home');
   const [mooveDirection, setMooveDirection] = useState<'toPrivacy' | 'toCash'>('toCash');
   const [txHistoryWalletType, setTxHistoryWalletType] = useState<'cash' | 'privacy'>('cash');
+  const [sendWalletType, setSendWalletType] = useState<'cash' | 'stealf'>('cash');
   const [infoSource, setInfoSource] = useState<'home' | 'privacy'>('home');
 
   const overlaySlideAnim = useRef(new Animated.Value(SCREEN_HEIGHT)).current;
@@ -81,7 +82,7 @@ export default function AppNavigator() {
     setSplashFading(false);
   }, []);
 
-  const pageOrder: PageType[] = ['home', 'privacy', 'savings', 'profile'];
+  const pageOrder: PageType[] = ['home', 'privacy', 'profile'];
   const getPageIndex = (page: PageType) => pageOrder.indexOf(page);
   const getPageFromIndex = (index: number) => pageOrder[index];
 
@@ -165,7 +166,7 @@ export default function AppNavigator() {
 
   const renderOverlayScreen = () => {
     switch (overlayScreen) {
-      case 'send': return <SendScreen onBack={handleBackToMain} />;
+      case 'send': return <SendScreen onBack={handleBackToMain} walletType={sendWalletType} />;
       case 'sendPrivate': return <SendPrivateScreen onBack={handleBackToMain} transferType="private" />;
       case 'moove': return <MooveScreen onBack={handleBackToMain} direction={mooveDirection} />;
       case 'addFunds': return <AddFundsScreen onBack={handleBackToMain} />;
@@ -173,6 +174,7 @@ export default function AppNavigator() {
       case 'depositPrivateCash': return <DepositPrivateCashScreen onBack={handleBackToMain} />;
       case 'info': return <InfoScreen onBack={handleBackToMain} source={infoSource} />;
       case 'transactionHistory': return <TransactionHistoryScreen onClose={handleBackToMain} walletType={txHistoryWalletType} />;
+      case 'savings': return <SavingsScreen onBack={handleBackToMain} />;
       default: return null;
     }
   };
@@ -205,7 +207,7 @@ export default function AppNavigator() {
                 <HomeScreen
                   onNavigateToPage={handleNavigateToPage}
                   onOpenAddFunds={() => handleOpenScreen('addFunds')}
-                  onOpenSend={() => handleOpenScreen('send')}
+                  onOpenSend={() => { setSendWalletType('cash'); handleOpenScreen('send'); }}
                   onOpenMoove={() => { setMooveDirection('toPrivacy'); handleOpenScreen('moove'); }}
                   onOpenDepositPrivateCash={handleOpenDepositPrivateCashFromHome}
                   onOpenProfile={handleOpenProfile}
@@ -222,19 +224,16 @@ export default function AppNavigator() {
                 <PrivacyScreen
                   onNavigateToPage={handleNavigateToPage}
                   onOpenMoove={() => { setMooveDirection('toCash'); handleOpenScreen('moove'); }}
+                  onOpenSend={() => { setSendWalletType('stealf'); handleOpenScreen('send'); }}
                   onOpenAddFundsPrivacy={() => handleOpenScreen('addFundsPrivacy')}
                   onOpenDepositPrivateCash={handleOpenDepositPrivateCashFromPrivacy}
                   onOpenProfile={handleOpenProfile}
                   onOpenInfo={handleOpenInfoFromPrivacy}
+                  onOpenSavings={() => handleOpenScreen('savings')}
+                  onShowLoader={handleShowLoader}
                   userEmail={userData?.email}
                   currentPage={currentPage}
                 />
-              ),
-            },
-            {
-              key: 'savings',
-              render: () => (
-                <SavingsScreen />
               ),
             },
             {

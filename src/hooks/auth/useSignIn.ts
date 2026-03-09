@@ -46,13 +46,13 @@ export function useSignIn() {
       if (!data.data?.user) {
         throw new Error('Backend did not return user data');
       }
-
       setUserData({
         email: data.data.user.email,
         username: data.data.user.username || data.data.user.pseudo,
         cash_wallet: data.data.user.cash_wallet,
         stealf_wallet: data.data.user.stealf_wallet,
         subOrgId: data.data.user.subOrgId,
+        points: data.data.user.points ?? 0,
       });
 
       return { success: true };

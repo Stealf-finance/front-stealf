@@ -85,7 +85,7 @@ export default function AddFundsScreen({ onBack }: AddFundsScreenProps) {
           {/* Wallet Address Section */}
           <View style={styles.addressSection}>
             <Text style={styles.infoText}>
-              USDC only - Solana Network
+              Receive crypto - Solana Network
             </Text>
             <TouchableOpacity
               style={styles.addressButton}

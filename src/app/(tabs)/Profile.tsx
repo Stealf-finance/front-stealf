@@ -1,7 +1,8 @@
 import React from 'react';
-import { StyleSheet, View, Text, TouchableOpacity, ScrollView, Image, PanResponder, Linking } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
+import { StyleSheet, View, Text, TouchableOpacity, ScrollView, Image, Alert, Linking } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../../contexts/AuthContext';
+import { useAuthenticatedApi } from '../../services/api/clientStealf';
 
 interface ProfileScreenProps {
   onBack?: () => void;
@@ -13,113 +14,128 @@ interface ProfileScreenProps {
 }
 
 export default function ProfileScreen({ onBack, onNavigateToPage, onLogout, currentPage, userEmail, username }: ProfileScreenProps) {
-  const { setUserData } = useAuth();
+  const { userData, setUserData, logout } = useAuth();
+  const api = useAuthenticatedApi();
+
+  const initial = username ? username.charAt(0).toUpperCase() : 'U';
 
   const handleLogout = async () => {
     try {
       setUserData(null);
-      console.log('User logged out');
-      if (onLogout) {
-        onLogout();
-      }
+      if (onLogout) onLogout();
     } catch (error) {
       console.error('Error logging out:', error);
-      if (onLogout) {
-        onLogout();
-      }
+      if (onLogout) onLogout();
     }
+  };
+
+  const handleDeleteAccount = () => {
+    Alert.alert(
+      'Delete Account',
+      'Are you sure you want to delete your account? This action is irreversible.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        { text: 'Delete', style: 'destructive', onPress: async () => {
+          try {
+            await api.del('/api/users/account');
+            await logout();
+            if (onLogout) onLogout();
+          } catch (error: any) {
+            Alert.alert('Error', error?.message || 'Failed to delete account');
+          }
+        }},
+      ]
+    );
+  };
+
+  const handleOpenDocumentation = async () => {
+    const url = 'https://stealf-1.gitbook.io/stealf-docs/';
+    const canOpen = await Linking.canOpenURL(url);
+    if (canOpen) await Linking.openURL(url);
   };
 
   const handleOpenTelegramBot = async () => {
     const url = 'https://t.me/stealf_bot';
     const canOpen = await Linking.canOpenURL(url);
-    if (canOpen) {
-      await Linking.openURL(url);
-    } else {
-      console.error('Cannot open Telegram URL');
-    }
+    if (canOpen) await Linking.openURL(url);
   };
-
-  const panResponder = PanResponder.create({
-    onStartShouldSetPanResponder: () => true,
-    onMoveShouldSetPanResponder: (_, gestureState) => {
-      return Math.abs(gestureState.dx) > Math.abs(gestureState.dy) && Math.abs(gestureState.dx) > 20;
-    },
-    onPanResponderRelease: (_, gestureState) => {
-      if (gestureState.dx > 50) {
-        if (onNavigateToPage) {
-          onNavigateToPage('home');
-        }
-        if (onBack) {
-          onBack();
-        }
-      }
-    },
-  });
 
   return (
     <View style={styles.container}>
-      <LinearGradient colors={['#000000', '#000000', '#000000']} style={styles.background}>
+      <ScrollView
+        style={styles.scrollView}
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
+      >
+        {/* Header */}
+        <View style={styles.header}>
+          <View style={styles.avatarCircle}>
+            <Text style={styles.avatarText}>{initial}</Text>
+          </View>
+          {username && <Text style={styles.username}>@{username}</Text>}
+          <Text style={styles.userEmail}>{userEmail || 'No email provided'}</Text>
+        </View>
 
-        {/* Profile Header */}
-        <View style={styles.profileHeader}>
-          {/* User Info */}
-          <View style={styles.userInfo}>
-            <Text style={styles.userType}>Personal</Text>
-            {username && (
-              <Text style={styles.username}>@{username}</Text>
-            )}
-            <Text style={styles.userEmail}>{userEmail || 'No email provided'}</Text>
+        {/* Points */}
+        <View style={styles.pointsCard}>
+          <View style={styles.pointsLeft}>
+            <Text style={styles.pointsLabel}>Stealf Points</Text>
+            <Text style={styles.pointsValue}>✦ {userData?.points ?? 0}</Text>
           </View>
         </View>
 
-        {/* Profile Content */}
-        <View style={{ flex: 1 }} {...panResponder.panHandlers}>
-          <ScrollView style={styles.profileContent} showsVerticalScrollIndicator={false}>
+        {/* Menu */}
+        <View style={styles.menuSection}>
+          <Text style={styles.sectionLabel}>General</Text>
 
-          {/* Spacer pour pousser les boutons vers le bas */}
-          <View style={{ flex: 1 }} />
-
-          {/* Bottom Actions */}
-          <View style={styles.bottomActions}>
-            <TouchableOpacity style={styles.profileActionButton} activeOpacity={0.8} onPress={handleOpenTelegramBot}>
-              <View style={styles.profileActionIcon}>
-                <Text style={styles.profileActionIconText}>?</Text>
-              </View>
-              <View style={styles.profileActionInfo}>
-                <Text style={styles.profileActionTitle}>Help</Text>
-                <Text style={styles.profileActionSubtitle}>Customer service</Text>
-              </View>
-            </TouchableOpacity>
-
-            <TouchableOpacity style={styles.profileActionButton} activeOpacity={0.8} onPress={handleLogout}>
-              <View style={styles.profileActionIcon}>
-                <Text style={styles.profileActionIconText}>←</Text>
-              </View>
-              <View style={styles.profileActionInfo}>
-                <Text style={styles.profileActionTitle}>Logout</Text>
-              </View>
-            </TouchableOpacity>
-          </View>
-
-          {/* Spacer pour pousser le footer vers le bas */}
-          <View style={{ minHeight: 80 }} />
-
-          {/* Footer */}
-          <View style={styles.profileFooter}>
-            <Text style={styles.versionText}>Version 0.1</Text>
-            <View style={styles.brandContainer}>
-              <Image
-                source={require('../../assets/logo-transparent.png')}
-                style={styles.brandLogo}
-                resizeMode="contain"
-              />
-              <Text style={styles.brandText}>STEALF</Text>
+          <TouchableOpacity style={styles.menuItem} onPress={handleOpenDocumentation} activeOpacity={0.7}>
+            <View style={styles.menuIcon}>
+              <Ionicons name="document-text-outline" size={18} color="rgba(255,255,255,0.7)" />
             </View>
-          </View>
-        </ScrollView>
+            <Text style={styles.menuTitle}>Documentation</Text>
+            <Ionicons name="chevron-forward" size={16} color="rgba(255,255,255,0.25)" />
+          </TouchableOpacity>
+
+          <TouchableOpacity style={styles.menuItem} onPress={handleOpenTelegramBot} activeOpacity={0.7}>
+            <View style={styles.menuIcon}>
+              <Ionicons name="chatbubble-outline" size={18} color="rgba(255,255,255,0.7)" />
+            </View>
+            <Text style={styles.menuTitle}>Help</Text>
+            <Ionicons name="chevron-forward" size={16} color="rgba(255,255,255,0.25)" />
+          </TouchableOpacity>
         </View>
-      </LinearGradient>
+
+        <View style={styles.menuSection}>
+          <Text style={styles.sectionLabel}>Account</Text>
+
+          <TouchableOpacity style={styles.menuItem} onPress={handleLogout} activeOpacity={0.7}>
+            <View style={styles.menuIcon}>
+              <Ionicons name="log-out-outline" size={18} color="rgba(255,255,255,0.7)" />
+            </View>
+            <Text style={styles.menuTitle}>Logout</Text>
+            <Ionicons name="chevron-forward" size={16} color="rgba(255,255,255,0.25)" />
+          </TouchableOpacity>
+
+          <TouchableOpacity style={styles.menuItem} onPress={handleDeleteAccount} activeOpacity={0.7}>
+            <View style={styles.menuIcon}>
+              <Ionicons name="trash-outline" size={18} color="rgba(255,100,100,0.7)" />
+            </View>
+            <Text style={[styles.menuTitle, styles.menuTitleDanger]}>Delete my account</Text>
+            <Ionicons name="chevron-forward" size={16} color="rgba(255,255,255,0.25)" />
+          </TouchableOpacity>
+        </View>
+
+        {/* Footer */}
+        <View style={styles.footer}>
+          <Image
+            source={require('../../assets/logo-transparent.png')}
+            style={styles.brandLogo}
+            resizeMode="contain"
+          />
+          <Text style={styles.brandText}>STEALF</Text>
+          <Text style={styles.versionText}>Version 0.1</Text>
+        </View>
+      </ScrollView>
     </View>
   );
 }
@@ -127,104 +143,133 @@ export default function ProfileScreen({ onBack, onNavigateToPage, onLogout, curr
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    backgroundColor: '#000000',
   },
-  background: {
+  scrollView: {
     flex: 1,
   },
-  profileHeader: {
+  scrollContent: {
     paddingHorizontal: 24,
     paddingTop: 120,
-    paddingBottom: 10,
-  },
-  userInfo: {
-    alignItems: 'flex-start',
-  },
-  userType: {
-    color: 'rgba(255, 255, 255, 0.7)',
-    fontSize: 16,
-    fontFamily: 'Sansation-Regular',
-    marginBottom: 8,
-  },
-  userEmail: {
-    color: 'rgba(255, 255, 255, 0.7)',
-    fontSize: 16,
-    fontFamily: 'Sansation-Regular',
-    marginBottom: 4,
-  },
-  username: {
-    color: 'white',
-    fontSize: 24,
-    fontWeight: 'bold',
-    fontFamily: 'Sansation-Bold',
-    marginBottom: 8,
-  },
-  profileContent: {
-    flex: 1,
-    paddingHorizontal: 24,
-  },
-  bottomActions: {
-    gap: 20,
-    marginBottom: 40,
-  },
-  profileActionButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 16,
-  },
-  profileActionIcon: {
-    width: 50,
-    height: 50,
-    borderRadius: 25,
-    backgroundColor: 'rgba(255, 255, 255, 0.1)',
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.2)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: 16,
-  },
-  profileActionIconText: {
-    color: 'white',
-    fontSize: 20,
-    fontWeight: 'bold',
-  },
-  profileActionInfo: {
-    flex: 1,
-  },
-  profileActionTitle: {
-    color: 'white',
-    fontSize: 18,
-    fontWeight: '600',
-    fontFamily: 'Sansation-Bold',
-    marginBottom: 4,
-  },
-  profileActionSubtitle: {
-    color: 'rgba(255, 255, 255, 0.7)',
-    fontSize: 14,
-    fontFamily: 'Sansation-Regular',
-  },
-  profileFooter: {
-    alignItems: 'center',
-    paddingTop: 40,
     paddingBottom: 40,
   },
-  versionText: {
-    color: 'white',
-    fontSize: 16,
-    fontFamily: 'Sansation-Regular',
-    marginBottom: 20,
-  },
-  brandContainer: {
+
+  // Header
+  header: {
     alignItems: 'center',
+    marginBottom: 28,
   },
-  brandLogo: {
-    width: 40,
-    height: 40,
+  avatarCircle: {
+    width: 72,
+    height: 72,
+    borderRadius: 36,
+    backgroundColor: 'rgba(255,255,255,0.1)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.15)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 14,
+  },
+  avatarText: {
+    fontSize: 28,
+    fontFamily: 'Sansation-Bold',
+    color: '#ffffff',
+  },
+  username: {
+    fontSize: 22,
+    fontFamily: 'Sansation-Bold',
+    color: '#ffffff',
+    marginBottom: 4,
+  },
+  userEmail: {
+    fontSize: 14,
+    fontFamily: 'Sansation-Regular',
+    color: 'rgba(255,255,255,0.4)',
+  },
+
+  // Points
+  pointsCard: {
+    backgroundColor: 'rgba(255,255,255,0.04)',
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.08)',
+    padding: 16,
+    marginBottom: 28,
+  },
+  pointsLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  pointsLabel: {
+    fontSize: 14,
+    fontFamily: 'Sansation-Regular',
+    color: 'rgba(255,255,255,0.5)',
+  },
+  pointsValue: {
+    fontSize: 18,
+    fontFamily: 'Sansation-Bold',
+    color: '#ffffff',
+  },
+
+  // Menu
+  menuSection: {
+    marginBottom: 24,
+  },
+  sectionLabel: {
+    fontSize: 12,
+    fontFamily: 'Sansation-Regular',
+    color: 'rgba(255,255,255,0.3)',
+    textTransform: 'uppercase',
+    letterSpacing: 1,
     marginBottom: 8,
   },
+  menuItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 14,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(255,255,255,0.04)',
+  },
+  menuIcon: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: 'rgba(255,255,255,0.06)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 12,
+  },
+  menuTitle: {
+    flex: 1,
+    fontSize: 15,
+    fontFamily: 'Sansation-Regular',
+    color: '#ffffff',
+  },
+  menuTitleDanger: {
+    color: 'rgba(255,100,100,0.8)',
+  },
+
+  // Footer
+  footer: {
+    alignItems: 'center',
+    paddingTop: 40,
+    paddingBottom: 20,
+  },
+  brandLogo: {
+    width: 32,
+    height: 32,
+    marginBottom: 6,
+  },
   brandText: {
-    color: 'white',
-    fontSize: 18,
-    fontWeight: 'bold',
+    fontSize: 14,
     fontFamily: 'Sansation-Bold',
+    color: 'rgba(255,255,255,0.3)',
+    marginBottom: 4,
+  },
+  versionText: {
+    fontSize: 12,
+    fontFamily: 'Sansation-Regular',
+    color: 'rgba(255,255,255,0.15)',
   },
 });

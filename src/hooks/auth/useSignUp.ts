@@ -46,7 +46,7 @@ export function useAuthFlow() {
   const [pendingUser, setPendingUser] = useState<any>(null);
 
   /**
-   * Step 1: Create passkey and cash wallet via Turnkey
+   *Create passkey and cash wallet via Turnkey
    */
   const createPasskey = useCallback(async (email: string, pseudo: string, preAuthToken?: string): Promise<PasskeyResult> => {
     try {
@@ -205,6 +205,7 @@ export function useAuthFlow() {
       cash_wallet: user.cash_wallet,
       stealf_wallet: user.stealf_wallet,
       subOrgId: user.subOrgId,
+      points: user.points ?? 0,
     });
 
   };

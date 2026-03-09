@@ -16,12 +16,13 @@ import { useAuth } from '../../contexts/AuthContext';
 import { useWalletInfos } from '../../hooks/wallet/useWalletInfos';
 import { validateAmount } from '../../services/solana/transactionsGuard';
 
-export default function SendScreen({ onBack }: SendScreenProps) {
+export default function SendScreen({ onBack, walletType = 'cash' }: SendScreenProps) {
   const [amount, setAmount] = useState('');
   const [showConfirmation, setShowConfirmation] = useState(false);
 
   const { userData } = useAuth();
-  const { balance } = useWalletInfos(userData?.cash_wallet || '');
+  const walletAddress = walletType === 'stealf' ? userData?.stealf_wallet : userData?.cash_wallet;
+  const { balance } = useWalletInfos(walletAddress || '');
 
   const totalUSD = balance || 0;
 
@@ -70,6 +71,7 @@ export default function SendScreen({ onBack }: SendScreenProps) {
     return (
       <SendConfirmation
         amount={amount}
+        walletType={walletType}
         onBack={() => setShowConfirmation(false)}
         onClose={onBack}
         onSuccess={handleSuccess}

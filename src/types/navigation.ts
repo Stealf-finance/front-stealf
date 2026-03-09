@@ -5,6 +5,7 @@ export interface AddFundsScreenProps {
 export interface SendScreenProps {
   onBack?: () => void;
   transferType?: 'basic' | 'private';
+  walletType?: 'cash' | 'stealf';
 }
 
 export interface ProfileScreenProps {
