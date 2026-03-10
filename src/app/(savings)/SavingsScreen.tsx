@@ -24,7 +24,7 @@ interface SavingsScreenProps {
 export default function SavingsScreen({ onBack }: SavingsScreenProps) {
   const { data: dashboard, isLoading } = useYieldDashboard();
   const { userData } = useAuth();
-  const { tokens: walletTokens } = useWalletInfos(userData?.cash_wallet || "");
+  const { tokens: walletTokens } = useWalletInfos(userData?.stealf_wallet || "");
   const [modalVisible, setModalVisible] = useState(false);
   const [modalMode, setModalMode] = useState<"deposit" | "withdraw">("deposit");
 
@@ -49,12 +49,12 @@ export default function SavingsScreen({ onBack }: SavingsScreenProps) {
         showsVerticalScrollIndicator={false}
       >
         {/* Header */}
+        <TouchableOpacity style={styles.backButton} onPress={onBack} activeOpacity={0.8}>
+          <ComebackIcon width={18} height={18} />
+        </TouchableOpacity>
         <View style={styles.header}>
-          <TouchableOpacity style={styles.backButton} onPress={onBack} activeOpacity={0.8}>
-            <ComebackIcon width={18} height={18} />
-          </TouchableOpacity>
-          <Text style={styles.headerTitle}>Grow</Text>
-          <Text style={styles.headerSubtitle}>Earn yield on your SOL</Text>
+          <Text style={styles.headerTitle}>Jito SOL</Text>
+          <Text style={styles.headerSubtitle}>Earn yield, stay private</Text>
         </View>
 
         {isLoading ? (
@@ -212,12 +212,13 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   scrollContent: {
-    paddingHorizontal: 20,
-    paddingTop: 60,
+    paddingHorizontal: 24,
+    paddingTop: 80,
     paddingBottom: 40,
   },
   header: {
     marginBottom: 32,
+    alignItems: "center",
   },
   backButton: {
     width: 40,
@@ -226,7 +227,8 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(60, 60, 60, 0.9)',
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 20,
+    alignSelf: 'flex-start',
+    marginBottom: 16,
   },
   headerTitle: {
     fontSize: 32,

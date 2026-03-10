@@ -1,9 +1,10 @@
 import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator, Alert } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useAuth } from '../../contexts/AuthContext';
 import { useWalletInfos } from '../../hooks/wallet/useWalletInfos';
+import { useYieldBalance } from '../../hooks/yield/useYield';
 
 
 import DepositIcon from '../../assets/buttons/deposit.svg';
@@ -46,9 +47,16 @@ export default function BalanceCardPrivacy({
   const privateBalance = 0;
   const privateTokens: typeof publicTokens = [];
 
+  // Yield balance
+  const { data: yieldBalance } = useYieldBalance();
+  const yieldTotalUSD = (yieldBalance?.sol?.currentValue ?? 0) + (yieldBalance?.usdc?.currentValue ?? 0);
+
   const isPrivate = mode === 'private';
   const totalUSD = isPrivate ? privateBalance : (publicBalance || 0);
-  const displayTokens = isPrivate ? privateTokens : publicTokens;
+  const defaultTokens = [{ tokenMint: null, tokenSymbol: 'SOL', tokenDecimals: 9, balance: 0, balanceUSD: 0 }];
+  const displayTokens = isPrivate
+    ? (privateTokens.length > 0 ? privateTokens : defaultTokens)
+    : publicTokens;
 
   return (
     <View style={styles.container}>
@@ -94,25 +102,17 @@ export default function BalanceCardPrivacy({
 
             <TouchableOpacity
               style={styles.actionButton}
-              onPress={onSwap}
+              onPress={() => Alert.alert('Coming soon', 'Swap will be available soon.')}
               activeOpacity={0.7}
             >
               <View style={styles.iconContainer}>
-                <MooveIcon />
+                <View style={{ transform: [{ rotate: '90deg' }] }}>
+                  <MooveIcon />
+                </View>
               </View>
               <Text style={styles.actionText}>Swap</Text>
             </TouchableOpacity>
 
-            <TouchableOpacity
-              style={styles.actionButton}
-              onPress={onBuy}
-              activeOpacity={0.7}
-            >
-              <View style={styles.iconContainer}>
-                <DepositIcon />
-              </View>
-              <Text style={styles.actionText}>Buy</Text>
-            </TouchableOpacity>
           </>
         )}
 
@@ -193,11 +193,16 @@ export default function BalanceCardPrivacy({
                 <Ionicons name="trending-up" size={20} color="#FFFFFF" />
               </View>
               <View>
-                <Text style={styles.growCardTitle}>Earn yield privately</Text>
-                <Text style={styles.growCardSub}>Up to 8% APY on stablecoins</Text>
+                <Text style={styles.growCardTitle}>Jito SOL</Text>
+                <Text style={styles.growCardSub}>Up to 6% APY</Text>
               </View>
             </View>
-            <Ionicons name="chevron-forward" size={18} color="rgba(255,255,255,0.4)" />
+            <View style={styles.growCardRight}>
+              <Text style={styles.growCardBalance}>
+                ${yieldTotalUSD.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+              </Text>
+              <Ionicons name="chevron-forward" size={18} color="rgba(255,255,255,0.4)" />
+            </View>
           </TouchableOpacity>
         </View>
       )}
@@ -387,5 +392,16 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontFamily: 'Sansation-Regular',
     marginTop: 2,
+  },
+  growCardRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  growCardBalance: {
+    color: '#FFFFFF',
+    fontSize: 15,
+    fontWeight: '600',
+    fontFamily: 'Sansation-Bold',
   },
 });

@@ -15,6 +15,7 @@ import bs58 from 'bs58';
 import * as bip39 from 'bip39';
 import { hmac } from '@noble/hashes/hmac';
 import { sha512 } from '@noble/hashes/sha512';
+import { useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '../../contexts/AuthContext';
 import { useWalletInfos } from '../../hooks/wallet/useWalletInfos';
 import { useSendTransaction } from '../../hooks/transactions/useSendSimpleTransaction';
@@ -77,9 +78,20 @@ export default function MooveScreen({ onBack, direction: initialDirection = 'toC
   const [localLoading, setLocalLoading] = useState(false);
 
   const { userData } = useAuth();
-  const { balance: cashBalance } = useWalletInfos(userData?.cash_wallet || '');
-  const { balance: privacyBalance } = useWalletInfos(userData?.stealf_wallet || '');
+  const queryClient = useQueryClient();
+  const { balance: cashBalance, tokens: cashTokens } = useWalletInfos(userData?.cash_wallet || '');
+  const { balance: privacyBalance, tokens: privacyTokens } = useWalletInfos(userData?.stealf_wallet || '');
   const { sendTransaction, loading: turnkeyLoading } = useSendTransaction();
+
+  // Derive SOL price from whichever wallet has SOL tokens
+  const getSolPrice = (): number => {
+    const allTokens = [...cashTokens, ...privacyTokens];
+    const solToken = allTokens.find(t => t.tokenMint === null && t.balance > 0);
+    if (solToken && solToken.balance > 0) {
+      return solToken.balanceUSD / solToken.balance;
+    }
+    return 0;
+  };
 
   const isLoading = localLoading || turnkeyLoading;
 
@@ -149,20 +161,27 @@ export default function MooveScreen({ onBack, direction: initialDirection = 'toC
   };
 
   const handleMove = async () => {
-    const amountNum = parseFloat(amount);
-    if (!amount || isNaN(amountNum) || amountNum <= 0) return;
+    const amountUSD = parseFloat(amount);
+    if (!amount || isNaN(amountUSD) || amountUSD <= 0) return;
     if (!fromAddress || !toAddress) return;
 
     const sourceBalance = direction === 'toCash' ? privacyBalance : cashBalance;
-    if (sourceBalance !== undefined && amountNum > sourceBalance) {
+    if (sourceBalance !== undefined && amountUSD > sourceBalance) {
       Alert.alert('Error', 'Insufficient balance');
       return;
     }
 
+    const solPrice = getSolPrice();
+    if (solPrice <= 0) {
+      Alert.alert('Error', 'Unable to get SOL price');
+      return;
+    }
+    const amountSOL = Math.floor((amountUSD / solPrice) * LAMPORTS_PER_SOL) / LAMPORTS_PER_SOL;
+
     try {
       if (direction === 'toPrivacy') {
         // Cash → Wealth: sign with Turnkey
-        await sendTransaction(fromAddress, toAddress, amountNum);
+        await sendTransaction(fromAddress, toAddress, amountSOL);
       } else {
         // Wealth → Cash: sign locally with privacy keypair
         setLocalLoading(true);
@@ -179,7 +198,7 @@ export default function MooveScreen({ onBack, direction: initialDirection = 'toC
           SystemProgram.transfer({
             fromPubkey,
             toPubkey,
-            lamports: Math.floor(amountNum * LAMPORTS_PER_SOL),
+            lamports: Math.floor(amountSOL * LAMPORTS_PER_SOL),
           })
         );
 
@@ -190,6 +209,9 @@ export default function MooveScreen({ onBack, direction: initialDirection = 'toC
         });
         walletKeyCache.touch();
       }
+
+      queryClient.invalidateQueries({ queryKey: ['wallet-balance', userData?.cash_wallet] });
+      queryClient.invalidateQueries({ queryKey: ['wallet-balance', userData?.stealf_wallet] });
 
       showSuccessAnimation();
     } catch (err: any) {
@@ -223,9 +245,9 @@ export default function MooveScreen({ onBack, direction: initialDirection = 'toC
 
           <Animated.View style={[styles.successInfo, { opacity: contentFade }]}>
             <Text style={styles.successLabel}>Moved</Text>
-            <Text style={styles.successAmount}>{amount} SOL</Text>
+            <Text style={styles.successAmount}>${amount}</Text>
             <Text style={styles.successRoute}>
-              {direction === 'toCash' ? 'Wealth → Cash' : 'Cash → Wealth'}
+              {direction === 'toCash' ? 'Stealth → Cash' : 'Cash → Stealth'}
             </Text>
           </Animated.View>
 
@@ -268,11 +290,11 @@ export default function MooveScreen({ onBack, direction: initialDirection = 'toC
           <View style={styles.walletCard}>
             <View style={styles.cardRow}>
               <View>
-                <Text style={styles.cardLabel}>Wealth</Text>
+                <Text style={styles.cardLabel}>Stealth</Text>
                 <Text style={styles.cardBalance}>{formatBalance(privacyBalance)}</Text>
               </View>
               <Text style={[styles.cardAmount, amount ? styles.cardAmountActive : null]}>
-                {wealthDelta}{amount || '0'}
+                {wealthDelta}${amount || '0'}
               </Text>
             </View>
           </View>
@@ -299,7 +321,7 @@ export default function MooveScreen({ onBack, direction: initialDirection = 'toC
                 <Text style={styles.cardBalance}>{formatBalance(cashBalance)}</Text>
               </View>
               <Text style={[styles.cardAmount, amount ? styles.cardAmountActive : null]}>
-                {cashDelta}{amount || '0'}
+                {cashDelta}${amount || '0'}
               </Text>
             </View>
           </View>

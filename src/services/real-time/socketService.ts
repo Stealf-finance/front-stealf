@@ -42,7 +42,9 @@ class SocketService {
     this.socket = io(SOCKET_URL, socketOptions);
 
     this.socket.on('connect', () => {
+      if (__DEV__) console.log('[Socket] connected:', this.socket?.id);
       this.subscribedWallets.forEach(walletAddress => {
+        if (__DEV__) console.log('[Socket] subscribing to wallet:', walletAddress);
         this.socket?.emit('subscribe:wallet', walletAddress);
       });
     });

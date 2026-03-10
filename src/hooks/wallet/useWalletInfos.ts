@@ -1,9 +1,8 @@
 import { useEffect } from 'react';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useQueryClient, QueryClient } from '@tanstack/react-query';
 import { useAuthenticatedApi } from '../../services/api/clientStealf';
 import { createGetBalance, createGetTransactionsHistory } from '../../services/api/fetchWalletInfos';
 import { socketService } from '../../services/real-time/socketService';
-import { useAuth } from '../../contexts/AuthContext';
 
 interface TokenBalance {
   tokenMint: string | null;
@@ -40,10 +39,54 @@ interface HistoryResponse {
   transactions: Transaction[];
 }
 
+// ── Singleton socket listener ──
+// Un seul handler global, peu importe combien de composants appellent useWalletInfos.
+// Les subscriptions wallet sont gérées par AuthContext (seule autorité).
+
+let globalQueryClient: QueryClient | null = null;
+let listenersAttached = false;
+
+function handleBalanceUpdate(data: { address: string; tokens: TokenBalance[]; totalUSD: number; timestamp: string }) {
+  if (!globalQueryClient) return;
+  if (__DEV__) console.log('[Socket] balance:updated', data.address, data.totalUSD);
+  globalQueryClient.setQueryData<BalanceResponse>(['wallet-balance', data.address], {
+    address: data.address,
+    tokens: data.tokens,
+    totalUSD: data.totalUSD,
+  });
+}
+
+function handleNewTransaction(data: { address: string; transaction: Transaction; timestamp: string }) {
+  if (!globalQueryClient) return;
+  if (__DEV__) console.log('[Socket] transaction:new', data.address, data.transaction.type, data.transaction.amountUSD);
+  globalQueryClient.setQueryData<HistoryResponse>(['wallet-history', data.address], (prev) => {
+    const existing = prev?.transactions || [];
+    const alreadyExists = existing.some(tx => tx.signature === data.transaction.signature);
+    if (alreadyExists) return prev!;
+    return {
+      address: data.address,
+      count: (prev?.count || 0) + 1,
+      transactions: [data.transaction, ...existing],
+    };
+  });
+}
+
+function attachListeners(qc: QueryClient) {
+  globalQueryClient = qc;
+  if (listenersAttached) return;
+  socketService.on('balance:updated', handleBalanceUpdate);
+  socketService.on('transaction:new', handleNewTransaction);
+  listenersAttached = true;
+}
+
+// Subscribe/unsubscribe gérés par AuthContext (seule autorité).
+// Le hook ne fait qu'attacher les listeners React Query.
+
+// ── Hook ──
+
 export function useWalletInfos(address: string) {
   const api = useAuthenticatedApi();
   const queryClient = useQueryClient();
-  const { userData } = useAuth();
 
   const {
     data: balanceData,
@@ -71,38 +114,9 @@ export function useWalletInfos(address: string) {
   });
 
   useEffect(() => {
-    if (!address)
-        return;
-
-    const walletsToSubscribe = [userData?.cash_wallet, userData?.stealf_wallet].filter(Boolean) as string[];
-
-    walletsToSubscribe.forEach(walletAddress => {
-      socketService.subscribeToWallet(walletAddress);
-    });
-
-    const handleBalanceUpdate = (data: { address: string; balance: number; timestamp: string }) => {
-      queryClient.invalidateQueries({
-        queryKey: ['wallet-balance', data.address],
-      });
-    };
-
-    const handleNewTransaction = (data: { address: string; transaction: Transaction; timestamp: string }) => {
-      queryClient.invalidateQueries({
-        queryKey: ['wallet-history', data.address],
-      });
-    };
-
-    socketService.on('balance:updated', handleBalanceUpdate);
-    socketService.on('transaction:new', handleNewTransaction);
-
-    return () => {
-      socketService.off('balance:updated', handleBalanceUpdate);
-      socketService.off('transaction:new', handleNewTransaction);
-      walletsToSubscribe.forEach(walletAddress => {
-        socketService.unsubscribeFromWallet(walletAddress);
-      });
-    };
-  }, [address, queryClient, userData?.cash_wallet, userData?.stealf_wallet]);
+    if (!address) return;
+    attachListeners(queryClient);
+  }, [address, queryClient]);
 
   return {
     balance: balanceData?.totalUSD,

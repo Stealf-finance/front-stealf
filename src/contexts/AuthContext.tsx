@@ -46,6 +46,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
         if (session.token && storedData?.cash_wallet) {
           socketService.connect(session.token);
+          socketService.subscribeToWallet(storedData.cash_wallet);
+          // stealf_wallet subscribed later when created/imported
+          if (storedData.stealf_wallet) socketService.subscribeToWallet(storedData.stealf_wallet);
         }
       } else {
         setUserDataState(null);
@@ -66,6 +69,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       await authStorage.setUserData(data);
       if (data.cash_wallet && session?.token) {
         socketService.connect(session.token);
+        socketService.subscribeToWallet(data.cash_wallet);
+        if (data.stealf_wallet) {
+          socketService.subscribeToWallet(data.stealf_wallet);
+        }
       }
     }
   };

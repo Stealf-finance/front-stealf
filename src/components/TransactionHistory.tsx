@@ -86,6 +86,11 @@ export default function TransactionHistory({
     return tx.type === 'sent' ? 'Sent' : tx.type === 'received' ? 'Received' : 'Transaction';
   };
 
+  const getDate = (tx: typeof displayedTransactions[0]) => {
+    if (tx.dateFormatted && tx.dateFormatted !== 'Unknown') return tx.dateFormatted;
+    return 'Just now';
+  };
+
   const transactionsList = (
     <>
       {displayedTransactions.map((tx, index) => (
