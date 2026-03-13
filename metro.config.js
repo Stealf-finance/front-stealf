@@ -11,6 +11,7 @@ config.resolver.extraNodeModules = {
   stream: require.resolve('readable-stream'),
   buffer: require.resolve('buffer'),
   crypto: path.resolve(__dirname, 'crypto-shim.js'),
+  fs: path.resolve(__dirname, 'fs-shim.js'),
 };
 
 // Manual module resolution overrides

@@ -10,7 +10,8 @@ import {
 } from "react-native";
 import { StatusBar } from "expo-status-bar";
 import { LinearGradient } from "expo-linear-gradient";
-import { useYieldDepositAndConfirm, useYieldWithdrawAndConfirm, type VaultType } from "../../hooks/yield/useYield";
+import { useYieldDeposit } from "../../services/yield/deposit";
+import { useYieldWithdraw } from "../../services/yield/withdraw";
 import SlideToConfirm from "../../components/SlideToConfirm";
 import ComebackIcon from "../../assets/buttons/comeback.svg";
 
@@ -20,34 +21,32 @@ interface DepositWithdrawModalProps {
   visible: boolean;
   mode: ModalMode;
   onClose: () => void;
+  onSuccess?: () => void;
   availableBalance?: number;
   savingsBalance?: number;
-  vaultType: VaultType;
   unit: string;
-  isPrivate?: boolean;
 }
 
 export default function DepositWithdrawModal({
   visible,
   mode,
   onClose,
+  onSuccess,
   availableBalance = 0,
   savingsBalance = 0,
-  vaultType,
   unit,
-  isPrivate = false,
 }: DepositWithdrawModalProps) {
   const [amount, setAmount] = useState("");
   const [step, setStep] = useState<"input" | "confirming" | "success">("input");
   const [pointsEarned, setPointsEarned] = useState(0);
 
-  const deposit = useYieldDepositAndConfirm();
-  const withdraw = useYieldWithdrawAndConfirm();
+  const { deposit, loading: depositLoading } = useYieldDeposit();
+  const { withdraw, loading: withdrawLoading } = useYieldWithdraw();
 
   const decimals = unit === "SOL" ? 4 : 2;
   const maxAmount = mode === "deposit" ? availableBalance : savingsBalance;
   const parsedAmount = parseFloat(amount) || 0;
-  const isValidAmount = parsedAmount > 0 && parsedAmount <= maxAmount;
+  const isValidAmount = parsedAmount > 0;
 
   // Animations
   const fadeAnim = useRef(new Animated.Value(0)).current;
@@ -102,13 +101,14 @@ export default function DepositWithdrawModal({
 
     try {
       if (mode === "deposit") {
-        const result = await deposit.mutateAsync({ amount: parsedAmount, vaultType, isPrivate });
-        setPointsEarned(result.confirmData?.pointsEarned || (isPrivate ? 35 : 20));
+        await deposit(parsedAmount);
+
       } else {
-        const result = await withdraw.mutateAsync({ amount: parsedAmount, vaultType, isPrivate });
-        setPointsEarned((result as any).pointsEarned || 10);
+        await withdraw(parsedAmount);
+
       }
       showSuccessAnimation();
+      onSuccess?.();
     } catch (error: any) {
       __DEV__ && console.error(`${mode} error:`, error);
       setStep("input");

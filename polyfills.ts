@@ -38,11 +38,7 @@ if (typeof AbortSignal !== 'undefined' && !AbortSignal.prototype.throwIfAborted)
   };
 }
 
-// Patch React Native's Blob to accept ArrayBuffer/ArrayBufferView.
-// ffjavascript (snarkjs dep) does `new Blob([uint8Array])` at module load time
-// to prepare a Web Worker source. RN's BlobManager rejects ArrayBufferView.
-// Since RN has no Web Workers, ffjavascript falls back to single-thread mode
-// and the Blob is never actually used — we just need to prevent the crash.
+
 const _OrigBlob = globalThis.Blob;
 if (_OrigBlob) {
   (globalThis as any).Blob = function PatchedBlob(parts?: any[], options?: any) {

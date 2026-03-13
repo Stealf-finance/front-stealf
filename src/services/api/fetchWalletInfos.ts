@@ -11,5 +11,10 @@ export const createGetSolPriceUSD = (api: ReturnType<typeof import('./clientStea
   return () => api.get(`/api/users/sol-price`);
 };
 
+export const createGetYieldStats = (api: ReturnType<typeof import('./clientStealf').useAuthenticatedApi>) => {
+  return () => api.get(`/api/yield/stats`) as Promise<{ rate: number; apy: number }>;
+};
+
+
 
 

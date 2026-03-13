@@ -4,7 +4,6 @@ import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useAuth } from '../../contexts/AuthContext';
 import { useWalletInfos } from '../../hooks/wallet/useWalletInfos';
-import { useYieldBalance } from '../../hooks/yield/useYield';
 
 
 import DepositIcon from '../../assets/buttons/deposit.svg';
@@ -48,8 +47,6 @@ export default function BalanceCardPrivacy({
   const privateTokens: typeof publicTokens = [];
 
   // Yield balance
-  const { data: yieldBalance } = useYieldBalance();
-  const yieldTotalUSD = (yieldBalance?.sol?.currentValue ?? 0) + (yieldBalance?.usdc?.currentValue ?? 0);
 
   const isPrivate = mode === 'private';
   const totalUSD = isPrivate ? privateBalance : (publicBalance || 0);
@@ -199,7 +196,7 @@ export default function BalanceCardPrivacy({
             </View>
             <View style={styles.growCardRight}>
               <Text style={styles.growCardBalance}>
-                ${yieldTotalUSD.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                $ --
               </Text>
               <Ionicons name="chevron-forward" size={18} color="rgba(255,255,255,0.4)" />
             </View>

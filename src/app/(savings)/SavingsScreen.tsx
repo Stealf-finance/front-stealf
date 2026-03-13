@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useMemo, useCallback, useEffect } from "react";
 import {
   View,
   Text,
@@ -7,34 +7,69 @@ import {
   TouchableOpacity,
   ActivityIndicator,
 } from "react-native";
-import { Ionicons } from "@expo/vector-icons";
+import { useQuery } from "@tanstack/react-query";
 import ComebackIcon from '../../assets/buttons/comeback.svg';
-import { useYieldDashboard, useBatchStatus } from "../../hooks/yield/useYield";
 import { useWalletInfos } from "../../hooks/wallet/useWalletInfos";
 import { useAuth } from "../../contexts/AuthContext";
+import { useAuthenticatedApi } from "../../services/api/clientStealf";
+import { createGetYieldStats } from "../../services/api/fetchWalletInfos";
+import { useYieldBalance } from "../../services/yield/balance";
+import { LAMPORTS_PER_SOL } from "@solana/web3.js";
 import DepositWithdrawModal from "./DepositWithdrawModal";
 
 import DepositIcon from '../../assets/buttons/deposit.svg';
 import SendIcon from '../../assets/buttons/send.svg';
+
+const MPC_DELAY_MS = 15_000;
 
 interface SavingsScreenProps {
   onBack?: () => void;
 }
 
 export default function SavingsScreen({ onBack }: SavingsScreenProps) {
-  const { data: dashboard, isLoading } = useYieldDashboard();
   const { userData } = useAuth();
+  const api = useAuthenticatedApi();
   const { tokens: walletTokens } = useWalletInfos(userData?.stealf_wallet || "");
   const [modalVisible, setModalVisible] = useState(false);
   const [modalMode, setModalMode] = useState<"deposit" | "withdraw">("deposit");
 
   const walletSolBalance = walletTokens.find(t => t.tokenMint === null)?.balance ?? 0;
-  const { data: batchStatus } = useBatchStatus();
 
-  const solBalance = dashboard?.balance;
-  const apy = dashboard?.apy;
-  const history = dashboard?.history || [];
-  const filteredHistory = history.filter((item) => item.vaultType !== "usdc_kamino");
+  // Yield stats (APY, rate)
+  const fetchYieldStats = useMemo(() => createGetYieldStats(api), [api]);
+  const { data: yieldStats } = useQuery({
+    queryKey: ['yield-stats'],
+    queryFn: fetchYieldStats,
+    staleTime: 5 * 60 * 1000,
+    refetchInterval: 5 * 60 * 1000,
+  });
+
+  // Yield balance (on-chain MPC)
+  const { fetchBalance, loading: balanceLoading } = useYieldBalance();
+  const [yieldBalance, setYieldBalance] = useState<number | null>(null);
+  const [balanceRefreshing, setBalanceRefreshing] = useState(false);
+
+  const refreshBalance = useCallback(async () => {
+    try {
+      const raw = await fetchBalance();
+      setYieldBalance(Number(raw) / LAMPORTS_PER_SOL);
+    } catch {
+      // silently fail — balance stays null
+    }
+  }, [fetchBalance]);
+
+  // Fetch balance on mount
+  useEffect(() => {
+    refreshBalance();
+  }, []);
+
+  const handleActionSuccess = useCallback(() => {
+    setBalanceRefreshing(true);
+    setTimeout(async () => {
+      await refreshBalance();
+      setBalanceRefreshing(false);
+    }, MPC_DELAY_MS);
+  }, [refreshBalance]);
 
   const openModal = (mode: "deposit" | "withdraw") => {
     setModalMode(mode);
@@ -57,147 +92,75 @@ export default function SavingsScreen({ onBack }: SavingsScreenProps) {
           <Text style={styles.headerSubtitle}>Earn yield, stay private</Text>
         </View>
 
-        {isLoading ? (
-          <View style={styles.loadingContainer}>
-            <ActivityIndicator size="large" color="rgba(255,255,255,0.5)" />
+        {/* Yield Stats */}
+        <View style={styles.statsRow}>
+          <View style={styles.statCard}>
+            <Text style={styles.statLabel}>APY</Text>
+            <Text style={styles.statValue}>
+              {yieldStats?.apy != null ? `${yieldStats.apy.toFixed(2)}%` : "—"}
+            </Text>
           </View>
-        ) : (
-          <>
-            {/* Balance */}
-            <View style={styles.balanceSection}>
-              <Text style={styles.balanceLabel}>Total Value</Text>
-              <Text style={styles.balanceAmount}>
-                {(solBalance?.currentValue ?? 0).toFixed(3)} SOL
-              </Text>
-            </View>
+          <View style={styles.statCard}>
+            <Text style={styles.statLabel}>JitoSOL / SOL</Text>
+            <Text style={styles.statValue}>
+              {yieldStats?.rate != null ? yieldStats.rate.toFixed(4) : "—"}
+            </Text>
+          </View>
+        </View>
 
-            {/* Yield stats */}
-            <View style={styles.statsRow}>
-              <View style={styles.statCard}>
-                <Text style={styles.statLabel}>Deposited</Text>
-                <Text style={styles.statValue}>
-                  {(solBalance?.totalDeposited ?? 0).toFixed(3)}
-                </Text>
-              </View>
-              <View style={styles.statCard}>
-                <Text style={styles.statLabel}>Yield</Text>
-                <Text style={[styles.statValue, styles.statValueHighlight]}>
-                  +{(solBalance?.yieldEarned ?? 0).toFixed(3)}
-                </Text>
-              </View>
-              <View style={styles.statCard}>
-                <Text style={styles.statLabel}>Return</Text>
-                <Text style={[styles.statValue, styles.statValueHighlight]}>
-                  {(solBalance?.yieldPercent ?? 0).toFixed(2)}%
-                </Text>
-              </View>
-            </View>
-
-            {/* Protocol — Jito */}
-            <Text style={styles.sectionLabel}>Protocol</Text>
-            <View style={styles.protocolCard}>
-              <View style={styles.protocolTop}>
-                <Text style={styles.protocolName}>Jito</Text>
-                <Text style={styles.protocolSub}>JitoSOL</Text>
-              </View>
-              <Text style={styles.protocolApy}>
-                {apy?.jitoApy != null ? apy.jitoApy.toFixed(2) : "—"}% APY
-              </Text>
-            </View>
-
-            {/* Batch staking status */}
-            {batchStatus && batchStatus.status === "pending" && (
-              <View style={styles.batchBanner}>
-                <ActivityIndicator size="small" color="rgba(255,255,255,0.6)" />
-                <View style={{ flex: 1 }}>
-                  <Text style={styles.batchTitle}>Staking in progress</Text>
-                  <Text style={styles.batchSub}>
-                    Anti-correlation active
-                    {batchStatus.estimatedMinutes != null
-                      ? ` · ~${batchStatus.estimatedMinutes} min`
-                      : ""}
-                  </Text>
-                </View>
-              </View>
+        {/* Yield Balance */}
+        <View style={styles.balanceSection}>
+          <Text style={styles.balanceLabel}>Yield Balance</Text>
+          <View style={styles.balanceRow}>
+            <Text style={styles.balanceAmount}>
+              {yieldBalance != null ? `${yieldBalance.toFixed(4)} SOL` : "—"}
+            </Text>
+            {(balanceLoading || balanceRefreshing) && (
+              <ActivityIndicator size="small" color="rgba(255,255,255,0.4)" style={{ marginLeft: 12 }} />
             )}
-            {batchStatus && batchStatus.status === "complete" && (
-              <View style={styles.batchBanner}>
-                <Ionicons name="checkmark-circle" size={18} color="rgba(255,255,255,0.7)" />
-                <Text style={styles.batchTitle}>Staking confirmed</Text>
-              </View>
-            )}
+          </View>
+          {balanceRefreshing && (
+            <Text style={styles.refreshingText}>Updating balance...</Text>
+          )}
+        </View>
 
-            {/* Actions */}
-            <View style={styles.actionsRow}>
-              <TouchableOpacity
-                style={styles.actionButton}
-                onPress={() => openModal("deposit")}
-                activeOpacity={0.7}
-              >
-                <View style={styles.actionIcon}>
-                  <DepositIcon />
-                </View>
-                <Text style={styles.actionLabel}>Deposit</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={styles.actionButton}
-                onPress={() => openModal("withdraw")}
-                activeOpacity={0.7}
-              >
-                <View style={styles.actionIcon}>
-                  <SendIcon />
-                </View>
-                <Text style={styles.actionLabel}>Withdraw</Text>
-              </TouchableOpacity>
+
+        {/* Actions */}
+        <View style={styles.actionsRow}>
+          <TouchableOpacity
+            style={styles.actionButton}
+            onPress={() => openModal("deposit")}
+            activeOpacity={0.7}
+          >
+            <View style={styles.actionIcon}>
+              <DepositIcon />
             </View>
+            <Text style={styles.actionLabel}>Deposit</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.actionButton}
+            onPress={() => openModal("withdraw")}
+            activeOpacity={0.7}
+          >
+            <View style={styles.actionIcon}>
+              <SendIcon />
+            </View>
+            <Text style={styles.actionLabel}>Withdraw</Text>
+          </TouchableOpacity>
+        </View>
 
-            {/* History */}
-            {filteredHistory.length > 0 ? (
-              <View style={styles.historySection}>
-                <Text style={styles.sectionLabel}>History</Text>
-                {filteredHistory.map((item, index) => (
-                  <View key={index} style={styles.historyItem}>
-                    <View style={styles.historyLeft}>
-                      <View style={styles.historyDot}>
-                        <Ionicons
-                          name={item.type === "deposit" ? "arrow-down" : "arrow-up"}
-                          size={14}
-                          color="rgba(255,255,255,0.6)"
-                        />
-                      </View>
-                      <View>
-                        <Text style={styles.historyType}>
-                          {item.type === "deposit" ? "Deposit" : "Withdrawal"}
-                        </Text>
-                        <Text style={styles.historyDate}>
-                          {new Date(item.timestamp).toLocaleDateString()}
-                        </Text>
-                      </View>
-                    </View>
-                    <Text style={styles.historyAmount}>
-                      {item.type === "deposit" ? "+" : "-"}{item.amount.toFixed(3)} SOL
-                    </Text>
-                  </View>
-                ))}
-              </View>
-            ) : (
-              <View style={styles.emptyState}>
-                <Text style={styles.emptyText}>Deposit SOL to start earning</Text>
-              </View>
-            )}
-          </>
-        )}
+        <Text style={styles.networkNotice}>
+          The network can be slow — a deposit may take up to 2 min.
+        </Text>
       </ScrollView>
 
       <DepositWithdrawModal
         visible={modalVisible}
         mode={modalMode}
         onClose={() => setModalVisible(false)}
+        onSuccess={handleActionSuccess}
         availableBalance={walletSolBalance}
-        savingsBalance={solBalance?.currentValue ?? 0}
-        vaultType="sol_jito"
         unit="SOL"
-        isPrivate={true}
       />
     </View>
   );
@@ -241,27 +204,6 @@ const styles = StyleSheet.create({
     fontFamily: "Sansation-Regular",
     color: "rgba(255,255,255,0.4)",
   },
-  loadingContainer: {
-    paddingTop: 100,
-    alignItems: "center",
-  },
-
-  // Balance
-  balanceSection: {
-    marginBottom: 20,
-  },
-  balanceLabel: {
-    fontSize: 13,
-    fontFamily: "Sansation-Regular",
-    color: "rgba(255,255,255,0.4)",
-    marginBottom: 4,
-  },
-  balanceAmount: {
-    fontSize: 42,
-    fontFamily: "Sansation-Light",
-    color: "#ffffff",
-    letterSpacing: -1,
-  },
 
   // Stats
   statsRow: {
@@ -284,78 +226,36 @@ const styles = StyleSheet.create({
     marginBottom: 6,
   },
   statValue: {
-    fontSize: 15,
+    fontSize: 18,
     fontFamily: "Sansation-Bold",
     color: "#ffffff",
   },
-  statValueHighlight: {
-    color: "rgba(255,255,255,0.8)",
-  },
 
-  // Section label
-  sectionLabel: {
-    fontSize: 13,
-    fontFamily: "Sansation-Regular",
-    color: "rgba(255,255,255,0.35)",
-    marginBottom: 10,
-    textTransform: "uppercase",
-    letterSpacing: 1,
-  },
-
-  // Protocol
-  protocolCard: {
-    backgroundColor: "rgba(255,255,255,0.04)",
-    borderRadius: 14,
-    padding: 16,
-    borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.08)",
+  // Balance
+  balanceSection: {
     marginBottom: 20,
   },
-  protocolTop: {
+  balanceLabel: {
+    fontSize: 13,
+    fontFamily: "Sansation-Regular",
+    color: "rgba(255,255,255,0.4)",
+    marginBottom: 4,
+  },
+  balanceRow: {
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "space-between",
-    marginBottom: 6,
   },
-  protocolName: {
-    fontSize: 15,
-    fontFamily: "Sansation-Bold",
+  balanceAmount: {
+    fontSize: 42,
+    fontFamily: "Sansation-Light",
     color: "#ffffff",
+    letterSpacing: -1,
   },
-  protocolApy: {
-    fontSize: 24,
-    fontFamily: "Sansation-Bold",
-    color: "#ffffff",
-  },
-  protocolSub: {
+  refreshingText: {
     fontSize: 12,
     fontFamily: "Sansation-Regular",
-    color: "rgba(255,255,255,0.35)",
-  },
-
-  // Batch banner
-  batchBanner: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: "rgba(255,255,255,0.04)",
-    borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.08)",
-    borderRadius: 14,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-    marginBottom: 20,
-    gap: 12,
-  },
-  batchTitle: {
-    fontSize: 13,
-    fontFamily: "Sansation-Bold",
-    color: "rgba(255,255,255,0.8)",
-  },
-  batchSub: {
-    fontSize: 11,
-    fontFamily: "Sansation-Regular",
-    color: "rgba(255,255,255,0.35)",
-    marginTop: 2,
+    color: "rgba(255,255,255,0.3)",
+    marginTop: 4,
   },
 
   // Actions
@@ -383,56 +283,11 @@ const styles = StyleSheet.create({
     color: "rgba(255,255,255,0.6)",
   },
 
-  // History
-  historySection: {
-    marginTop: 4,
-  },
-  historyItem: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    paddingVertical: 14,
-    borderBottomWidth: 1,
-    borderBottomColor: "rgba(255,255,255,0.04)",
-  },
-  historyLeft: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 12,
-  },
-  historyDot: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: "rgba(255,255,255,0.08)",
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  historyType: {
-    fontSize: 14,
-    fontFamily: "Sansation-Regular",
-    color: "#ffffff",
-  },
-  historyDate: {
-    fontSize: 11,
-    fontFamily: "Sansation-Regular",
-    color: "rgba(255,255,255,0.3)",
-    marginTop: 2,
-  },
-  historyAmount: {
-    fontSize: 14,
+  networkNotice: {
+    fontSize: 16,
     fontFamily: "Sansation-Bold",
     color: "#ffffff",
-  },
-
-  // Empty
-  emptyState: {
-    alignItems: "center",
-    paddingTop: 24,
-  },
-  emptyText: {
-    fontSize: 14,
-    fontFamily: "Sansation-Regular",
-    color: "rgba(255,255,255,0.25)",
+    textAlign: "center",
+    marginTop: 24,
   },
 });

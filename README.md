@@ -1,128 +1,79 @@
-# Stealf - Mobile App
+# Stealf
 
-React Native (Expo) mobile application for Solana wallet management with private transaction support.
+Privacy-first neobank on Solana. Two wallets, one app.
 
-## Architecture
+## Concept
 
-```
-src/
-├── app/                        # Screens
-│   ├── (auth)/                 # Authentication
-│   │   ├── SignUpScreen        # Registration (email + passkey)
-│   │   ├── SignInScreen        # Login (passkey)
-│   │   └── VerifiedScreen      # Email verified
-│   ├── (tabs)/                 # Main screens (swipe navigation)
-│   │   ├── HomeScreen          # Cash balance + transaction history
-│   │   ├── PrivacyScreen       # Privacy balance + assets
-│   │   └── Profile             # User profile
-│   ├── (send)/                 # Send funds
-│   │   ├── Send                # Amount input (USD)
-│   │   ├── SendConfirmation    # Confirmation + destination address
-│   │   ├── SendPrivate         # Private send (withdraw)
-│   │   ├── SendPrivateConfirmation
-│   │   └── moove               # Transfer between wallets (cash <-> privacy)
-│   ├── (add)/                  # Add funds
-│   │   ├── AddFunds            # Stablecoin deposit (QR + address)
-│   │   └── AddFundsPrivacy     # Privacy wallet deposit
-│   ├── (deposit)/
-│   │   └── DepositPrivateCash  # Deposit to privacy cash (SOL)
-│   └── (infos)/
-│       ├── InfoScreen          # Information
-│       ├── CardScreen          # Card
-│       └── TransactionHistoryScreen
-│
-├── components/
-│   ├── features/
-│   │   ├── CashBalanceCard     # Cash balance card (home)
-│   │   └── PrivacyBalanceCard  # Privacy balance card + assets
-│   ├── TransactionHistory      # Transaction list
-│   ├── MinimalNavBar           # Navigation bar
-│   ├── AddFundsModal           # Deposit type selection modal
-│   ├── AddFundsPrivacyModal    # Privacy deposit modal
-│   └── SendPrivacyModal        # Privacy send modal
-│
-├── contexts/
-│   └── AuthContext             # Global auth state (user, session, tokens)
-│
-├── hooks/
-│   ├── useSignUp               # Registration (email verification + passkey)
-│   ├── useSignIn               # Passkey login
-│   ├── useWalletInfos          # Balance + tokens + transactions (react-query)
-│   ├── usePrivacyBalance       # Privacy cash balance
-│   ├── usePrivacyCashTransfer  # Privacy deposit/withdraw (vault + memo)
-│   ├── useSendSimpleTransaction # Standard SOL transaction
-│   ├── useSocket               # WebSocket connection (real-time updates)
-│   ├── useExportWallet         # Private key export
-│   └── useEmailVerificationPolling # Email verification polling
-│
-├── services/
-│   ├── clientStealf            # Authenticated HTTP client (Stealf API)
-│   ├── fetchWalletInfos        # Balance + transactions + SOL price queries
-│   ├── privacyCashApi          # Privacy cash API (deposit, withdraw, status)
-│   ├── socketService           # Socket.io client (balance:updated, transaction:new)
-│   ├── transactionsGuard       # Pre-transaction validation (address, amount, balance)
-│   └── authStorage             # Session storage (SecureStore)
-│
-├── navigation/
-│   ├── AppNavigator            # Main navigation (auth vs app)
-│   ├── swipePager              # Swipe navigation (home <-> privacy)
-│   └── types                   # Navigation types
-│
-├── constants/
-│   ├── turnkey                 # Turnkey config (org ID, proxy)
-│   ├── token                   # Token config
-│   └── vault                   # Vault config
-│
-├── types/
-│   ├── index                   # Global types (SendScreenProps, etc.)
-│   ├── privacyCash             # PrivateTransfer types, fees
-│   ├── navigation              # Navigation types
-│   └── svg.d                   # SVG declaration for imports
-│
-└── assets/
-    ├── font/Sansation/         # Custom font
-    └── buttons/                # SVG icons (deposit, send, moove, etc.)
-```
+Stealf is a mobile fintech with a dual-wallet architecture:
 
-## External Services
+- **Cash Wallet** -- Public, KYC/AML compliant wallet for everyday banking (payments, transfers). Managed by Turnkey with passkey authentication.
+- **Privacy Wallet** -- Encrypted wallet for private investment and storage. Transfers via Umbra Privacy Protocol. Yield via Arcium MPC.
 
-| Service | Usage |
-|---------|-------|
-| **Turnkey** | Wallet-as-a-service (wallet creation, passkeys, transaction signing) |
-| **Solana** | Blockchain (SOL transactions, SPL tokens, memo program) |
-| **Socket.io** | Real-time (balance notifications + new transactions) |
-| **Expo** | React Native framework (build, fonts, clipboard, secure-store, etc.) |
-| **React Query** | Data caching + synchronization (balance, transactions) |
-| **Stealf API** | Custom backend (auth, wallets, privacy cash, history) |
-| **Resend** | Verification email delivery |
+## Stack
 
-## Setup
+| Layer | Technology |
+|-------|-----------|
+| Framework | React Native 0.81 + Expo 54 + TypeScript |
+| UI | React 19, react-native-reanimated, custom swipe pager |
+| Blockchain | Solana (@solana/web3.js, @solana/spl-token, @coral-xyz/anchor) |
+| Auth | Turnkey passkeys (@turnkey/react-native-wallet-kit) |
+| Privacy | Umbra Privacy SDK + ZK proofs via Mopro FFI (Rust) |
+| Yield | Arcium MPC encryption (x25519 + RescueCipher) + Jito SOL |
+| State | React Query (@tanstack/react-query) + AuthContext |
+| Real-time | Socket.io (balance updates, new transactions) |
+| Storage | expo-secure-store (keychain), async-storage |
+
+## Getting Started
 
 ```bash
 npm install
+npx expo start
+npx expo run:ios     # Build iOS (physical device required for passkeys)
+npx expo run:android # Build Android
 ```
 
-`.env`:
-```env
-EXPO_PUBLIC_ORGANIZATION_ID="turnkey-org-id"
-EXPO_PUBLIC_AUTH_PROXY_CONFIG_ID="turnkey-auth-proxy-id"
-EXPO_PUBLIC_API_URL=http://localhost:3000
-EXPO_PUBLIC_SOLANA_RPC_URL=https://api.devnet.solana.com
-VAULT_ADDRESS=
+### Environment Variables
+
+Create a `.env` file at the root:
+
+```
+EXPO_PUBLIC_API_URL=https://...
+EXPO_PUBLIC_SOLANA_RPC_URL=https://...
+EXPO_PUBLIC_SOLANA_WSS_URL=wss://...
+EXPO_PUBLIC_ORGANIZATION_ID=...
+EXPO_PUBLIC_AUTH_PROXY_CONFIG_ID=...
+EXPO_PUBLIC_UMBRA_RELAYER_URL=https://...
 ```
 
-## Run
+> Passkeys require a physical device -- simulators are not supported.
+> Turnkey SDK is native -- Expo Go does not work.
+> Local backend: use local IP (e.g. `192.168.1.36:3000`) when testing on device.
 
-```bash
-# iOS (physical device required for passkeys)
-npx expo run:ios --device
+## Project Structure
 
-# Android
-npx expo run:android --device
+```
+src/
+  app/           Screens by feature: (auth), (tabs), (send), (savings)...
+  components/    Reusable UI (BalanceCards, SlideToConfirm, TransactionHistory)
+  contexts/      AuthContext (global auth state)
+  hooks/         Business logic (auth, wallet, transactions, umbra)
+  services/      API, socket, yield, solana utils, caching
+  navigation/    AppNavigator + custom swipe pager (3 tabs)
+  constants/     Solana addresses, Turnkey config
+modules/
+  mopro-ffi/     Native Rust FFI for ZK proof generation (iOS + Android)
 ```
 
-## Notes
+See [.claude/docs/architecture.md](.claude/docs/architecture.md) for the full architecture.
+See [.claude/docs/pipeline.md](.claude/docs/pipeline.md) for frontend/backend flows.
 
-- Passkeys require a physical device (no simulator support)
-- Turnkey SDK is native, Expo Go does not work
-- Local backend: use local IP (e.g. `192.168.1.36:3000`) when testing on physical device
+## Team
+
+Thomas & Louis. MVP phase.
+
+## External Dependencies
+
+| Dependency | Status |
+|------------|--------|
+| **Umbra Privacy** | Awaiting mainnet for private transfers |
+| **Rain.xyz** | Banking integration (cards, wire transfers) after fundraise |
