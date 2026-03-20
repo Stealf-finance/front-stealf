@@ -5,18 +5,19 @@ import {
   StyleSheet,
   TouchableOpacity,
   Modal,
-  Pressable,
 } from 'react-native';
 
 interface AddFundsPrivacyModalProps {
   visible: boolean;
   onClose: () => void;
+  onSelectPrivateCash: () => void;
   onSelectSimpleDeposit: () => void;
 }
 
 export default function AddFundsPrivacyModal({
   visible,
   onClose,
+  onSelectPrivateCash,
   onSelectSimpleDeposit,
 }: AddFundsPrivacyModalProps) {
   return (
@@ -26,8 +27,13 @@ export default function AddFundsPrivacyModal({
       animationType="slide"
       onRequestClose={onClose}
     >
-      <Pressable style={styles.overlay} onPress={onClose}>
-        <Pressable style={styles.sheet} onPress={(e) => e.stopPropagation()}>
+      <View style={styles.overlay}>
+        <TouchableOpacity
+          style={StyleSheet.absoluteFillObject}
+          activeOpacity={1}
+          onPress={onClose}
+        />
+        <View style={styles.sheet}>
           {/* Header */}
           <View style={styles.header}>
             <Text style={styles.title}>Deposit</Text>
@@ -38,6 +44,19 @@ export default function AddFundsPrivacyModal({
 
           {/* Options */}
           <View style={styles.optionsContainer}>
+            <TouchableOpacity
+              style={styles.optionButton}
+              onPress={onSelectPrivateCash}
+              activeOpacity={0.7}
+            >
+              <View style={styles.optionContent}>
+                <View style={styles.optionTextContainer}>
+                  <Text style={styles.optionTitle}>Deposit private cash</Text>
+                </View>
+                <Text style={styles.arrow}>›</Text>
+              </View>
+            </TouchableOpacity>
+
             <TouchableOpacity
               style={styles.optionButton}
               onPress={onSelectSimpleDeposit}
@@ -51,8 +70,8 @@ export default function AddFundsPrivacyModal({
               </View>
             </TouchableOpacity>
           </View>
-        </Pressable>
-      </Pressable>
+        </View>
+      </View>
     </Modal>
   );
 }

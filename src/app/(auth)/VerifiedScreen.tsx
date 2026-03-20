@@ -10,7 +10,7 @@ import {
 import ComebackIcon from '../../assets/buttons/comeback.svg';
 
 import WalletSetupScreen, { WalletSetupChoice } from './WalletSetupScreen';
-import { useAuthFlow } from '../../hooks/useSignUp';
+import { useAuthFlow } from '../../hooks/auth/useSignUp';
 import { LinearGradient } from 'expo-linear-gradient';
 
 interface VerifiedScreenProps {
@@ -32,14 +32,14 @@ export default function VerifiedScreen({ email, pseudo, preAuthToken, onBack, on
     handleMnemonicConfirmed,
   } = useAuthFlow();
 
-  // Step 1: Create passkey on mount
+  // Step 1: Create passkey and register on mount
   useEffect(() => {
-    createPasskey(email);
+    createPasskey(email, pseudo, preAuthToken);
   }, [email]);
 
   // Step 2: Handle wallet setup choice
   const onWalletChoice = async (choice: WalletSetupChoice) => {
-    const result = await handleWalletChoice(choice, email, pseudo);
+    const result = await handleWalletChoice(choice, email, pseudo, preAuthToken || undefined);
     if (!result.success) {
       Alert.alert('Error', result.error || 'Failed to set up wallet');
     }

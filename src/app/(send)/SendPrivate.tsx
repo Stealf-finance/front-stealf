@@ -13,8 +13,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useFonts } from 'expo-font';
 import type { SendScreenProps } from '../../types';
 import { useAuth } from '../../contexts/AuthContext';
-import { usePrivacyBalance } from '../../hooks/usePrivacyBalance';
-import { useWalletInfos } from '../../hooks/useWalletInfos';
+import { useWalletInfos } from '../../hooks/wallet/useWalletInfos';
 import SendPrivateConfirmation from './SendPrivateConfirmation';
 
 export default function SendScreen({ onBack, transferType }: SendScreenProps) {
@@ -22,10 +21,9 @@ export default function SendScreen({ onBack, transferType }: SendScreenProps) {
   const [showConfirmation, setShowConfirmation] = useState(false);
 
   const { userData } = useAuth();
-  const { totalUSD: privacyBalance } = usePrivacyBalance();
   const { balance: basicBalance } = useWalletInfos(userData?.stealf_wallet || '');
 
-  const displayBalance = transferType === 'private' ? privacyBalance : (basicBalance || 0);
+  const displayBalance = transferType === 'private' ? " " : (basicBalance || 0);
 
   const [fontsLoaded] = useFonts({
     'Sansation-Regular': require('../../assets/font/Sansation/Sansation-Regular.ttf'),
@@ -104,7 +102,6 @@ export default function SendScreen({ onBack, transferType }: SendScreenProps) {
             <Text style={styles.amountText}>{amount || '0'}</Text>
             <Text style={styles.currencyText}>SOL</Text>
           </View>
-          <Text style={styles.balanceText}>Your balance {displayBalance.toFixed(2)}SOL</Text>
         </View>
 
 

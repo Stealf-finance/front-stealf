@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import {
   View,
   Text,
@@ -6,41 +6,29 @@ import {
   TouchableOpacity,
   Alert,
   ActivityIndicator,
+  Modal,
+  Animated,
+  Linking,
 } from 'react-native';
+import * as Clipboard from 'expo-clipboard';
 import { StatusBar } from 'expo-status-bar';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useFonts } from 'expo-font';
+import { LAMPORTS_PER_SOL } from '@solana/web3.js';
+import { useUmbra } from '../../hooks/transactions/useUmbra';
+import { SOL_MINT } from '../../constants/solana';
 import type { SendScreenProps } from '../../types';
-import { useAuth } from '../../contexts/AuthContext';
-import { useWalletInfos } from '../../hooks/useWalletInfos';
-import { usePrivacyCashTransfer } from '../../hooks/usePrivacyCashTransfer';
-import { useAuthenticatedApi } from '../../services/clientStealf';
-import { createGetSolPriceUSD } from '../../services/fetchWalletInfos';
-import { useTurnkey } from '@turnkey/react-native-wallet-kit';
-import { VAULT_ADDRESS } from '../../constants/vault';
+import ComebackIcon from '../../assets/buttons/comeback.svg';
 
-interface DepositPrivateCashProps extends SendScreenProps {
-  walletType?: 'cash' | 'privacy';
-}
-
-export default function DepositPrivateCash({ onBack, walletType = 'cash' }: DepositPrivateCashProps) {
+export default function DepositPrivateCash({ onBack }: SendScreenProps) {
   const [amount, setAmount] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
+  const [showSuccessModal, setShowSuccessModal] = useState(false);
+  const [transactionSignature, setTransactionSignature] = useState<string | null>(null);
 
-  const { userData } = useAuth();
-  const { session } = useTurnkey();
+  const { deposit, loading, error } = useUmbra();
 
-  const sourceWallet = walletType === 'privacy'
-    ? userData?.stealf_wallet
-    : userData?.cash_wallet;
-
-  const { tokens } = useWalletInfos(sourceWallet || '');
-  const { initiatePrivateDeposit } = usePrivacyCashTransfer();
-  const api = useAuthenticatedApi();
-
-  const solToken = tokens.find(t => t.tokenMint === null);
-  const solBalance = solToken?.balance || 0;
-  const solBalanceUSD = solToken?.balanceUSD || 0;
+  const successAnimation = useRef(new Animated.Value(0)).current;
+  const checkmarkScale = useRef(new Animated.Value(0)).current;
 
   const [fontsLoaded] = useFonts({
     'Sansation-Regular': require('../../assets/font/Sansation/Sansation-Regular.ttf'),
@@ -61,70 +49,53 @@ export default function DepositPrivateCash({ onBack, walletType = 'cash' }: Depo
     setAmount(prev => prev.slice(0, -1));
   };
 
-  const handleContinue = async () => {
+  const handleShield = async () => {
     if (!amount || amount.trim() === '' || isNaN(parseFloat(amount)) || parseFloat(amount) <= 0) {
       Alert.alert('Error', 'Please enter a valid amount');
       return;
     }
 
-    if (!sourceWallet) {
-      Alert.alert('Error', 'No wallet found');
-      return;
-    }
-
-    if (!session?.token) {
-      Alert.alert('Error', 'No session token found');
-      return;
-    }
-
-    if (isLoading) {
-      return; // Prevent multiple submissions
-    }
-
-    setIsLoading(true);
-
     try {
-      // Convert USD → SOL
-      const getSolPrice = createGetSolPriceUSD(api);
-      const priceData = await getSolPrice();
-      const solPrice = priceData?.price_usd || priceData?.price || 0;
+      const amountSOL = parseFloat(amount);
+      const amountLamports = BigInt(Math.floor(amountSOL * LAMPORTS_PER_SOL));
+      const signature = await deposit(SOL_MINT, amountLamports);
 
-      if (solPrice === 0) {
-        throw new Error('Unable to fetch SOL price. Please try again.');
+      if (!signature) {
+        throw new Error(error || 'Shield failed');
       }
 
-      const amountSOL = parseFloat(amount) / solPrice;
+      setTransactionSignature(signature);
+      setShowSuccessModal(true);
 
-      const transfer = await initiatePrivateDeposit(
-        sourceWallet,
-        amountSOL,
-        session.token
-      );
-
-      console.log('[DepositPrivateCash] Deposit successful:', transfer.transferId);
-
-      Alert.alert(
-        'Success',
-        `Deposit of ${amount} USD completed successfully!`,
-        [
-          {
-            text: 'OK',
-            onPress: () => {
-              setAmount('');
-              onBack();
-            },
-          },
-        ]
-      );
+      Animated.sequence([
+        Animated.timing(successAnimation, {
+          toValue: 1,
+          duration: 300,
+          useNativeDriver: true,
+        }),
+        Animated.spring(checkmarkScale, {
+          toValue: 1,
+          friction: 4,
+          tension: 40,
+          useNativeDriver: true,
+        }),
+      ]).start();
     } catch (err: any) {
-      console.error('[DepositPrivateCash] Deposit error:', err);
+      console.error('[DepositPrivateCash] Shield error:', err);
       Alert.alert(
-        'Deposit Failed',
-        err.message || 'An error occurred while processing your deposit'
+        'Shield Failed',
+        err.message || 'An error occurred while shielding'
       );
-    } finally {
-      setIsLoading(false);
     }
+  };
+
+  const closeSuccessModal = () => {
+    setShowSuccessModal(false);
+    successAnimation.setValue(0);
+    checkmarkScale.setValue(0);
+    setTransactionSignature(null);
+    setAmount('');
+    onBack?.();
   };
 
   return (
@@ -140,11 +111,13 @@ export default function DepositPrivateCash({ onBack, walletType = 'cash' }: Depo
 
         {/* Header */}
         <View style={styles.header}>
-          <TouchableOpacity style={styles.backButton} onPress={onBack} activeOpacity={0.8}>
-            <Text style={styles.backArrow}>←</Text>
+          <TouchableOpacity style={styles.headerButton} onPress={onBack} activeOpacity={0.8}>
+            <ComebackIcon width={18} height={18} />
           </TouchableOpacity>
-          <Text style={styles.headerTitle}>Deposit</Text>
-          <View style={styles.placeholder} />
+          <Text style={styles.headerTitle}>Shield</Text>
+          <TouchableOpacity style={styles.headerButton} onPress={onBack} activeOpacity={0.8}>
+            <Text style={styles.headerButtonIcon}>✕</Text>
+          </TouchableOpacity>
         </View>
 
         {/* Amount Display */}
@@ -153,21 +126,19 @@ export default function DepositPrivateCash({ onBack, walletType = 'cash' }: Depo
             <Text style={styles.amountText}>{amount || '0'}</Text>
             <Text style={styles.currencyText}>SOL</Text>
           </View>
-          <Text style={styles.balanceText}>Your balance {solBalance.toFixed(6)} SOL (${solBalanceUSD.toFixed(2)})</Text>
         </View>
 
-
-        {/* Continue Button */}
+        {/* Shield Button */}
         <TouchableOpacity
-          style={[styles.continueButton, isLoading && styles.continueButtonDisabled]}
-          onPress={handleContinue}
+          style={[styles.shieldButton, loading && { opacity: 0.5 }]}
+          onPress={handleShield}
+          disabled={loading}
           activeOpacity={0.8}
-          disabled={isLoading}
         >
-          {isLoading ? (
-            <ActivityIndicator size="small" color="#000" />
+          {loading ? (
+            <ActivityIndicator color="#000" />
           ) : (
-            <Text style={styles.continueText}>Deposit</Text>
+            <Text style={styles.shieldButtonText}>Shield</Text>
           )}
         </TouchableOpacity>
 
@@ -184,7 +155,6 @@ export default function DepositPrivateCash({ onBack, walletType = 'cash' }: Depo
               <Text style={styles.keyText}>3</Text>
             </TouchableOpacity>
           </View>
-
           <View style={styles.keyboardRow}>
             <TouchableOpacity style={styles.key} onPress={() => handleNumberPress('4')}>
               <Text style={styles.keyText}>4</Text>
@@ -196,7 +166,6 @@ export default function DepositPrivateCash({ onBack, walletType = 'cash' }: Depo
               <Text style={styles.keyText}>6</Text>
             </TouchableOpacity>
           </View>
-
           <View style={styles.keyboardRow}>
             <TouchableOpacity style={styles.key} onPress={() => handleNumberPress('7')}>
               <Text style={styles.keyText}>7</Text>
@@ -208,9 +177,10 @@ export default function DepositPrivateCash({ onBack, walletType = 'cash' }: Depo
               <Text style={styles.keyText}>9</Text>
             </TouchableOpacity>
           </View>
-
           <View style={styles.keyboardRow}>
-            <View style={styles.key} />
+            <TouchableOpacity style={styles.key} onPress={() => handleNumberPress('.')}>
+              <Text style={styles.keyText}>.</Text>
+            </TouchableOpacity>
             <TouchableOpacity style={styles.key} onPress={() => handleNumberPress('0')}>
               <Text style={styles.keyText}>0</Text>
             </TouchableOpacity>
@@ -219,6 +189,91 @@ export default function DepositPrivateCash({ onBack, walletType = 'cash' }: Depo
             </TouchableOpacity>
           </View>
         </View>
+
+        {/* Success Modal */}
+        <Modal
+          transparent={true}
+          visible={showSuccessModal}
+          animationType="none"
+          onRequestClose={closeSuccessModal}
+        >
+          <TouchableOpacity
+            style={styles.modalOverlay}
+            activeOpacity={1}
+            onPress={closeSuccessModal}
+          >
+            <TouchableOpacity
+              activeOpacity={1}
+              onPress={(e) => e.stopPropagation()}
+            >
+              <Animated.View
+                style={[
+                  styles.modalContent,
+                  {
+                    opacity: successAnimation,
+                    transform: [
+                      {
+                        scale: successAnimation.interpolate({
+                          inputRange: [0, 1],
+                          outputRange: [0.8, 1],
+                        }),
+                      },
+                    ],
+                  },
+                ]}
+              >
+                <Animated.View
+                  style={[
+                    styles.checkmarkCircle,
+                    {
+                      transform: [{ scale: checkmarkScale }],
+                    },
+                  ]}
+                >
+                  <Text style={styles.checkmark}>✓</Text>
+                </Animated.View>
+
+                <Text style={styles.successTitle}>Shielded</Text>
+                <Text style={styles.successMessage}>
+                  Your funds have been shielded into the Umbra vault
+                </Text>
+
+                {transactionSignature && (
+                  <TouchableOpacity
+                    style={styles.signatureContainer}
+                    onPress={async () => {
+                      await Clipboard.setStringAsync(transactionSignature);
+                    }}
+                    activeOpacity={0.7}
+                  >
+                    <Text style={styles.signatureLabel}>Signature (tap to copy):</Text>
+                    <Text style={styles.signatureText}>
+                      {transactionSignature.substring(0, 20)}...
+                    </Text>
+                  </TouchableOpacity>
+                )}
+
+                <TouchableOpacity
+                  style={styles.explorerButton}
+                  onPress={() => {
+                    Linking.openURL(`https://explorer.solana.com/tx/${transactionSignature}?cluster=devnet`);
+                  }}
+                  activeOpacity={0.8}
+                >
+                  <Text style={styles.explorerButtonText}>View on Explorer</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={[styles.explorerButton, { marginTop: 10, backgroundColor: 'rgba(255, 255, 255, 0.1)', borderColor: 'rgba(255, 255, 255, 0.3)' }]}
+                  onPress={closeSuccessModal}
+                  activeOpacity={0.8}
+                >
+                  <Text style={[styles.explorerButtonText, { color: 'white' }]}>Close</Text>
+                </TouchableOpacity>
+              </Animated.View>
+            </TouchableOpacity>
+          </TouchableOpacity>
+        </Modal>
       </LinearGradient>
     </View>
   );
@@ -239,7 +294,7 @@ const styles = StyleSheet.create({
     paddingTop: 80,
     paddingBottom: 10,
   },
-  backButton: {
+  headerButton: {
     width: 40,
     height: 40,
     borderRadius: 20,
@@ -247,7 +302,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  backArrow: {
+  headerButtonIcon: {
     fontSize: 18,
     color: 'white',
     fontWeight: 'bold',
@@ -257,9 +312,6 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: 'white',
     fontFamily: 'Sansation-Bold',
-  },
-  placeholder: {
-    width: 40,
   },
   amountContainer: {
     alignItems: 'center',
@@ -285,43 +337,7 @@ const styles = StyleSheet.create({
     marginLeft: 8,
     fontFamily: 'Sansation-Light',
   },
-  balanceText: {
-    fontSize: 15,
-    color: 'rgba(255, 255, 255, 0.5)',
-    fontWeight: '400',
-    fontFamily: 'Sansation-Regular',
-  },
-  accountSection: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 30,
-    paddingHorizontal: 40,
-  },
-  accountButton: {
-    alignItems: 'center',
-  },
-  accountIconContainer: {
-    width: 60,
-    height: 60,
-    borderRadius: 30,
-    backgroundColor: 'rgba(45, 30, 65, 0.6)',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 8,
-  },
-  accountIcon: {
-    width: 40,
-    height: 40,
-  },
-  accountText: {
-    fontSize: 12,
-    color: 'white',
-    textAlign: 'center',
-    lineHeight: 16,
-    fontFamily: 'Sansation-Regular',
-  },
-  continueButton: {
+  shieldButton: {
     backgroundColor: 'rgba(240, 235, 220, 0.95)',
     marginHorizontal: 40,
     paddingVertical: 18,
@@ -329,11 +345,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 25,
   },
-  continueButtonDisabled: {
-    backgroundColor: 'rgba(240, 235, 220, 0.5)',
-    opacity: 0.6,
-  },
-  continueText: {
+  shieldButtonText: {
     fontSize: 17,
     fontWeight: '600',
     color: '#000',
@@ -358,5 +370,82 @@ const styles = StyleSheet.create({
     color: 'white',
     fontWeight: '300',
     fontFamily: 'Sansation-Light',
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.8)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  modalContent: {
+    backgroundColor: 'rgba(0, 0, 0, 0.90)',
+    borderRadius: 25,
+    padding: 30,
+    alignItems: 'center',
+    width: '80%',
+    borderWidth: 1,
+    borderColor: 'rgba(100, 255, 100, 0.2)',
+  },
+  checkmarkCircle: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    backgroundColor: 'rgba(100, 255, 100, 0.2)',
+    borderWidth: 3,
+    borderColor: '#00ff88',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 20,
+  },
+  checkmark: {
+    color: '#00ff88',
+    fontSize: 40,
+    fontWeight: 'bold',
+  },
+  successTitle: {
+    color: '#00ff88',
+    fontSize: 24,
+    fontWeight: 'bold',
+    marginBottom: 10,
+    fontFamily: 'Sansation-Bold',
+  },
+  successMessage: {
+    color: 'rgba(255, 255, 255, 0.8)',
+    fontSize: 14,
+    textAlign: 'center',
+    marginBottom: 20,
+    fontFamily: 'Sansation-Regular',
+  },
+  signatureContainer: {
+    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+    borderRadius: 12,
+    padding: 12,
+    marginBottom: 20,
+    width: '100%',
+  },
+  signatureLabel: {
+    color: 'rgba(255, 255, 255, 0.5)',
+    fontSize: 12,
+    marginBottom: 4,
+    fontFamily: 'Sansation-Regular',
+  },
+  signatureText: {
+    color: 'rgba(255, 255, 255, 0.9)',
+    fontSize: 12,
+    fontFamily: 'Sansation-Regular',
+  },
+  explorerButton: {
+    backgroundColor: 'rgba(100, 255, 100, 0.2)',
+    borderRadius: 20,
+    paddingHorizontal: 30,
+    paddingVertical: 12,
+    borderWidth: 1,
+    borderColor: '#00ff88',
+  },
+  explorerButtonText: {
+    color: '#00ff88',
+    fontSize: 14,
+    fontWeight: 'bold',
+    fontFamily: 'Sansation-Bold',
   },
 });

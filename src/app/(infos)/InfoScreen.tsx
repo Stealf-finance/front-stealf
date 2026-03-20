@@ -3,8 +3,9 @@ import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Alert, ActivityIn
 import { Ionicons } from '@expo/vector-icons';
 import ComebackIcon from '../../assets/buttons/comeback.svg';
 import * as Clipboard from 'expo-clipboard';
+import * as LocalAuthentication from 'expo-local-authentication';
 import { LinearGradient } from 'expo-linear-gradient';
-import { useExportWallet } from '../../hooks/useExportWallet';
+import { useExportWallet } from '../../hooks/wallet/useExportWallet';
 import { useAuth } from '../../contexts/AuthContext';
 
 type InfoScreenSource = 'home' | 'privacy';
@@ -79,6 +80,13 @@ export default function InfoScreen({ onBack, source }: InfoScreenProps) {
             <TouchableOpacity
               style={styles.exportButton}
               onPress={async () => {
+                const authResult = await LocalAuthentication.authenticateAsync({
+                  promptMessage: 'Authenticate to reveal recovery phrase',
+                  cancelLabel: 'Cancel',
+                  disableDeviceFallback: false,
+                });
+                if (!authResult.success) return;
+
                 Alert.alert(
                   'Export Recovery Phrase',
                   'Are you sure you want to reveal your recovery phrase? Make sure no one is watching your screen.',

@@ -1,10 +1,16 @@
 import React, { useRef, useEffect, useState } from 'react';
-import { View, Text, StyleSheet, Animated, Easing, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, Animated, Easing, TouchableOpacity, Alert } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import BalanceCardPrivacy from '../../components/features/PrivacyBalanceCard';
 import TransactionHistory from '../../components/TransactionHistory';
 import AddFundsPrivacyModal from '../../components/AddFundsPrivacyModal';
-import { useYieldDashboard } from '../../hooks/useYield';
+import WalletSetupScreen, { WalletSetupChoice } from '../(auth)/WalletSetupScreen';
+import { useYieldDashboard } from '../../hooks/yield/useYield';
+import { useAuth } from '../../contexts/AuthContext';
+import { useSetupWallet } from '../../hooks/wallet/useInitPrivateWallet';
+import { useAuthenticatedApi } from '../../services/api/clientStealf';
+import { socketService } from '../../services/real-time/socketService';
+import { useQueryClient } from '@tanstack/react-query';
 import type { PageType } from '../../navigation/types';
 
 interface PrivacyScreenProps {
@@ -15,7 +21,6 @@ interface PrivacyScreenProps {
   onOpenProfile: () => void;
   onOpenInfo: () => void;
   userEmail?: string;
-  username?: string;
   currentPage?: PageType;
 }
 
@@ -23,13 +28,65 @@ export default function PrivacyScreen({
   onNavigateToPage,
   onOpenMoove,
   onOpenAddFundsPrivacy,
+  onOpenDepositPrivateCash,
   onOpenInfo,
   currentPage = 'privacy',
 }: PrivacyScreenProps) {
   const [showAddFundsModal, setShowAddFundsModal] = useState(false);
+  const [generatedMnemonic, setGeneratedMnemonic] = useState<string | undefined>();
+  const [pendingWalletAddress, setPendingWalletAddress] = useState<string | null>(null);
   const slideUpAnim = useRef(new Animated.Value(100)).current;
   const { data: dashboard } = useYieldDashboard();
+  const { userData, setUserData } = useAuth();
+  const setupWallet = useSetupWallet();
+  const api = useAuthenticatedApi();
+  const queryClient = useQueryClient();
 
+  const hasPrivacyWallet = !!userData?.stealf_wallet;
+
+  const handleWalletSetup = async (choice: WalletSetupChoice) => {
+    if (choice.mode === 'create') {
+      // Second call = user confirmed mnemonic
+      if (generatedMnemonic && pendingWalletAddress) {
+        await registerPrivacyWallet(pendingWalletAddress);
+        setGeneratedMnemonic(undefined);
+        setPendingWalletAddress(null);
+        return;
+      }
+      // First call = create wallet, show mnemonic
+      const result = await setupWallet.handleCreateWallet();
+      if (!result.success) {
+        Alert.alert('Error', result.error || 'Failed to create wallet');
+        return;
+      }
+      setPendingWalletAddress(result.walletAddress || '');
+      setGeneratedMnemonic(result.mnemonic);
+      return;
+    }
+
+    if (choice.mode === 'import') {
+      const result = await setupWallet.handleImportWallet(choice.mnemonic);
+      if (!result.success) {
+        Alert.alert('Error', result.error || 'Failed to import wallet');
+        return;
+      }
+      await registerPrivacyWallet(result.walletAddress || '');
+    }
+  };
+
+  const registerPrivacyWallet = async (walletAddress: string) => {
+    try {
+      await api.post('/api/wallet/privacy-wallet', { walletAddress });
+    } catch (err: any) {
+      if (__DEV__) console.error('Failed to register privacy wallet:', err);
+      Alert.alert('Error', err?.message || 'Failed to save wallet to server');
+      return;
+    }
+    socketService.subscribeToWallet(walletAddress);
+    if (userData) {
+      setUserData({ ...userData, stealf_wallet: walletAddress });
+    }
+  };
 
   useEffect(() => {
     if (currentPage === 'privacy') {
@@ -52,6 +109,21 @@ export default function PrivacyScreen({
     setShowAddFundsModal(false);
     onOpenAddFundsPrivacy();
   };
+
+  const handleSelectPrivateCash = () => {
+    setShowAddFundsModal(false);
+    onOpenDepositPrivateCash();
+  };
+
+  if (!hasPrivacyWallet) {
+    return (
+      <WalletSetupScreen
+        onComplete={handleWalletSetup}
+        loading={setupWallet.loading}
+        generatedMnemonic={generatedMnemonic}
+      />
+    );
+  }
 
   return (
     <View style={styles.container}>
@@ -118,16 +190,16 @@ export default function PrivacyScreen({
             <View style={styles.activityHeader}>
               <Text style={styles.activityTitle}>Transactions</Text>
             </View>
-            <TransactionHistory limit={50} compact walletType="privacy" />
+            <TransactionHistory limit={50} walletType="privacy" compact />
           </Animated.View>
 
           {/* Add Funds Modal */}
           <AddFundsPrivacyModal
             visible={showAddFundsModal}
             onClose={() => setShowAddFundsModal(false)}
-onSelectSimpleDeposit={handleSelectSimpleDeposit}
+            onSelectPrivateCash={handleSelectPrivateCash}
+            onSelectSimpleDeposit={handleSelectSimpleDeposit}
           />
-
       </View>
   );
 }
@@ -137,50 +209,6 @@ const styles = StyleSheet.create({
     flex: 1,
     paddingBottom: 10,
     backgroundColor: 'transparent',
-  },
-  stealthReceiveButton: {
-    borderWidth: 1,
-    borderColor: 'rgba(139,92,246,0.4)',
-    borderRadius: 12,
-    paddingVertical: 10,
-    paddingHorizontal: 16,
-    alignSelf: 'flex-start',
-    backgroundColor: 'rgba(139,92,246,0.08)',
-  },
-  stealthReceiveText: {
-    color: '#8B5CF6',
-    fontSize: 13,
-    fontFamily: 'Sansation-Regular',
-  },
-  stealthPaymentRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: 'rgba(255,255,255,0.04)',
-    borderRadius: 12,
-    padding: 12,
-    marginBottom: 8,
-  },
-  stealthPaymentAmount: {
-    color: '#FFFFFF',
-    fontSize: 15,
-    fontFamily: 'Sansation-Bold',
-  },
-  stealthPaymentStatus: {
-    color: 'rgba(255,255,255,0.5)',
-    fontSize: 11,
-    marginTop: 2,
-    fontFamily: 'Sansation-Regular',
-  },
-  spendButton: {
-    backgroundColor: '#8B5CF6',
-    borderRadius: 8,
-    paddingVertical: 6,
-    paddingHorizontal: 12,
-  },
-  spendButtonText: {
-    color: '#FFFFFF',
-    fontSize: 12,
-    fontFamily: 'Sansation-Bold',
   },
   headerSpacer: {
     height: 110,
@@ -256,17 +284,5 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: '#4ADE80',
     fontFamily: 'Sansation-Regular',
-  },
-  titleContainer: {
-    alignItems: 'center',
-    marginTop: 0,
-    marginBottom: 16,
-  },
-  pageTitle: {
-    fontSize: 28,
-    fontWeight: '600',
-    color: 'white',
-    letterSpacing: 0.5,
-    fontFamily: 'Sansation-Bold',
   },
 });

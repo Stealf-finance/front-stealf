@@ -17,7 +17,13 @@ export default {
     ios: {
       supportsTablet: true,
       bundleIdentifier: "com.stealf.app",
-      associatedDomains: ["webcredentials:localhost"]
+      associatedDomains: ["webcredentials:stealf.xyz"],
+      infoPlist: {
+        NSAppTransportSecurity: {
+          NSAllowsArbitraryLoads: true,
+          NSAllowsLocalNetworking: true,
+        },
+      },
     },
     android: {
       package: "com.stealf.app",

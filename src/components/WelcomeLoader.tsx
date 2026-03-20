@@ -2,11 +2,11 @@ import React, { useEffect, useRef } from "react";
 import { View, StyleSheet, Animated, Easing, StatusBar } from "react-native";
 
 type Props = {
-  logo: React.ReactNode;         // <Image .../> ou <Svg .../>
-  visible?: boolean;             // affiche/masque le loader
-  startOpaque?: boolean;        // démarre opaque (pas d'animation d'entrée)
-  durationInMs?: number;         // vitesse d'arrivée
-  fadeOutTrigger?: boolean;      // déclenche la sortie (quand data loaded)
+  logo: React.ReactNode;
+  visible?: boolean;
+  startOpaque?: boolean;
+  durationInMs?: number;
+  fadeOutTrigger?: boolean;
   onFadeOutEnd?: () => void;
 };
 

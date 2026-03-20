@@ -13,10 +13,8 @@ import {
 } from 'react-native';
 import * as Clipboard from 'expo-clipboard';
 import { LinearGradient } from 'expo-linear-gradient';
-import AddIcon from '../../assets/buttons/add.svg';
-import DepositIcon from '../../assets/buttons/deposit.svg';
-import ComebackIcon from '../../assets/buttons/comeback.svg';
-import { validateMnemonic } from '../../services/transactionsGuard';
+import { Ionicons } from '@expo/vector-icons';
+import { validateMnemonic } from '../../services/solana/transactionsGuard';
 
 type SetupStep = 'choose' | 'importWallet' | 'showMnemonic';
 
@@ -37,7 +35,12 @@ export default function WalletSetupScreen({ onComplete, loading, generatedMnemon
   const [copied, setCopied] = useState(false);
   const clipboardTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // Clear clipboard after 60 seconds when private key is copied
+  useEffect(() => {
+    if (generatedMnemonic) {
+      setStep('showMnemonic');
+    }
+  }, [generatedMnemonic]);
+
   useEffect(() => {
     return () => {
       if (clipboardTimeoutRef.current) {
@@ -48,36 +51,12 @@ export default function WalletSetupScreen({ onComplete, loading, generatedMnemon
 
   const handleCopyMnemonic = async () => {
     if (!generatedMnemonic) return;
-
     await Clipboard.setStringAsync(generatedMnemonic);
     setCopied(true);
-
-    // Clear clipboard after 60 seconds for security
     clipboardTimeoutRef.current = setTimeout(async () => {
       await Clipboard.setStringAsync('');
       setCopied(false);
     }, 60000);
-
-    Alert.alert(
-      'Copied',
-      'Recovery phrase copied to clipboard. It will be automatically cleared in 60 seconds for security.',
-      [{ text: 'OK' }]
-    );
-  };
-
-  const handleCreateNew = () => {
-    onComplete({ mode: 'create', storage: 'cold' });
-  };
-
-  const handleImport = () => setStep('importWallet');
-
-  const handleImportComplete = () => {
-    if (!importKey.trim()) {
-      Alert.alert('Error', 'Please enter your seed phrase');
-      return;
-    }
-    onComplete({ mode: 'import', storage: 'cold', mnemonic: importKey.trim() });
-    setImportKey('');
   };
 
   return (
@@ -89,84 +68,75 @@ export default function WalletSetupScreen({ onComplete, loading, generatedMnemon
         end={{ x: 0, y: 0 }}
         style={styles.background}
       >
-        {step === 'importWallet' && (
-          <TouchableOpacity style={styles.backButton} onPress={() => setStep('choose')}>
-            <ComebackIcon width={20} height={16} />
-          </TouchableOpacity>
-        )}
         <KeyboardAvoidingView
           behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
           style={styles.keyboardView}
         >
         <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
+
+          {/* --- Choose --- */}
           {step === 'choose' && (
             <>
-              <Text style={styles.title}>Stealf Wallet</Text>
+              <Text style={styles.title}>Privacy Wallet</Text>
               <Text style={styles.subtitle}>
-                Choose how to set up your private wallet
+                Set up your private wallet to start using Stealf Privacy
               </Text>
 
               <TouchableOpacity
                 style={styles.optionCard}
-                onPress={handleCreateNew}
+                onPress={() => onComplete({ mode: 'create', storage: 'cold' })}
                 activeOpacity={0.7}
                 disabled={loading}
               >
-                <View style={styles.optionIconContainer}>
-                  <AddIcon width={24} height={24} />
+                <View style={styles.optionIcon}>
+                  <Ionicons name="add-circle-outline" size={24} color="white" />
                 </View>
-                <View style={styles.optionTextContainer}>
+                <View style={styles.optionText}>
                   <Text style={styles.optionTitle}>Create new wallet</Text>
-                  <Text style={styles.optionDescription}>Generate a brand new wallet</Text>
+                  <Text style={styles.optionDesc}>Generate a brand new wallet</Text>
                 </View>
               </TouchableOpacity>
 
               <TouchableOpacity
                 style={styles.optionCard}
-                onPress={handleImport}
+                onPress={() => setStep('importWallet')}
                 activeOpacity={0.7}
                 disabled={loading}
               >
-                <View style={styles.optionIconContainer}>
-                  <DepositIcon width={24} height={24} />
+                <View style={styles.optionIcon}>
+                  <Ionicons name="download-outline" size={24} color="white" />
                 </View>
-                <View style={styles.optionTextContainer}>
+                <View style={styles.optionText}>
                   <Text style={styles.optionTitle}>Import wallet</Text>
-                  <Text style={styles.optionDescription}>Use an existing seed phrase</Text>
+                  <Text style={styles.optionDesc}>Use an existing seed phrase</Text>
                 </View>
               </TouchableOpacity>
 
               {loading && (
-                <ActivityIndicator size="large" color="rgba(240, 235, 220, 0.95)" style={styles.loader} />
+                <ActivityIndicator size="large" color="rgba(240, 235, 220, 0.95)" style={{ marginTop: 24 }} />
               )}
             </>
           )}
 
+          {/* --- Import --- */}
           {step === 'importWallet' && (
             <>
               <Text style={styles.title}>Import Wallet</Text>
               <Text style={styles.subtitle}>
-                Enter your seed phrase to import your wallet
+                Enter your seed phrase to restore your wallet
               </Text>
 
-              <Text style={styles.screenshotWarning}>
-                Do not enter your seed phrase while screen sharing or recording.
-              </Text>
-
-              <View style={styles.inputGroup}>
-                <Text style={styles.label}>Seed Phrase</Text>
-                <TextInput
-                  style={styles.input}
-                  placeholder="Enter your 12 or 24 word seed phrase"
-                  placeholderTextColor="rgba(255, 255, 255, 0.3)"
-                  value={importKey}
-                  onChangeText={(text) => { setImportKey(text); setImportError(''); }}
-                  autoCapitalize="none"
-                  autoCorrect={false}
-                  multiline
-                  editable={!loading}
-                />
-              </View>
+              <TextInput
+                style={styles.input}
+                placeholder="Enter your 12 or 24 word seed phrase"
+                placeholderTextColor="rgba(255, 255, 255, 0.3)"
+                value={importKey}
+                onChangeText={(text) => { setImportKey(text); setImportError(''); }}
+                autoCapitalize="none"
+                autoCorrect={false}
+                multiline
+                editable={!loading}
+              />
 
               {importError ? (
                 <Text style={styles.errorText}>{importError}</Text>
@@ -181,7 +151,8 @@ export default function WalletSetupScreen({ onComplete, loading, generatedMnemon
                     return;
                   }
                   setImportError('');
-                  handleImportComplete();
+                  onComplete({ mode: 'import', storage: 'cold', mnemonic: importKey.trim() });
+                  setImportKey('');
                 }}
                 activeOpacity={0.7}
                 disabled={!importKey.trim() || loading}
@@ -195,19 +166,16 @@ export default function WalletSetupScreen({ onComplete, loading, generatedMnemon
             </>
           )}
 
+          {/* --- Show Mnemonic --- */}
           {step === 'showMnemonic' && generatedMnemonic && (
             <>
-              <Text style={styles.title}>Your Recovery Phrase</Text>
+              <Text style={styles.title}>Recovery Phrase</Text>
               <Text style={styles.subtitle}>
-                Save these 24 words securely. Stealf will not store them.{'\n'}You will not be able to recover them.
+                Save these words securely.{'\n'}You won't be able to recover them later.
               </Text>
 
-              <Text style={styles.screenshotWarning}>
-                Do not take screenshots. Write down or copy securely.
-              </Text>
-
-              <View style={styles.keyContainer}>
-                <Text style={styles.keyText}>{generatedMnemonic}</Text>
+              <View style={styles.mnemonicBox}>
+                <Text style={styles.mnemonicText}>{generatedMnemonic}</Text>
               </View>
 
               <TouchableOpacity
@@ -215,31 +183,33 @@ export default function WalletSetupScreen({ onComplete, loading, generatedMnemon
                 onPress={handleCopyMnemonic}
                 activeOpacity={0.7}
               >
-                <Text style={styles.copyButtonText}>
-                  {copied ? 'Copied (clears in 60s)' : 'Copy to Clipboard'}
+                <Ionicons
+                  name={copied ? 'checkmark-circle' : 'copy-outline'}
+                  size={18}
+                  color={copied ? '#4ADE80' : 'rgba(255,255,255,0.8)'}
+                />
+                <Text style={[styles.copyButtonText, copied && { color: '#4ADE80' }]}>
+                  {copied ? 'Copied' : 'Copy'}
                 </Text>
               </TouchableOpacity>
-
-              <Text style={styles.warningText}>
-                Make sure you have saved your recovery phrase before continuing.
-              </Text>
 
               <TouchableOpacity
                 style={styles.primaryButton}
                 onPress={() => Alert.alert(
                   'Confirm',
-                  'Have you saved your recovery phrase?',
+                  'Have you saved your recovery phrase? You won\'t be able to see it again.',
                   [
-                    { text: 'No, go back', style: 'cancel' },
+                    { text: 'Not yet', style: 'cancel' },
                     { text: 'Yes, continue', onPress: () => onComplete({ mode: 'create', storage: 'cold' }) },
                   ]
                 )}
                 activeOpacity={0.7}
               >
-                <Text style={styles.primaryButtonText}>I have saved my recovery phrase</Text>
+                <Text style={styles.primaryButtonText}>I've saved my recovery phrase</Text>
               </TouchableOpacity>
             </>
           )}
+
         </ScrollView>
         </KeyboardAvoidingView>
       </LinearGradient>
@@ -248,27 +218,14 @@ export default function WalletSetupScreen({ onComplete, loading, generatedMnemon
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-  },
-  background: {
-    flex: 1,
-  },
-  keyboardView: {
-    flex: 1,
-  },
+  container: { flex: 1 },
+  background: { flex: 1 },
+  keyboardView: { flex: 1 },
   content: {
     flexGrow: 1,
     justifyContent: 'center',
     paddingHorizontal: 32,
     paddingBottom: 40,
-  },
-  backButton: {
-    position: 'absolute',
-    top: 60,
-    left: 24,
-    zIndex: 10,
-    padding: 8,
   },
   title: {
     fontSize: 28,
@@ -280,7 +237,7 @@ const styles = StyleSheet.create({
   },
   subtitle: {
     fontSize: 15,
-    color: 'rgba(255, 255, 255, 0.6)',
+    color: 'rgba(255, 255, 255, 0.5)',
     fontFamily: 'Sansation-Regular',
     marginBottom: 40,
     textAlign: 'center',
@@ -296,14 +253,12 @@ const styles = StyleSheet.create({
     padding: 20,
     marginBottom: 16,
   },
-  optionIconContainer: {
+  optionIcon: {
     width: 28,
     alignItems: 'center',
     marginRight: 16,
   },
-  optionTextContainer: {
-    flex: 1,
-  },
+  optionText: { flex: 1 },
   optionTitle: {
     fontSize: 17,
     fontWeight: '600',
@@ -311,19 +266,9 @@ const styles = StyleSheet.create({
     fontFamily: 'Sansation-Bold',
     marginBottom: 4,
   },
-  optionDescription: {
+  optionDesc: {
     fontSize: 13,
-    color: 'rgba(255, 255, 255, 0.5)',
-    fontFamily: 'Sansation-Regular',
-    lineHeight: 18,
-  },
-  inputGroup: {
-    marginBottom: 24,
-  },
-  label: {
-    fontSize: 14,
-    color: 'rgba(255, 255, 255, 0.7)',
-    marginBottom: 8,
+    color: 'rgba(255, 255, 255, 0.45)',
     fontFamily: 'Sansation-Regular',
   },
   input: {
@@ -338,6 +283,36 @@ const styles = StyleSheet.create({
     fontFamily: 'Sansation-Regular',
     minHeight: 80,
     textAlignVertical: 'top',
+    marginBottom: 24,
+  },
+  mnemonicBox: {
+    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.12)',
+    borderRadius: 16,
+    padding: 20,
+    marginBottom: 20,
+  },
+  mnemonicText: {
+    fontSize: 14,
+    color: 'rgba(240, 235, 220, 0.9)',
+    fontFamily: 'Sansation-Regular',
+    lineHeight: 22,
+    textAlign: 'center',
+  },
+  copyButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    paddingVertical: 12,
+    marginBottom: 32,
+  },
+  copyButtonCopied: {},
+  copyButtonText: {
+    fontSize: 14,
+    color: 'rgba(255, 255, 255, 0.8)',
+    fontFamily: 'Sansation-Regular',
   },
   primaryButton: {
     backgroundColor: 'rgba(240, 235, 220, 0.95)',
@@ -352,80 +327,12 @@ const styles = StyleSheet.create({
     color: '#000',
     fontFamily: 'Sansation-Bold',
   },
-  secondaryButton: {
-    paddingVertical: 16,
-    borderRadius: 30,
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.2)',
-  },
-  secondaryButtonText: {
-    fontSize: 16,
-    color: 'rgba(255, 255, 255, 0.7)',
-    fontFamily: 'Sansation-Regular',
-  },
-  buttonDisabled: {
-    opacity: 0.5,
-  },
-  loader: {
-    marginTop: 24,
-  },
-  keyContainer: {
-    backgroundColor: 'rgba(255, 255, 255, 0.05)',
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.15)',
-    borderRadius: 16,
-    padding: 20,
-    marginBottom: 24,
-  },
-  keyText: {
-    fontSize: 13,
-    color: 'rgba(240, 235, 220, 0.95)',
-    fontFamily: 'Sansation-Regular',
-    lineHeight: 20,
-  },
+  buttonDisabled: { opacity: 0.5 },
   errorText: {
     fontSize: 13,
     color: '#ff4444',
     fontFamily: 'Sansation-Regular',
     textAlign: 'center',
     marginBottom: 16,
-  },
-  warningText: {
-    fontSize: 13,
-    color: '#ff8844',
-    fontFamily: 'Sansation-Regular',
-    textAlign: 'center',
-    marginBottom: 24,
-  },
-  screenshotWarning: {
-    fontSize: 12,
-    color: '#ff4444',
-    fontFamily: 'Sansation-Bold',
-    textAlign: 'center',
-    marginBottom: 16,
-    backgroundColor: 'rgba(255, 68, 68, 0.1)',
-    paddingVertical: 8,
-    paddingHorizontal: 12,
-    borderRadius: 8,
-  },
-  copyButton: {
-    backgroundColor: 'rgba(255, 255, 255, 0.1)',
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.2)',
-    paddingVertical: 12,
-    paddingHorizontal: 24,
-    borderRadius: 12,
-    alignItems: 'center',
-    marginBottom: 16,
-  },
-  copyButtonCopied: {
-    backgroundColor: 'rgba(76, 175, 80, 0.2)',
-    borderColor: 'rgba(76, 175, 80, 0.4)',
-  },
-  copyButtonText: {
-    fontSize: 14,
-    color: 'rgba(255, 255, 255, 0.8)',
-    fontFamily: 'Sansation-Regular',
   },
 });

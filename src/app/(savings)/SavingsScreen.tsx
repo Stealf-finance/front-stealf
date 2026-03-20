@@ -9,12 +9,13 @@ import {
   Modal,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import { useYieldDashboard, useBatchStatus, type VaultType } from "../../hooks/useYield";
+import { useYieldDashboard, useBatchStatus, type VaultType } from "../../hooks/yield/useYield";
 
-import { useYieldSnapshots } from "../../hooks/useYieldSnapshots";
-import { useYieldProofFromSnapshots } from "../../hooks/useYieldProofFromSnapshots";
-import { useWalletInfos } from "../../hooks/useWalletInfos";
+import { useYieldSnapshots } from "../../hooks/yield/useYieldSnapshots";
+import { useYieldProofFromSnapshots } from "../../hooks/yield/useYieldProofFromSnapshots";
+import { useWalletInfos } from "../../hooks/wallet/useWalletInfos";
 import { useAuth } from "../../contexts/AuthContext";
+import { USDC_MINT } from "../../constants/solana";
 import DepositWithdrawModal from "./DepositWithdrawModal";
 type AssetTab = "sol" | "usdc";
 
@@ -26,7 +27,6 @@ export default function SavingsScreen() {
   const [modalMode, setModalMode] = useState<"deposit" | "withdraw">("deposit");
   const [usdcComingSoonVisible, setUsdcComingSoonVisible] = useState(false);
   const [activeTab, setActiveTab] = useState<AssetTab>("sol");
-  const USDC_MINT = 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v';
   const walletSolBalance = walletTokens.find(t => t.tokenMint === null)?.balance ?? 0;
   const walletUsdcBalance = walletTokens.find(t => t.tokenMint === USDC_MINT)?.balance ?? 0;
   const walletAvailable = activeTab === 'sol' ? walletSolBalance : walletUsdcBalance;
@@ -38,7 +38,8 @@ export default function SavingsScreen() {
 
   // Arcium: balance snapshots + proof from snapshots
   const { data: snapshots = [] } = useYieldSnapshots(selectedSolVault);
-  const canProve = activeTab === "sol" && snapshots.length >= 2;
+  // Beta: proof-from-snapshots hidden until Arcium MPC is stable on devnet
+  const canProve = false;
   const proofParams = canProve
     ? {
         startIndex: snapshots[0].snapshotIndex,
@@ -91,7 +92,6 @@ export default function SavingsScreen() {
       <View style={styles.content}>
         {/* Header */}
         <View style={styles.header}>
-          <Text style={styles.headerTitle}>Savings</Text>
           <Text style={styles.headerSubtitle}>Earn yield on your assets</Text>
         </View>
 

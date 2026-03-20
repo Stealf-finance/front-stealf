@@ -14,10 +14,8 @@ import {
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import VerifiedScreen from './VerifiedScreen';
-import { useAuthFlow } from '../../hooks/useSignUp';
-import { useEmailVerificationPolling } from '../../hooks/useEmailVerificationPolling';
-import { useMWAAvailability } from '../../hooks/useMWAAvailability';
-import { useWalletAuth } from '../../hooks/useWalletAuth';
+import { useAuthFlow } from '../../hooks/auth/useSignUp';
+import { useEmailVerificationPolling } from '../../hooks/auth/useEmailVerificationPolling';
 
 interface SignUpScreenProps {
   onSwitchToSignIn?: () => void;
@@ -26,17 +24,14 @@ interface SignUpScreenProps {
 
 export default function SignUpScreen({ onSwitchToSignIn, onAuthStart }: SignUpScreenProps = {}){
   const authFlow = useAuthFlow();
-  const { isMWAAvailable } = useMWAAvailability();
-  const walletAuth = useWalletAuth();
 
-  const [step, setStep] = useState<'email' | 'waiting' | 'verified' | 'wallet-form'>('email');
+  const [step, setStep] = useState<'email' | 'waiting' | 'verified'>('email');
   const [email, setEmail] = useState('');
   const [pseudo, setPseudo] = useState('');
   const [loading, setLoading] = useState(false);
   const [showLogoAnimation, setShowLogoAnimation] = useState(false);
   const [error, setError] = useState('');
   const [preAuthToken, setPreAuthToken] = useState<string | null>(null);
-  const [walletData, setWalletData] = useState<{ address: string; publicKeyHex: string; authToken: string } | null>(null);
 
   useEmailVerificationPolling({
     preAuthToken,
@@ -57,6 +52,7 @@ export default function SignUpScreen({ onSwitchToSignIn, onAuthStart }: SignUpSc
       email,
       pseudo,
       setLoading,
+      preAuthToken: preAuthToken || undefined,
     });
 
     if (!result.success) {
@@ -81,28 +77,6 @@ export default function SignUpScreen({ onSwitchToSignIn, onAuthStart }: SignUpSc
       if (result.preAuthToken) {
         setPreAuthToken(result.preAuthToken);
       }
-    }
-  };
-
-  const onWalletConnect = async () => {
-    console.log('[SignUpScreen] onWalletConnect called');
-    const result = await walletAuth.connectWallet();
-    console.log('[SignUpScreen] connectWallet result:', JSON.stringify(result));
-    if (result.success && result.address && result.publicKeyHex && result.authToken) {
-      // Signup directly — no form needed for wallet users
-      console.log('[SignUpScreen] Wallet connected, signing up directly...');
-      const signupResult = await walletAuth.signUpWithWallet({
-        publicKeyHex: result.publicKeyHex,
-        walletAddress: result.address,
-        authToken: result.authToken,
-        label: result.label,
-      });
-
-      if (!signupResult.success) {
-        Alert.alert('Error', signupResult.error || 'Failed to sign up with wallet');
-      }
-    } else if (result.error) {
-      Alert.alert('Error', result.error);
     }
   };
 
@@ -187,30 +161,6 @@ export default function SignUpScreen({ onSwitchToSignIn, onAuthStart }: SignUpSc
                       <Text style={styles.buttonText}>Continue</Text>
                     )}
                   </TouchableOpacity>
-
-                  {/* Wallet Connect Button */}
-                  {isMWAAvailable && (
-                    <>
-                      <View style={styles.dividerContainer}>
-                        <View style={styles.dividerLine} />
-                        <Text style={styles.dividerText}>or</Text>
-                        <View style={styles.dividerLine} />
-                      </View>
-
-                      <TouchableOpacity
-                        style={[styles.walletButton, walletAuth.loading && styles.buttonDisabled]}
-                        onPress={onWalletConnect}
-                        disabled={walletAuth.loading}
-                        activeOpacity={0.8}
-                      >
-                        {walletAuth.loading ? (
-                          <ActivityIndicator color="rgba(240, 235, 220, 0.95)" />
-                        ) : (
-                          <Text style={styles.walletButtonText}>Connect with Seeker Wallet</Text>
-                        )}
-                      </TouchableOpacity>
-                    </>
-                  )}
 
                   {/* Sign In Link */}
                   <View style={styles.footer}>
@@ -419,51 +369,6 @@ const styles = StyleSheet.create({
   changeEmailText: {
     color: 'rgba(255, 255, 255, 0.5)',
     fontSize: 14,
-    fontFamily: 'Sansation-Regular',
-  },
-  dividerContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginVertical: 20,
-  },
-  dividerLine: {
-    flex: 1,
-    height: 1,
-    backgroundColor: 'rgba(255, 255, 255, 0.1)',
-  },
-  dividerText: {
-    fontSize: 13,
-    color: 'rgba(255, 255, 255, 0.4)',
-    fontFamily: 'Sansation-Regular',
-    marginHorizontal: 16,
-  },
-  walletButton: {
-    backgroundColor: 'rgba(255, 255, 255, 0.05)',
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.15)',
-    paddingVertical: 18,
-    borderRadius: 30,
-    alignItems: 'center',
-  },
-  walletButtonText: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: 'rgba(240, 235, 220, 0.95)',
-    fontFamily: 'Sansation-Bold',
-  },
-  walletConnectedBadge: {
-    backgroundColor: 'rgba(76, 175, 80, 0.1)',
-    borderWidth: 1,
-    borderColor: 'rgba(76, 175, 80, 0.3)',
-    borderRadius: 12,
-    paddingVertical: 10,
-    paddingHorizontal: 16,
-    alignItems: 'center',
-    marginBottom: 24,
-  },
-  walletConnectedText: {
-    fontSize: 13,
-    color: 'rgba(76, 175, 80, 0.9)',
     fontFamily: 'Sansation-Regular',
   },
   footer: {

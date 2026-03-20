@@ -1,9 +1,9 @@
+import './polyfills';
 import React from 'react';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { useFonts } from 'expo-font';
 import { Asset } from 'expo-asset';
 import { AuthProvider } from './src/contexts/AuthContext';
-import { SessionProvider } from './src/contexts/SessionContext';
 import { PointsProvider } from './src/contexts/PointsContext';
 import AppNavigator from './src/navigation/AppNavigator';
 import { TurnkeyProvider } from '@turnkey/react-native-wallet-kit';
@@ -19,7 +19,6 @@ const queryClient = new QueryClient({
   },
 });
 
-// Preload critical images at module load (runs once, cached forever)
 Asset.loadAsync([
   require('./src/assets/fond.png'),
   require('./src/assets/logo-transparent.png'),
@@ -42,11 +41,9 @@ export default function App() {
       <QueryClientProvider client={queryClient}>
         <TurnkeyProvider config={TURNKEY_CONFIG} callbacks={TURNKEY_CALLBACKS}>
           <AuthProvider>
-            <SessionProvider>
-              <PointsProvider>
-                <AppNavigator />
-              </PointsProvider>
-            </SessionProvider>
+            <PointsProvider>
+              <AppNavigator />
+            </PointsProvider>
           </AuthProvider>
         </TurnkeyProvider>
       </QueryClientProvider>

@@ -4,6 +4,7 @@ import {
   Text,
   StyleSheet,
   TouchableOpacity,
+  Image,
   Alert,
 } from 'react-native';
 import { useFonts } from 'expo-font';
@@ -12,29 +13,17 @@ import { LinearGradient } from 'expo-linear-gradient';
 import type { SendScreenProps } from '../../types';
 import SendConfirmation from './SendConfirmation';
 import { useAuth } from '../../contexts/AuthContext';
-import { useWalletInfos } from '../../hooks/useWalletInfos';
-import { validateAmount } from '../../services/transactionsGuard';
-
-const USDC_MINT = 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v';
+import { useWalletInfos } from '../../hooks/wallet/useWalletInfos';
+import { validateAmount } from '../../services/solana/transactionsGuard';
 
 export default function SendScreen({ onBack }: SendScreenProps) {
   const [amount, setAmount] = useState('');
   const [showConfirmation, setShowConfirmation] = useState(false);
-  const [selectedToken, setSelectedToken] = useState<'SOL' | 'USDC'>('SOL');
 
   const { userData } = useAuth();
-  const { tokens } = useWalletInfos(userData?.cash_wallet || '');
+  const { balance } = useWalletInfos(userData?.cash_wallet || '');
 
-  const solToken = tokens.find(t => !t.tokenMint);
-  const usdcToken = tokens.find(t => t.tokenMint === USDC_MINT);
-
-  const displayBalance = selectedToken === 'SOL'
-    ? (solToken?.balance ?? 0)
-    : (usdcToken?.balance ?? 0);
-
-  const token = selectedToken === 'SOL'
-    ? { symbol: 'SOL', mint: null as string | null, decimals: 9 }
-    : { symbol: 'USDC', mint: USDC_MINT, decimals: 6 };
+  const totalUSD = balance || 0;
 
   const [fontsLoaded] = useFonts({
     'Sansation-Regular': require('../../assets/font/Sansation/Sansation-Regular.ttf'),
@@ -64,8 +53,8 @@ export default function SendScreen({ onBack }: SendScreenProps) {
       Alert.alert('Error', check.error || 'Invalid amount');
       return;
     }
-    if (parseFloat(amount) > displayBalance) {
-      Alert.alert('Error', `Insufficient balance. Your ${selectedToken} balance is ${displayBalance.toFixed(selectedToken === 'SOL' ? 4 : 2)}`);
+    if (parseFloat(amount) > totalUSD) {
+      Alert.alert('Error', `Insufficient balance. Your balance is $${totalUSD.toFixed(2)}`);
       return;
     }
     setShowConfirmation(true);
@@ -81,7 +70,6 @@ export default function SendScreen({ onBack }: SendScreenProps) {
     return (
       <SendConfirmation
         amount={amount}
-        token={token}
         onBack={() => setShowConfirmation(false)}
         onClose={onBack}
         onSuccess={handleSuccess}
@@ -108,33 +96,13 @@ export default function SendScreen({ onBack }: SendScreenProps) {
           <View style={styles.placeholder} />
         </View>
 
-        {/* Token Selector */}
-        <View style={styles.tokenSelector}>
-          <TouchableOpacity
-            style={[styles.tokenPill, selectedToken === 'SOL' && styles.tokenPillActive]}
-            onPress={() => { setSelectedToken('SOL'); setAmount(''); }}
-            activeOpacity={0.8}
-          >
-            <Text style={[styles.tokenPillText, selectedToken === 'SOL' && styles.tokenPillTextActive]}>SOL</Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={[styles.tokenPill, selectedToken === 'USDC' && styles.tokenPillActive]}
-            onPress={() => { setSelectedToken('USDC'); setAmount(''); }}
-            activeOpacity={0.8}
-          >
-            <Text style={[styles.tokenPillText, selectedToken === 'USDC' && styles.tokenPillTextActive]}>USDC</Text>
-          </TouchableOpacity>
-        </View>
-
         {/* Amount Display */}
         <View style={styles.amountContainer}>
           <View style={styles.amountRow}>
+            <Text style={styles.currencyText}>$</Text>
             <Text style={styles.amountText}>{amount || '0'}</Text>
-            <Text style={styles.currencyText}>{selectedToken}</Text>
           </View>
-          <Text style={styles.balanceText}>
-            Balance: {displayBalance.toFixed(selectedToken === 'SOL' ? 4 : 2)} {selectedToken}
-          </Text>
+          <Text style={styles.balanceText}>Your balance ${totalUSD.toFixed(2)}</Text>
         </View>
 
         {/* Continue Button */}
@@ -237,34 +205,6 @@ const styles = StyleSheet.create({
   },
   placeholder: {
     width: 40,
-  },
-  tokenSelector: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    gap: 12,
-    marginTop: 20,
-    marginBottom: 4,
-  },
-  tokenPill: {
-    paddingHorizontal: 24,
-    paddingVertical: 8,
-    borderRadius: 20,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.2)',
-    backgroundColor: 'transparent',
-  },
-  tokenPillActive: {
-    backgroundColor: 'rgba(240, 235, 220, 0.15)',
-    borderColor: 'rgba(240, 235, 220, 0.6)',
-  },
-  tokenPillText: {
-    fontSize: 15,
-    color: 'rgba(255, 255, 255, 0.4)',
-    fontFamily: 'Sansation-Regular',
-  },
-  tokenPillTextActive: {
-    color: 'white',
-    fontFamily: 'Sansation-Bold',
   },
   amountContainer: {
     alignItems: 'center',

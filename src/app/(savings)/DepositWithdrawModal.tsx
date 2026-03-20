@@ -9,7 +9,7 @@ import {
   ActivityIndicator,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import { useYieldDepositAndConfirm, useYieldWithdrawAndConfirm, type VaultType } from "../../hooks/useYield";
+import { useYieldDepositAndConfirm, useYieldWithdrawAndConfirm, type VaultType } from "../../hooks/yield/useYield";
 
 type ModalMode = "deposit" | "withdraw";
 
@@ -83,7 +83,7 @@ export default function DepositWithdrawModal({
       }
       setStep("success");
     } catch (error: any) {
-      console.error(`${mode} error:`, error);
+      __DEV__ && console.error(`${mode} error:`, error);
       setStep("input");
       Alert.alert(
         "Error",

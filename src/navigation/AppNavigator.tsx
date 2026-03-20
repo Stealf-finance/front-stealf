@@ -8,7 +8,7 @@ import HomeScreen from '../app/(tabs)/HomeScreen';
 import PrivacyScreen from '../app/(tabs)/PrivacyScreen';
 import SendScreen from '../app/(send)/Send';
 import SendPrivateScreen from '../app/(send)/SendPrivate';
-import MooveScreen from '../app/(send)/Moove';
+import MooveScreen from '../app/(send)/moove';
 import AddFundsScreen from '../app/(add)/AddFunds';
 import AddFundsPrivacyScreen from '../app/(add)/AddFundsPrivacy';
 import DepositPrivateCashScreen from '../app/(deposit)/DepositPrivateCash';
@@ -22,7 +22,11 @@ import type { PageType } from './types';
 import { RevolutPager, RevolutPagerRef } from './swipePager';
 import { WelcomeLoader } from '../components/WelcomeLoader';
 import Logo from '../assets/logo/logo.svg';
-import { useWalletInfos } from '../hooks/useWalletInfos';
+import { useWalletInfos } from '../hooks/wallet/useWalletInfos';
+
+const SCREEN_HEIGHT = Dimensions.get('window').height;
+
+type OverlayScreen = 'send' | 'sendPrivate' | 'moove' | 'addFunds' | 'addFundsPrivacy' | 'depositPrivateCash' | 'info' | 'transactionHistory';
 
 const SCREEN_HEIGHT = Dimensions.get('window').height;
 

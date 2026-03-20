@@ -10,7 +10,7 @@ import {
   Linking,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { useWalletInfos } from '../hooks/useWalletInfos';
+import { useWalletInfos } from '../hooks/wallet/useWalletInfos';
 import SendIcon from '../assets/buttons/send.svg';
 import ReceivedIcon from '../assets/buttons/received.svg';
 import { useAuth } from '../contexts/AuthContext';
