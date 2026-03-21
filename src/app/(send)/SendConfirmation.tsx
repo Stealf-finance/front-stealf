@@ -16,7 +16,9 @@ import { useFonts } from 'expo-font';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useSendTransaction } from '../../hooks/transactions/useSendSimpleTransaction';
 import { useAuth } from '../../contexts/AuthContext';
+import { useWalletInfos } from '../../hooks/wallet/useWalletInfos';
 import { USDC_MINT, USDC_DECIMALS } from '../../constants/solana';
+import { LAMPORTS_PER_SOL } from '@solana/web3.js';
 import SlideToConfirm from '../../components/SlideToConfirm';
 
 interface SendConfirmationProps {
@@ -31,6 +33,15 @@ export default function SendConfirmation({ amount, walletType = 'cash', onBack, 
   const { userData } = useAuth();
   const senderWallet = walletType === 'stealf' ? userData?.stealf_wallet : userData?.cash_wallet;
   const { sendTransaction, loading } = useSendTransaction();
+  const { tokens } = useWalletInfos(senderWallet || '');
+
+  const getSolPrice = (): number => {
+    const solToken = tokens.find(t => t.tokenMint === null && t.balance > 0);
+    if (solToken && solToken.balance > 0) {
+      return solToken.balanceUSD / solToken.balance;
+    }
+    return 0;
+  };
 
   const [externalAddress, setExternalAddress] = useState('');
   const [showSuccess, setShowSuccess] = useState(false);
@@ -61,12 +72,22 @@ export default function SendConfirmation({ amount, walletType = 'cash', onBack, 
       //   USDC_DECIMALS,
       // );
 
-      // --- DEVNET: Native SOL transfer ---
-      const amountSOL = parseFloat(amount);
+      // --- DEVNET: Native SOL transfer (USD → SOL conversion) ---
+      const amountUSD = parseFloat(amount);
+      const solPrice = getSolPrice();
+      if (solPrice <= 0) {
+        Alert.alert('Error', 'Unable to get SOL price');
+        return;
+      }
+      const amountSOL = Math.floor((amountUSD / solPrice) * LAMPORTS_PER_SOL) / LAMPORTS_PER_SOL;
+
       await sendTransaction(
         senderWallet,
         externalAddress,
         amountSOL,
+        null,
+        undefined,
+        walletType,
       );
 
       // Show success

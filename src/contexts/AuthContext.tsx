@@ -3,6 +3,9 @@ import { useTurnkey } from '@turnkey/react-native-wallet-kit';
 import { authStorage } from '../services/auth/authStorage';
 import { socketService } from '../services/real-time/socketService';
 import { walletKeyCache } from '../services/cache/walletKeyCache';
+import { registerYieldSocketListener, unregisterYieldSocketListener, prefetchYieldData } from '../services/yield/balance';
+import { attachWalletListeners, detachWalletListeners } from '../hooks/wallet/useWalletInfos';
+import { useQueryClient } from '@tanstack/react-query';
 import { umbraClearSeed } from '../services/solana/umbraSeed';
 import { clearUmbraState } from '../hooks/transactions/useUmbra';
 
@@ -27,6 +30,7 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const { user, session, logout: turnkeyLogout } = useTurnkey();
+  const queryClient = useQueryClient();
   const [userDataState, setUserDataState] = useState<UserData | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -45,12 +49,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         });
 
         if (session.token && storedData?.cash_wallet) {
+          attachWalletListeners(queryClient);
           socketService.connect(session.token);
           socketService.subscribeToWallet(storedData.cash_wallet);
           if (storedData.stealf_wallet) socketService.subscribeToWallet(storedData.stealf_wallet);
+          if (user.userId) {
+            socketService.subscribeToYield(user.userId);
+            registerYieldSocketListener(queryClient, user.userId);
+            prefetchYieldData(queryClient, user.userId, session.token);
+          }
         }
       } else {
         setUserDataState(null);
+        detachWalletListeners();
+        unregisterYieldSocketListener();
         socketService.disconnect();
       }
       setLoading(false);
@@ -67,10 +79,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     } else {
       await authStorage.setUserData(data);
       if (data.cash_wallet && session?.token) {
+        if (__DEV__) console.log('[Auth] saveUserData — cash:', data.cash_wallet, 'stealf:', data.stealf_wallet);
+        attachWalletListeners(queryClient);
         socketService.connect(session.token);
         socketService.subscribeToWallet(data.cash_wallet);
         if (data.stealf_wallet) {
           socketService.subscribeToWallet(data.stealf_wallet);
+        }
+        if (data.subOrgId && session?.token) {
+          socketService.subscribeToYield(data.subOrgId);
+          registerYieldSocketListener(queryClient, data.subOrgId);
+          prefetchYieldData(queryClient, data.subOrgId, session.token);
         }
       }
     }
@@ -84,6 +103,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       await umbraClearSeed();
       clearUmbraState();
       setUserDataState(null);
+      detachWalletListeners();
+      unregisterYieldSocketListener();
       socketService.disconnect();
     } catch (error) {
       if (__DEV__) console.error('Logout error:', error);

@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useCallback, useEffect } from "react";
+import React, { useState, useCallback } from "react";
 import {
   View,
   Text,
@@ -7,14 +7,10 @@ import {
   TouchableOpacity,
   ActivityIndicator,
 } from "react-native";
-import { useQuery } from "@tanstack/react-query";
 import ComebackIcon from '../../assets/buttons/comeback.svg';
 import { useWalletInfos } from "../../hooks/wallet/useWalletInfos";
 import { useAuth } from "../../contexts/AuthContext";
-import { useAuthenticatedApi } from "../../services/api/clientStealf";
-import { createGetYieldStats } from "../../services/api/fetchWalletInfos";
-import { useYieldBalance } from "../../services/yield/balance";
-import { LAMPORTS_PER_SOL } from "@solana/web3.js";
+import { useYieldBalance, useYieldStats, useInvalidateYieldBalance } from "../../services/yield/balance";
 import DepositWithdrawModal from "./DepositWithdrawModal";
 
 import DepositIcon from '../../assets/buttons/deposit.svg';
@@ -28,48 +24,27 @@ interface SavingsScreenProps {
 
 export default function SavingsScreen({ onBack }: SavingsScreenProps) {
   const { userData } = useAuth();
-  const api = useAuthenticatedApi();
   const { tokens: walletTokens } = useWalletInfos(userData?.stealf_wallet || "");
   const [modalVisible, setModalVisible] = useState(false);
   const [modalMode, setModalMode] = useState<"deposit" | "withdraw">("deposit");
 
   const walletSolBalance = walletTokens.find(t => t.tokenMint === null)?.balance ?? 0;
 
-  // Yield stats (APY, rate)
-  const fetchYieldStats = useMemo(() => createGetYieldStats(api), [api]);
-  const { data: yieldStats } = useQuery({
-    queryKey: ['yield-stats'],
-    queryFn: fetchYieldStats,
-    staleTime: 5 * 60 * 1000,
-    refetchInterval: 5 * 60 * 1000,
-  });
+  // Yield stats (APY, rate) — cached, updated via socket
+  const { data: yieldStats } = useYieldStats();
 
-  // Yield balance (on-chain MPC)
-  const { fetchBalance, loading: balanceLoading } = useYieldBalance();
-  const [yieldBalance, setYieldBalance] = useState<number | null>(null);
+  // Yield balance (cached via React Query, staleTime: Infinity)
+  const { data: yieldBalance, isLoading: balanceLoading, isFetching: balanceFetching } = useYieldBalance();
+  const invalidateYieldBalance = useInvalidateYieldBalance();
   const [balanceRefreshing, setBalanceRefreshing] = useState(false);
-
-  const refreshBalance = useCallback(async () => {
-    try {
-      const raw = await fetchBalance();
-      setYieldBalance(Number(raw) / LAMPORTS_PER_SOL);
-    } catch {
-      // silently fail — balance stays null
-    }
-  }, [fetchBalance]);
-
-  // Fetch balance on mount
-  useEffect(() => {
-    refreshBalance();
-  }, []);
 
   const handleActionSuccess = useCallback(() => {
     setBalanceRefreshing(true);
-    setTimeout(async () => {
-      await refreshBalance();
+    setTimeout(() => {
+      invalidateYieldBalance();
       setBalanceRefreshing(false);
     }, MPC_DELAY_MS);
-  }, [refreshBalance]);
+  }, [invalidateYieldBalance]);
 
   const openModal = (mode: "deposit" | "withdraw") => {
     setModalMode(mode);
@@ -115,7 +90,7 @@ export default function SavingsScreen({ onBack }: SavingsScreenProps) {
             <Text style={styles.balanceAmount}>
               {yieldBalance != null ? `${yieldBalance.toFixed(4)} SOL` : "—"}
             </Text>
-            {(balanceLoading || balanceRefreshing) && (
+            {(balanceLoading || balanceFetching || balanceRefreshing) && (
               <ActivityIndicator size="small" color="rgba(255,255,255,0.4)" style={{ marginLeft: 12 }} />
             )}
           </View>

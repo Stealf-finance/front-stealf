@@ -72,6 +72,10 @@ export function transactionTurnkey() {
 
     return async (transaction: Transaction, fromAddress: string): Promise<string> => {
         const wallet = wallets?.[0];
+        console.log('[Turnkey] wallets count:', wallets?.length);
+        console.log('[Turnkey] wallet accounts:', wallet?.accounts?.map(a => a.address));
+        console.log('[Turnkey] fromAddress:', fromAddress);
+
         const walletAccount = wallet?.accounts?.find(
             account => account.address === fromAddress
         );
@@ -82,14 +86,23 @@ export function transactionTurnkey() {
             verifySignatures: false,
         });
 
-        const txId = await signAndSendTransaction({
-            walletAccount,
-            unsignedTransaction: serializedTx.toString('hex'),
-            transactionType: "TRANSACTION_TYPE_SOLANA",
-            rpcUrl: RPC_ENDPOINT,
-        });
+        console.log('[Turnkey] serializedTx length:', serializedTx.length);
+        console.log('[Turnkey] rpcUrl:', RPC_ENDPOINT);
+        console.log('[Turnkey] walletAccount address:', walletAccount.address);
 
-        return txId;
+        try {
+            const txId = await signAndSendTransaction({
+                walletAccount,
+                unsignedTransaction: serializedTx.toString('hex'),
+                transactionType: "TRANSACTION_TYPE_SOLANA",
+                rpcUrl: RPC_ENDPOINT,
+            });
+            console.log('[Turnkey] txId:', txId);
+            return txId;
+        } catch (err: any) {
+            console.error('[Turnkey] signAndSendTransaction failed:', JSON.stringify(err, Object.getOwnPropertyNames(err), 2));
+            throw err;
+        }
     };
 }
 
@@ -117,6 +130,7 @@ export function useSendTransaction() {
         amount: number,
         tokenMint?: string | null,
         tokenDecimals?: number,
+        walletType: 'cash' | 'stealf' = 'cash',
     ) => {
         setLoading(true);
         setError(null);
@@ -136,7 +150,9 @@ export function useSendTransaction() {
             }
 
             const transaction = await buildTransaction(fromAddress, toAddress, amount, tokenMint, tokenDecimals);
-            const txId = await signTurnkey(transaction, fromAddress);
+            const txId = walletType === 'stealf'
+                ? await transactionSimple(transaction)
+                : await signTurnkey(transaction, fromAddress);
 
             return txId;
         } catch (error: any) {

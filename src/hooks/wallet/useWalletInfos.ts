@@ -71,12 +71,22 @@ function handleNewTransaction(data: { address: string; transaction: Transaction;
   });
 }
 
-function attachListeners(qc: QueryClient) {
+export function attachWalletListeners(qc: QueryClient) {
   globalQueryClient = qc;
-  if (listenersAttached) return;
+  // Always detach first to avoid duplicates, then re-attach
+  socketService.off('balance:updated', handleBalanceUpdate);
+  socketService.off('transaction:new', handleNewTransaction);
   socketService.on('balance:updated', handleBalanceUpdate);
   socketService.on('transaction:new', handleNewTransaction);
   listenersAttached = true;
+}
+
+export function detachWalletListeners() {
+  if (!listenersAttached) return;
+  socketService.off('balance:updated', handleBalanceUpdate);
+  socketService.off('transaction:new', handleNewTransaction);
+  listenersAttached = false;
+  globalQueryClient = null;
 }
 
 // Subscribe/unsubscribe gérés par AuthContext (seule autorité).
@@ -115,7 +125,7 @@ export function useWalletInfos(address: string) {
 
   useEffect(() => {
     if (!address) return;
-    attachListeners(queryClient);
+    attachWalletListeners(queryClient);
   }, [address, queryClient]);
 
   return {

@@ -33,7 +33,7 @@ function uuidToBigInt(uuid: string): bigint {
   return BigInt('0x' + uuid.replace(/-/g, ''));
 }
 
-function getUserIdHash(subOrgId: string): Buffer {
+export function getUserIdHash(subOrgId: string): Buffer {
   const userId = uuidToBigInt(subOrgId);
   return Buffer.from(sha256(u128ToLE(userId)));
 }

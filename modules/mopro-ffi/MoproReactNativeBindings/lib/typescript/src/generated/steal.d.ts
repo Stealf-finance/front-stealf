@@ -151,7 +151,7 @@ export declare const MoproError: Readonly<{
         }): Readonly<[string]>;
         isError(error: unknown): error is Error;
         captureStackTrace(targetObject: object, constructorOpt?: Function): void;
-        prepareStackTrace?: ((err: Error, stackTraces: NodeJS.CallSite[]) => any) | undefined;
+        prepareStackTrace(err: Error, stackTraces: NodeJS.CallSite[]): any;
         stackTraceLimit: number;
     };
     Halo2Error: {
@@ -222,7 +222,7 @@ export declare const MoproError: Readonly<{
         }): Readonly<[string]>;
         isError(error: unknown): error is Error;
         captureStackTrace(targetObject: object, constructorOpt?: Function): void;
-        prepareStackTrace?: ((err: Error, stackTraces: NodeJS.CallSite[]) => any) | undefined;
+        prepareStackTrace(err: Error, stackTraces: NodeJS.CallSite[]): any;
         stackTraceLimit: number;
     };
     NoirError: {
@@ -293,7 +293,7 @@ export declare const MoproError: Readonly<{
         }): Readonly<[string]>;
         isError(error: unknown): error is Error;
         captureStackTrace(targetObject: object, constructorOpt?: Function): void;
-        prepareStackTrace?: ((err: Error, stackTraces: NodeJS.CallSite[]) => any) | undefined;
+        prepareStackTrace(err: Error, stackTraces: NodeJS.CallSite[]): any;
         stackTraceLimit: number;
     };
 }>;
