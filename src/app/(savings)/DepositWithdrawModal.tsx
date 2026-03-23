@@ -12,6 +12,8 @@ import { StatusBar } from "expo-status-bar";
 import { LinearGradient } from "expo-linear-gradient";
 import { useYieldDeposit } from "../../services/yield/deposit";
 import { useYieldWithdraw } from "../../services/yield/withdraw";
+import { useYieldBalance } from '../../services/yield/balance';
+
 import SlideToConfirm from "../../components/SlideToConfirm";
 import ComebackIcon from "../../assets/buttons/comeback.svg";
 

@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { LAMPORTS_PER_SOL } from "@solana/web3.js";
 import { useAuth } from '../../contexts/AuthContext';
 import { useAuthenticatedApi } from '../api/clientStealf';
-
+import { getUserIdHash } from './deposit';
 export function useYieldWithdraw() {
   const { userData } = useAuth();
   const api = useAuthenticatedApi();

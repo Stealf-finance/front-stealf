@@ -131,6 +131,7 @@ export function useSendTransaction() {
         tokenMint?: string | null,
         tokenDecimals?: number,
         walletType: 'cash' | 'stealf' = 'cash',
+        balanceSOL?: number,
     ) => {
         setLoading(true);
         setError(null);
@@ -141,6 +142,7 @@ export function useSendTransaction() {
                 toAddress,
                 amount: amount.toString(),
                 amountSOL: amount,
+                balanceSOL,
             });
 
             if (!guard.valid) {

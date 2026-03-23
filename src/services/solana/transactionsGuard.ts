@@ -142,8 +142,9 @@ export function guardTransaction(params: {
   toAddress: string;
   amount: string;
   amountSOL: number;
+  balanceSOL?: number;
 }): GuardResult {
-  const { fromAddress, toAddress, amount, amountSOL } = params;
+  const { fromAddress, toAddress, amount, amountSOL, balanceSOL } = params;
 
   const addressCheck = validateAddress(toAddress);
   if (!addressCheck.valid) return addressCheck;
@@ -153,6 +154,11 @@ export function guardTransaction(params: {
 
   const amountCheck = validateAmount(amount);
   if (!amountCheck.valid) return amountCheck;
+
+  if (balanceSOL != null) {
+    const balanceCheck = validateBalance(amountSOL, balanceSOL);
+    if (!balanceCheck.valid) return balanceCheck;
+  }
 
   return { valid: true };
 }

@@ -11,6 +11,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import { useAuthenticatedApi } from '../api/clientStealf';
 import { transactionSimple } from '../../hooks/transactions/useSendSimpleTransaction';
 import { STEALF_JITO_VAULT } from '../../constants/solana';
+import { validateBalance } from '../solana/transactionsGuard';
 
 const RPC_ENDPOINT = process.env.EXPO_PUBLIC_SOLANA_RPC_URL || "";
 const connection = new Connection(RPC_ENDPOINT, "confirmed");
@@ -96,6 +97,11 @@ export function useYieldDeposit() {
       const memo: DepositMemo = { hashUserId, ephemeralPublicKey, nonce, ciphertext };
 
       const fromPubkey = new PublicKey(stealfWallet);
+      const balanceLamports = await connection.getBalance(fromPubkey);
+      const balanceSOL = balanceLamports / LAMPORTS_PER_SOL;
+      const balanceCheck = validateBalance(amount, balanceSOL);
+      if (!balanceCheck.valid) throw new Error(balanceCheck.error);
+
       const toPubkey = new PublicKey(STEALF_JITO_VAULT);
       const { blockhash } = await connection.getLatestBlockhash('finalized');
 

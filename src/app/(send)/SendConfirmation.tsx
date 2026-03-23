@@ -35,8 +35,10 @@ export default function SendConfirmation({ amount, walletType = 'cash', onBack, 
   const { sendTransaction, loading } = useSendTransaction();
   const { tokens } = useWalletInfos(senderWallet || '');
 
+  const solToken = tokens.find(t => t.tokenMint === null);
+  const solBalance = solToken?.balance ?? 0;
+
   const getSolPrice = (): number => {
-    const solToken = tokens.find(t => t.tokenMint === null && t.balance > 0);
     if (solToken && solToken.balance > 0) {
       return solToken.balanceUSD / solToken.balance;
     }
@@ -88,6 +90,7 @@ export default function SendConfirmation({ amount, walletType = 'cash', onBack, 
         null,
         undefined,
         walletType,
+        solBalance,
       );
 
       // Show success

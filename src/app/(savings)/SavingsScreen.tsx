@@ -135,6 +135,7 @@ export default function SavingsScreen({ onBack }: SavingsScreenProps) {
         onClose={() => setModalVisible(false)}
         onSuccess={handleActionSuccess}
         availableBalance={walletSolBalance}
+        savingsBalance={yieldBalance ?? 0}
         unit="SOL"
       />
     </View>

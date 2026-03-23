@@ -25,10 +25,8 @@ class SocketService {
 
   connect(jwtToken?: string) {
     if (this.socket) {
-      if (__DEV__) console.log('[Socket] connect() skipped — socket already exists, connected:', this.socket.connected);
       // Flush pending listeners onto existing socket
       if (this.pendingListeners.length > 0) {
-        if (__DEV__) console.log('[Socket] flushing', this.pendingListeners.length, 'pending listeners onto existing socket');
         this.pendingListeners.forEach(({ event, callback }) => {
           this.socket!.on(event, callback);
         });
@@ -53,9 +51,6 @@ class SocketService {
     this.socket = io(SOCKET_URL, socketOptions);
 
     // Flush any listeners registered before connect()
-    if (__DEV__ && this.pendingListeners.length > 0) {
-      console.log('[Socket] flushing', this.pendingListeners.length, 'pending listeners:', this.pendingListeners.map(l => l.event));
-    }
     this.pendingListeners.forEach(({ event, callback }) => {
       this.socket!.on(event, callback);
     });
@@ -64,11 +59,9 @@ class SocketService {
     this.socket.on('connect', () => {
       if (__DEV__) console.log('[Socket] connected:', this.socket?.id);
       this.subscribedWallets.forEach(walletAddress => {
-        if (__DEV__) console.log('[Socket] subscribing to wallet:', walletAddress);
         this.socket?.emit('subscribe:wallet', walletAddress);
       });
       if (this.yieldChannel) {
-        if (__DEV__) console.log('[Socket] subscribing to yield:', this.yieldChannel);
         this.socket?.emit('subscribe:yield', this.yieldChannel);
       }
     });
@@ -106,7 +99,6 @@ class SocketService {
     if (this.socket?.connected) {
       this.socket.emit('subscribe:wallet', walletAddress);
     }
-    // If not connected yet, will be emitted on 'connect' via the forEach loop
   }
 
   unsubscribeFromWallet(walletAddress: string) {
@@ -118,22 +110,18 @@ class SocketService {
     this.yieldChannel = getUserIdHash(subOrgId).toString('hex');
 
     if (this.socket?.connected) {
-      if (__DEV__) console.log('[Socket] subscribing to yield:', this.yieldChannel);
       this.socket.emit('subscribe:yield', this.yieldChannel);
     }
   }
 
   on(event: string, callback: (...args: any[]) => void) {
     if (!this.socket) {
-      // Remove existing pending listener for same event+callback to avoid duplicates
       this.pendingListeners = this.pendingListeners.filter(
         l => !(l.event === event && l.callback === callback)
       );
-      if (__DEV__) console.log('[Socket] on() queued (no socket):', event);
       this.pendingListeners.push({ event, callback });
       return;
     }
-    if (__DEV__) console.log('[Socket] on() attached:', event);
     this.socket.on(event, callback);
   }
 
