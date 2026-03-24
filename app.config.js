@@ -19,6 +19,7 @@ export default {
       bundleIdentifier: "com.stealf.app",
       associatedDomains: ["webcredentials:stealf.xyz"],
       infoPlist: {
+        ITSAppUsesNonExemptEncryption: false,
         NSAppTransportSecurity: {
           NSAllowsArbitraryLoads: true,
           NSAllowsLocalNetworking: true,
@@ -50,5 +51,10 @@ export default {
     plugins: [
       "expo-secure-store"
     ],
+    extra: {
+      eas: {
+        projectId: "9a158029-d062-48ff-b7b7-33854514570f"
+      }
+    },
   }
 };
