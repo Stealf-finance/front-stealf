@@ -17,6 +17,7 @@ import { useFonts } from 'expo-font';
 import ComebackIcon from '../../assets/buttons/comeback.svg';
 import { useAuth } from '../../contexts/AuthContext';
 import { useSendTransaction } from '../../hooks/transactions/useSendSimpleTransaction';
+import { useWalletInfos } from '../../hooks/wallet/useWalletInfos';
 import SlideToConfirm from '../../components/SlideToConfirm';
 
 interface SendConfirmationProps {
@@ -30,6 +31,8 @@ interface SendConfirmationProps {
 export default function SendConfirmation({ amount, onBack, onClose, onSuccess, transferType = 'private' }: SendConfirmationProps) {
   const { userData } = useAuth();
   const { sendTransaction, loading: simpleLoading } = useSendTransaction();
+  const { tokens } = useWalletInfos(userData?.stealf_wallet || '');
+  const solBalance = tokens.find(t => t.tokenMint === null)?.balance ?? 0;
 
   const [externalAddress, setExternalAddress] = useState('');
   const [showSuccess, setShowSuccess] = useState(false);
@@ -58,6 +61,7 @@ export default function SendConfirmation({ amount, onBack, onClose, onSuccess, t
         null,
         undefined,
         'stealf',
+        solBalance,
       );
 
       // Show success
