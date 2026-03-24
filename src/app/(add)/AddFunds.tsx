@@ -5,7 +5,10 @@ import {
   StyleSheet,
   TouchableOpacity,
   Image,
+  Alert,
+  ActivityIndicator,
 } from 'react-native';
+import { Connection, LAMPORTS_PER_SOL } from '@solana/web3.js';
 import { useFonts } from 'expo-font';
 import ComebackIcon from '../../assets/buttons/comeback.svg';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -25,6 +28,23 @@ export default function AddFundsScreen({ onBack }: AddFundsScreenProps) {
   const { userData } = useAuth();
   const walletAddress = userData?.cash_wallet;
   const [copied, setCopied] = useState(false);
+  const [airdropping, setAirdropping] = useState(false);
+
+  const handleAirdrop = async () => {
+    if (!walletAddress) return;
+    setAirdropping(true);
+    try {
+      const connection = new Connection('https://api.devnet.solana.com', 'confirmed');
+      const { PublicKey } = await import('@solana/web3.js');
+      const sig = await connection.requestAirdrop(new PublicKey(walletAddress), 2 * LAMPORTS_PER_SOL);
+      await connection.confirmTransaction(sig, 'confirmed');
+      Alert.alert('Airdrop', '2 SOL received!');
+    } catch (err: any) {
+      Alert.alert('Airdrop Failed, try again later');
+    } finally {
+      setAirdropping(false);
+    }
+  };
 
   const handleCopy = async () => {
     if (walletAddress) {
@@ -103,6 +123,22 @@ export default function AddFundsScreen({ onBack }: AddFundsScreenProps) {
               />
             </TouchableOpacity>
           </View>
+
+          {/* Devnet Airdrop */}
+          {__DEV__ && (
+            <TouchableOpacity
+              style={[styles.airdropButton, airdropping && styles.airdropButtonDisabled]}
+              onPress={handleAirdrop}
+              disabled={airdropping}
+              activeOpacity={0.8}
+            >
+              {airdropping ? (
+                <ActivityIndicator color="#000" />
+              ) : (
+                <Text style={styles.airdropButtonText}>Airdrop 2 SOL (Devnet)</Text>
+              )}
+            </TouchableOpacity>
+          )}
         </View>
       </LinearGradient>
     </View>
@@ -217,5 +253,21 @@ const styles = StyleSheet.create({
     height: 24,
     tintColor: 'rgba(255, 255, 255, 0.7)',
     marginLeft: 12,
+  },
+  airdropButton: {
+    backgroundColor: 'rgba(240, 235, 220, 0.95)',
+    paddingVertical: 16,
+    borderRadius: 30,
+    alignItems: 'center',
+    marginHorizontal: 24,
+  },
+  airdropButtonDisabled: {
+    opacity: 0.5,
+  },
+  airdropButtonText: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: '#000',
+    fontFamily: 'Sansation-Bold',
   },
 });

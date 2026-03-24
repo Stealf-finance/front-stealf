@@ -48,11 +48,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           points: storedData?.points ?? 0,
         });
 
-        if (session.token && storedData?.cash_wallet) {
+        if (session.token) {
           attachWalletListeners(queryClient);
           socketService.connect(session.token);
-          socketService.subscribeToWallet(storedData.cash_wallet);
-          if (storedData.stealf_wallet) socketService.subscribeToWallet(storedData.stealf_wallet);
+          if (storedData?.cash_wallet) socketService.subscribeToWallet(storedData.cash_wallet);
+          if (storedData?.stealf_wallet) socketService.subscribeToWallet(storedData.stealf_wallet);
           if (user.userId) {
             socketService.subscribeToYield(user.userId);
             registerYieldSocketListener(queryClient, user.userId);
@@ -78,18 +78,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       socketService.disconnect();
     } else {
       await authStorage.setUserData(data);
-      if (data.cash_wallet && session?.token) {
-        if (__DEV__) console.log('[Auth] saveUserData — cash:', data.cash_wallet, 'stealf:', data.stealf_wallet);
+      if (data.cash_wallet) {
         attachWalletListeners(queryClient);
-        socketService.connect(session.token);
+        if (session?.token) socketService.connect(session.token);
         socketService.subscribeToWallet(data.cash_wallet);
         if (data.stealf_wallet) {
           socketService.subscribeToWallet(data.stealf_wallet);
         }
-        if (data.subOrgId && session?.token) {
+        if (data.subOrgId) {
           socketService.subscribeToYield(data.subOrgId);
           registerYieldSocketListener(queryClient, data.subOrgId);
-          prefetchYieldData(queryClient, data.subOrgId, session.token);
+          if (session?.token) prefetchYieldData(queryClient, data.subOrgId, session.token);
         }
       }
     }

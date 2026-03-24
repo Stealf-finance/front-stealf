@@ -28,6 +28,7 @@ export default function SignUpScreen({ onSwitchToSignIn, onAuthStart }: SignUpSc
   const [step, setStep] = useState<'email' | 'waiting' | 'verified'>('email');
   const [email, setEmail] = useState('');
   const [pseudo, setPseudo] = useState('');
+  const [inviteCode, setInviteCode] = useState('');
   const [loading, setLoading] = useState(false);
   const [showLogoAnimation, setShowLogoAnimation] = useState(false);
   const [error, setError] = useState('');
@@ -66,6 +67,7 @@ export default function SignUpScreen({ onSwitchToSignIn, onAuthStart }: SignUpSc
     const result = await authFlow.handleEmailSubmit({
       email,
       pseudo,
+      inviteCode,
       setStep,
       setLoading,
     });
@@ -145,6 +147,21 @@ export default function SignUpScreen({ onSwitchToSignIn, onAuthStart }: SignUpSc
                     />
                   </View>
 
+                  {/* Invite Code Input */}
+                  <View style={styles.inputGroup}>
+                    <Text style={styles.label}>Invite Code</Text>
+                    <TextInput
+                      style={styles.input}
+                      placeholder="Enter your invite code"
+                      placeholderTextColor="rgba(255, 255, 255, 0.3)"
+                      value={inviteCode}
+                      onChangeText={setInviteCode}
+                      autoCapitalize="characters"
+                      autoCorrect={false}
+                      editable={!loading}
+                    />
+                  </View>
+
                   {/* Error Message */}
                   {error && <Text style={styles.errorText}>{error}</Text>}
 
@@ -152,7 +169,7 @@ export default function SignUpScreen({ onSwitchToSignIn, onAuthStart }: SignUpSc
                   <TouchableOpacity
                     style={[styles.button, loading && styles.buttonDisabled]}
                     onPress={onEmailSubmit}
-                    disabled={loading || !email || !pseudo}
+                    disabled={loading || !email || !pseudo || !inviteCode}
                     activeOpacity={0.8}
                   >
                     {loading ? (

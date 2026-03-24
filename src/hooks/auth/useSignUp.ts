@@ -10,6 +10,7 @@ const API_URL = process.env.EXPO_PUBLIC_API_URL;
 interface UseAuthFlowParams {
   email: string;
   pseudo: string;
+  inviteCode?: string;
   setStep: (step: 'email' | 'waiting') => void;
   setLoading: (loading: boolean) => void;
   setError: (error: string) => void;
@@ -168,7 +169,6 @@ export function useAuthFlow() {
         };
       }
 
-      // Import mode - no need to show mnemonic
       finishAuth(data.data.user, pseudo);
       return { success: true, user: data.data.user };
 
@@ -246,8 +246,8 @@ export function useAuthFlow() {
    * Check email/pseudo availability and send magic link
    * Returns preAuthToken for polling verification status
    */
-  const handleEmailSubmit = async (params: Pick<UseAuthFlowParams, 'email' | 'pseudo' | 'setStep' | 'setLoading'>) => {
-    const { email, pseudo, setStep, setLoading: setLoadingParam } = params;
+  const handleEmailSubmit = async (params: Pick<UseAuthFlowParams, 'email' | 'pseudo' | 'inviteCode' | 'setStep' | 'setLoading'>) => {
+    const { email, pseudo, inviteCode, setStep, setLoading: setLoadingParam } = params;
 
     if (!email) {
       return { success: false, message: 'Email is required' };
@@ -267,29 +267,24 @@ export function useAuthFlow() {
       const response = await fetch(`${API_URL}/api/users/check-availability`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, pseudo }),
+        body: JSON.stringify({ email, pseudo, inviteCode }),
       });
       if (!response.ok) {
-        throw new Error('Failed to check availability');
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || 'Failed to check availability');
       }
 
       const data = await response.json();
 
       if (!data.canProceed) {
-        const unavailable = data.unavailable || [];
-        const errors = [];
+        const apiErrors: { field: string; message: string }[] = data.errors || [];
+        const messages = apiErrors.map((e) => e.message);
 
-        if (unavailable.includes(1)) {
-          errors.push('This email is already registered');
-        }
-        if (unavailable.includes(2)) {
-          errors.push('This pseudo is already registered');
-        }
-        if (unavailable.length === 0) {
-          errors.push('User already exists!');
+        if (messages.length === 0) {
+          messages.push('Unable to create account');
         }
 
-        return { success: false, message: errors.join('\n') };
+        return { success: false, message: messages.join('\n') };
       }
 
       setStep('waiting');

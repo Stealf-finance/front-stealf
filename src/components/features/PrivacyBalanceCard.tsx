@@ -38,7 +38,6 @@ export default function BalanceCardPrivacy({
 
   const { userData } = useAuth();
 
-  // Public balance — real on-chain wallet data
   const { balance: publicBalance, tokens: publicTokens, isLoadingBalance, balanceError } = useWalletInfos(
     userData?.stealf_wallet || ''
   );
@@ -47,7 +46,6 @@ export default function BalanceCardPrivacy({
   const privateBalance = 0;
   const privateTokens: typeof publicTokens = [];
 
-  // Yield balance (cached via React Query)
   const { data: yieldBalance } = useYieldBalance();
 
   const isPrivate = mode === 'private';
@@ -198,11 +196,43 @@ export default function BalanceCardPrivacy({
             </View>
             <View style={styles.growCardRight}>
               <Text style={styles.growCardBalance}>
-                {yieldBalance != null ? `${yieldBalance.toFixed(4)} SOL` : '—'}
+                {yieldBalance != null ? `${yieldBalance.toFixed(2)} SOL` : '—'}
               </Text>
               <Ionicons name="chevron-forward" size={18} color="rgba(255,255,255,0.4)" />
             </View>
           </TouchableOpacity>
+
+          {/* S&P 500 — Coming Soon */}
+          <View style={[styles.growCard, styles.growCardDisabled]}>
+            <View style={styles.growCardLeft}>
+              <View style={styles.growIconCircle}>
+                <Ionicons name="bar-chart" size={20} color="rgba(255,255,255,0.3)" />
+              </View>
+              <View>
+                <Text style={[styles.growCardTitle, styles.growCardTitleDisabled]}>S&P 500</Text>
+                <Text style={styles.growCardSub}>Coming soon</Text>
+              </View>
+            </View>
+            <View style={styles.comingSoonBadge}>
+              <Text style={styles.comingSoonText}>Soon</Text>
+            </View>
+          </View>
+
+          {/* Gold — Coming Soon */}
+          <View style={[styles.growCard, styles.growCardDisabled]}>
+            <View style={styles.growCardLeft}>
+              <View style={styles.growIconCircle}>
+                <Ionicons name="diamond" size={20} color="rgba(255,255,255,0.3)" />
+              </View>
+              <View>
+                <Text style={[styles.growCardTitle, styles.growCardTitleDisabled]}>Gold</Text>
+                <Text style={styles.growCardSub}>Coming soon</Text>
+              </View>
+            </View>
+            <View style={styles.comingSoonBadge}>
+              <Text style={styles.comingSoonText}>Soon</Text>
+            </View>
+          </View>
         </View>
       )}
     </View>
@@ -402,5 +432,24 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: '600',
     fontFamily: 'Sansation-Bold',
+  },
+  growCardDisabled: {
+    opacity: 0.4,
+  },
+  growCardTitleDisabled: {
+    color: 'rgba(255,255,255,0.5)',
+  },
+  comingSoonBadge: {
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 10,
+    backgroundColor: 'rgba(255,255,255,0.08)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.1)',
+  },
+  comingSoonText: {
+    color: 'rgba(255,255,255,0.4)',
+    fontSize: 11,
+    fontFamily: 'Sansation-Regular',
   },
 });
