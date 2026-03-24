@@ -54,7 +54,10 @@ export default function SendConfirmation({ amount, onBack, onClose, onSuccess, t
       await sendTransaction(
         userData.stealf_wallet,
         externalAddress,
-        amountSOL
+        amountSOL,
+        null,
+        undefined,
+        'stealf',
       );
 
       // Show success

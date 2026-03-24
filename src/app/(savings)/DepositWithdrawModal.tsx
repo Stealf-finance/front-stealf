@@ -106,7 +106,7 @@ export default function DepositWithdrawModal({
         await deposit(parsedAmount);
 
       } else {
-        await withdraw(parsedAmount);
+        await withdraw(parsedAmount, savingsBalance);
 
       }
       showSuccessAnimation();

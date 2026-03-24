@@ -5,6 +5,7 @@ import { walletKeyCache } from "../../services/cache/walletKeyCache";
 interface ExportWalletResult {
   success: boolean;
   mnemonic?: string;
+  privateKey?: string;
   error?: string;
 }
 
@@ -120,7 +121,7 @@ export function useExportWallet() {
 
       const privateKey = await walletKeyCache.getPrivateKey();
       if (privateKey) {
-        return { success: true, mnemonic: privateKey };
+        return { success: true, privateKey };
       }
       return {
         success: false,

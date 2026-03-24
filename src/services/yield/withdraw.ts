@@ -9,7 +9,7 @@ export function useYieldWithdraw() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const withdraw = async (amount: number): Promise<void> => {
+  const withdraw = async (amount: number, savingsBalance?: number): Promise<void> => {
     setLoading(true);
     setError(null);
 
@@ -17,6 +17,10 @@ export function useYieldWithdraw() {
       const subOrgId = userData?.subOrgId;
       const stealfWallet = userData?.stealf_wallet;
       if (!subOrgId || !stealfWallet) throw new Error('User not authenticated');
+
+      if (savingsBalance != null && amount > savingsBalance) {
+        throw new Error(`Insufficient yield balance. Available: ${savingsBalance.toFixed(4)} SOL`);
+      }
 
       const body = {
         userId: subOrgId,

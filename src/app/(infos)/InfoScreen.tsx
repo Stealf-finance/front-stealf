@@ -20,6 +20,7 @@ export default function InfoScreen({ onBack, source }: InfoScreenProps) {
   const { userData } = useAuth();
   const [showMnemonic, setShowMnemonic] = useState(false);
   const [mnemonic, setMnemonic] = useState<string>('');
+  const [isPrivateKey, setIsPrivateKey] = useState(false);
 
   const handleExportWallet = async () => {
     if (source === 'home') {
@@ -88,8 +89,8 @@ export default function InfoScreen({ onBack, source }: InfoScreenProps) {
                 if (!authResult.success) return;
 
                 Alert.alert(
-                  'Export Recovery Phrase',
-                  'Are you sure you want to reveal your recovery phrase? Make sure no one is watching your screen.',
+                  'Export Backup',
+                  'Are you sure you want to reveal your backup? Make sure no one is watching your screen.',
                   [
                     { text: 'Cancel', style: 'cancel' },
                     {
@@ -97,8 +98,9 @@ export default function InfoScreen({ onBack, source }: InfoScreenProps) {
                       style: 'destructive',
                       onPress: async () => {
                         const result = await handleExportWallet();
-                        if (result.success && result.mnemonic) {
-                          setMnemonic(result.mnemonic);
+                        if (result.success && (result.mnemonic || result.privateKey)) {
+                          setMnemonic(result.mnemonic || result.privateKey || '');
+                          setIsPrivateKey(!result.mnemonic && !!result.privateKey);
                           setShowMnemonic(true);
                         } else {
                           Alert.alert('Error', result.error || 'Failed to export wallet');
@@ -115,13 +117,15 @@ export default function InfoScreen({ onBack, source }: InfoScreenProps) {
               ) : (
                 <>
                   <Ionicons name="eye-outline" size={20} color="white" />
-                  <Text style={styles.exportButtonText}>Reveal Recovery Phrase</Text>
+                  <Text style={styles.exportButtonText}>Reveal Backup</Text>
                 </>
               )}
             </TouchableOpacity>
           ) : (
             <View style={styles.mnemonicContainer}>
-              {/* Mnemonic Display */}
+              <Text style={{ color: 'rgba(255,255,255,0.5)', fontSize: 13, fontFamily: 'Sansation-Regular', marginBottom: 8 }}>
+                {isPrivateKey ? 'Private Key (Base58)' : 'Recovery Phrase'}
+              </Text>
               <View style={styles.mnemonicBox}>
                 <Text style={styles.mnemonicText}>{mnemonic}</Text>
               </View>
@@ -132,7 +136,10 @@ export default function InfoScreen({ onBack, source }: InfoScreenProps) {
                   style={styles.copyButton}
                   onPress={async () => {
                     await Clipboard.setStringAsync(mnemonic);
-                    Alert.alert('Copied', 'Recovery phrase copied to clipboard');
+                    Alert.alert('Copied', 'Copied to clipboard. Will be cleared in 5 seconds.');
+                    setTimeout(async () => {
+                      await Clipboard.setStringAsync('');
+                    }, 5000);
                   }}
                 >
                   <Ionicons name="copy-outline" size={18} color="white" />

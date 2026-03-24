@@ -2,40 +2,8 @@ import { useState } from "react";
 import { Keypair } from "@solana/web3.js";
 import bs58 from "bs58";
 import * as bip39 from "bip39";
-import { hmac } from "@noble/hashes/hmac";
-import { sha512 } from "@noble/hashes/sha512";
 import { walletKeyCache } from "../../services/cache/walletKeyCache";
-
-const HARDENED_OFFSET = 0x80000000;
-
-/**
- * SLIP-0010 ED25519 HD key derivation using @noble/hashes (React Native compatible).
- */
-function derivePath(path: string, seed: Uint8Array): { key: Uint8Array } {
-  // Master key from seed
-  const I = hmac(sha512, "ed25519 seed", seed);
-  let key = I.slice(0, 32);
-  let chainCode = I.slice(32);
-
-  // Derive each path segment
-  const segments = path.split("/").slice(1); // remove "m"
-  for (const segment of segments) {
-    const isHardened = segment.endsWith("'");
-    const index = parseInt(isHardened ? segment.slice(0, -1) : segment, 10);
-    const hardenedIndex = isHardened ? index + HARDENED_OFFSET : index;
-
-    const data = new Uint8Array(1 + 32 + 4);
-    data[0] = 0x00;
-    data.set(key, 1);
-    new DataView(data.buffer).setUint32(33, hardenedIndex, false);
-
-    const child = hmac(sha512, chainCode, data);
-    key = child.slice(0, 32);
-    chainCode = child.slice(32);
-  }
-
-  return { key };
-}
+import { derivePath } from "../../utils/solanaKeyDerivation";
 
 interface SetupWalletResult {
   success: boolean;

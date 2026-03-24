@@ -1,8 +1,8 @@
 import { PublicKey } from '@solana/web3.js';
 import * as bip39 from 'bip39';
 
-const ESTIMATED_FEE_SOL = 0.000005; // ~5000 lamports
-const RENT_EXEMPT_MIN_SOL = 0.00089; // minimum rent-exempt balance for account
+const ESTIMATED_FEE_SOL = 0.000005;
+const RENT_EXEMPT_MIN_SOL = 0.00089;
 
 export interface GuardResult {
   valid: boolean;
@@ -10,7 +10,7 @@ export interface GuardResult {
 }
 
 /**
- * Validates a Solana address (base58, length, valid PublicKey)
+ * Validates a Solana address
  */
 export function validateAddress(address: string): GuardResult {
   if (!address || address.trim() === '') {
@@ -37,7 +37,7 @@ export function validateAddress(address: string): GuardResult {
 }
 
 /**
- * Validates a transaction amount (format, decimals, min value)
+ * Validates a transaction amount
  */
 export function validateAmount(
   amount: string,

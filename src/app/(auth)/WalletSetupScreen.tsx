@@ -56,7 +56,7 @@ export default function WalletSetupScreen({ onComplete, loading, generatedMnemon
     clipboardTimeoutRef.current = setTimeout(async () => {
       await Clipboard.setStringAsync('');
       setCopied(false);
-    }, 60000);
+    }, 5000);
   };
 
   return (
