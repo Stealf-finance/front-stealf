@@ -125,7 +125,7 @@ export function useYieldDeposit() {
 
       return txId;
     } catch (err: any) {
-      console.error('[useYieldDeposit] Error:', err.message);
+      if (__DEV__) console.error('[useYieldDeposit] Error:', err.message);
       setError(err.message);
       throw err;
     } finally {

@@ -47,7 +47,7 @@ export function useEmailVerificationPolling({
         );
 
         if (!response.ok) {
-          console.error('Failed to check verification status');
+          if (__DEV__) console.error('Failed to check verification status');
           return;
         }
 
@@ -59,7 +59,7 @@ export function useEmailVerificationPolling({
           onVerified({ email: data.email, pseudo: data.pseudo });
         }
       } catch (error) {
-        console.error('Error checking verification status:', error);
+        if (__DEV__) console.error('Error checking verification status:', error);
       }
     }, POLLING_INTERVAL);
 

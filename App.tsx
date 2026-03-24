@@ -5,9 +5,13 @@ import { useFonts } from 'expo-font';
 import { Asset } from 'expo-asset';
 import { AuthProvider } from './src/contexts/AuthContext';
 import AppNavigator from './src/navigation/AppNavigator';
+import ErrorBoundary from './src/components/ErrorBoundary';
 import { TurnkeyProvider } from '@turnkey/react-native-wallet-kit';
 import { TURNKEY_CONFIG, TURNKEY_CALLBACKS } from './src/constants/turnkey';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { validateEnv } from './src/utils/validateEnv';
+
+validateEnv();
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -37,13 +41,15 @@ export default function App() {
 
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
-      <QueryClientProvider client={queryClient}>
-        <TurnkeyProvider config={TURNKEY_CONFIG} callbacks={TURNKEY_CALLBACKS}>
-          <AuthProvider>
-            <AppNavigator />
-          </AuthProvider>
-        </TurnkeyProvider>
-      </QueryClientProvider>
+      <ErrorBoundary>
+        <QueryClientProvider client={queryClient}>
+          <TurnkeyProvider config={TURNKEY_CONFIG} callbacks={TURNKEY_CALLBACKS}>
+            <AuthProvider>
+              <AppNavigator />
+            </AuthProvider>
+          </TurnkeyProvider>
+        </QueryClientProvider>
+      </ErrorBoundary>
     </GestureHandlerRootView>
   );
 }

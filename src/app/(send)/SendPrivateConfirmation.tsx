@@ -84,7 +84,7 @@ export default function SendConfirmation({ amount, onBack, onClose, onSuccess, t
       ]).start();
 
     } catch (err: any) {
-      console.error('[SendPrivateConfirmation] Transfer error:', err);
+      if (__DEV__) console.error('[SendPrivateConfirmation] Transfer error:', err);
       Alert.alert(
         'Transfer Failed',
         err.message || 'An error occurred while sending the transaction'

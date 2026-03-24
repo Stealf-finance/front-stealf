@@ -172,7 +172,7 @@ export default function MooveScreen({ onBack, direction: initialDirection = 'toC
 
       showSuccessAnimation();
     } catch (err: any) {
-      console.error('[Moove] Transfer error:', err?.message);
+      if (__DEV__) console.error('[Moove] Transfer error:', err?.message);
       Alert.alert('Transfer Failed', err?.message || 'An error occurred');
     } finally {
       setLocalLoading(false);

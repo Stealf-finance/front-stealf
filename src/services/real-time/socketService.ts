@@ -68,18 +68,18 @@ class SocketService {
 
     this.socket.on('disconnect', (reason) => {
 
-      if (!this.isDisconnectingManually && reason !== 'io client disconnect') {
+      if (__DEV__ && !this.isDisconnectingManually && reason !== 'io client disconnect') {
         console.error('Socket disconnected:', reason);
       }
       this.isDisconnectingManually = false;
     });
 
     this.socket.on('connect_error', (error) => {
-      console.error('Socket connection error:', error.message);
+      if (__DEV__) console.error('Socket connection error:', error.message);
     });
 
     this.socket.on('error', (error) => {
-      console.error('Socket error:', error);
+      if (__DEV__) console.error('Socket error:', error);
     });
 
   }

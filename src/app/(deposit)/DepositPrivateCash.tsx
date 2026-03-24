@@ -81,7 +81,7 @@ export default function DepositPrivateCash({ onBack }: SendScreenProps) {
         }),
       ]).start();
     } catch (err: any) {
-      console.error('[DepositPrivateCash] Shield error:', err);
+      if (__DEV__) console.error('[DepositPrivateCash] Shield error:', err);
       Alert.alert(
         'Shield Failed',
         err.message || 'An error occurred while shielding'

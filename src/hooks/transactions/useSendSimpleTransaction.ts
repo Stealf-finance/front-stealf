@@ -72,10 +72,6 @@ export function transactionTurnkey() {
 
     return async (transaction: Transaction, fromAddress: string): Promise<string> => {
         const wallet = wallets?.[0];
-        console.log('[Turnkey] wallets count:', wallets?.length);
-        console.log('[Turnkey] wallet accounts:', wallet?.accounts?.map(a => a.address));
-        console.log('[Turnkey] fromAddress:', fromAddress);
-
         const walletAccount = wallet?.accounts?.find(
             account => account.address === fromAddress
         );
@@ -86,23 +82,13 @@ export function transactionTurnkey() {
             verifySignatures: false,
         });
 
-        console.log('[Turnkey] serializedTx length:', serializedTx.length);
-        console.log('[Turnkey] rpcUrl:', RPC_ENDPOINT);
-        console.log('[Turnkey] walletAccount address:', walletAccount.address);
-
-        try {
-            const txId = await signAndSendTransaction({
-                walletAccount,
-                unsignedTransaction: serializedTx.toString('hex'),
-                transactionType: "TRANSACTION_TYPE_SOLANA",
-                rpcUrl: RPC_ENDPOINT,
-            });
-            console.log('[Turnkey] txId:', txId);
-            return txId;
-        } catch (err: any) {
-            console.error('[Turnkey] signAndSendTransaction failed:', JSON.stringify(err, Object.getOwnPropertyNames(err), 2));
-            throw err;
-        }
+        const txId = await signAndSendTransaction({
+            walletAccount,
+            unsignedTransaction: serializedTx.toString('hex'),
+            transactionType: "TRANSACTION_TYPE_SOLANA",
+            rpcUrl: RPC_ENDPOINT,
+        });
+        return txId;
     };
 }
 
@@ -158,7 +144,7 @@ export function useSendTransaction() {
 
             return txId;
         } catch (error: any) {
-            if (!error.isGuard) {
+            if (__DEV__ && !error.isGuard) {
                 console.error('[useSendTransaction] Transaction error:', error.message);
             }
             setError(error.message);

@@ -30,7 +30,7 @@ export function useYieldWithdraw() {
       if (__DEV__) console.log('[useYieldWithdraw] body:', body);
       await api.post('/api/yield/withdraw', body);
     } catch (err: any) {
-      console.error('[useYieldWithdraw] Error:', err.message);
+      if (__DEV__) console.error('[useYieldWithdraw] Error:', err.message);
       setError(err.message);
       throw err;
     } finally {

@@ -24,7 +24,7 @@ export default function ProfileScreen({ onBack, onNavigateToPage, onLogout, curr
       setUserData(null);
       if (onLogout) onLogout();
     } catch (error) {
-      console.error('Error logging out:', error);
+      if (__DEV__) console.error('Error logging out:', error);
       if (onLogout) onLogout();
     }
   };
