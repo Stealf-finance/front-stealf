@@ -15,6 +15,7 @@ export function validateEnv(): void {
     if (__DEV__) {
       console.error(`[ENV] ${message}`);
     }
+    if (!__DEV__) return;
     throw new Error(message);
   }
 }

@@ -36,7 +36,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     const loadAuth = async () => {
-      console.log('[AuthContext] loadAuth start - session:', !!session, 'user:', !!user);
+      if (__DEV__) console.log('[AuthContext] loadAuth start - session:', !!session, 'user:', !!user);
       if (session && user) {
         const storedData = await authStorage.getUserData();
 
@@ -66,12 +66,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         unregisterYieldSocketListener();
         socketService.disconnect();
       }
-      console.log('[AuthContext] loadAuth done, setting loading=false');
+      if (__DEV__) console.log('[AuthContext] loadAuth done, setting loading=false');
       setLoading(false);
     };
 
     loadAuth().catch((err) => {
-      console.error('[AuthContext] loadAuth crashed:', err);
+      if (__DEV__) console.error('[AuthContext] loadAuth crashed:', err);
       setLoading(false);
     });
   }, [session, user]);
