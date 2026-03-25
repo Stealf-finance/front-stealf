@@ -120,6 +120,7 @@ export default function PrivacyScreen({
     return (
       <WalletSetupScreen
         onComplete={handleWalletSetup}
+        onCancel={() => { setGeneratedMnemonic(undefined); setPendingWalletAddress(null); }}
         loading={setupWallet.loading}
         generatedMnemonic={generatedMnemonic}
       />

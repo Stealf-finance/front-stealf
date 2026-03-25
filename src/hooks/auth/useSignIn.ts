@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useTurnkey } from "@turnkey/react-native-wallet-kit";
 import { useAuth as useAuthContext } from '../../contexts/AuthContext';
+import { authStorage } from '../../services/auth/authStorage';
 
 const API_URL = process.env.EXPO_PUBLIC_API_URL;
 
@@ -46,11 +47,14 @@ export function useSignIn() {
       if (!data.data?.user) {
         throw new Error('Backend did not return user data');
       }
+
+      const localData = await authStorage.getUserData();
+
       setUserData({
         email: data.data.user.email,
         username: data.data.user.username || data.data.user.pseudo,
         cash_wallet: data.data.user.cash_wallet,
-        stealf_wallet: data.data.user.stealf_wallet,
+        stealf_wallet: localData?.stealf_wallet || '',
         subOrgId: data.data.user.subOrgId,
         points: data.data.user.points ?? 0,
       });

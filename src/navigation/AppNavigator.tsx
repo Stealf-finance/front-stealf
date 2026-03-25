@@ -42,40 +42,27 @@ export default function AppNavigator() {
 
   const overlaySlideAnim = useRef(new Animated.Value(SCREEN_HEIGHT)).current;
 
-  // Splash overlay — starts opaque, covers everything until app is ready
   const [splashVisible, setSplashVisible] = useState(true);
   const [splashFading, setSplashFading] = useState(false);
   const { isLoadingBalance } = useWalletInfos(userData?.cash_wallet || '');
 
-  const wasAuthenticated = useRef(isAuthenticated);
-
-  // Show splash when user just authenticated (login/signup transition)
+  // Authenticated → fade splash once data loaded, then never show again
   useEffect(() => {
-    if (!wasAuthenticated.current && isAuthenticated) {
-      // Just logged in — show loading screen while data loads
-      setSplashVisible(true);
-      setSplashFading(false);
-    }
-    if (wasAuthenticated.current && !isAuthenticated) {
-      // Just logged out — reset for next login
-      setSplashVisible(false);
-      setSplashFading(false);
-    }
-    wasAuthenticated.current = isAuthenticated;
-  }, [isAuthenticated]);
-
-  // Dismiss splash when auth is resolved + data loaded (or not authenticated)
-  useEffect(() => {
-    if (loading || splashFading) return;
-    if (!isAuthenticated) {
-      setSplashVisible(false);
-      return;
-    }
-    if (splashVisible && !isLoadingBalance) {
+    if (isAuthenticated && splashVisible && !splashFading && !isLoadingBalance) {
       const timer = setTimeout(() => setSplashFading(true), 800);
       return () => clearTimeout(timer);
     }
-  }, [loading, isAuthenticated, isLoadingBalance, splashFading, splashVisible]);
+  }, [isAuthenticated, isLoadingBalance, splashVisible, splashFading]);
+
+  // Not authenticated + not loading → hide splash after delay (let Turnkey restore)
+  useEffect(() => {
+    if (!isAuthenticated && !loading) {
+      const timer = setTimeout(() => {
+        setSplashVisible(false);
+      }, 1500);
+      return () => clearTimeout(timer);
+    }
+  }, [isAuthenticated, loading]);
 
   const handleWelcomeDone = useCallback(() => {
     setSplashVisible(false);

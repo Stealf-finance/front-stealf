@@ -31,11 +31,9 @@ export const CASH_WALLET_CONFIG = {
 export const TURNKEY_CALLBACKS: TurnkeyCallbacks = {
   beforeSessionExpiry: () => {
     if (__DEV__) console.log("[Turnkey] Session nearing expiry");
-    // Handle session refresh if needed
   },
   onSessionExpired: () => {
     if (__DEV__) console.log("[Turnkey] Session expired");
-    // Handle re-authentication if needed
   },
   onAuthenticationSuccess: ({ action, method }) => {
     if (__DEV__) console.log("[Turnkey] Auth success:", { action, method });

@@ -125,7 +125,6 @@ export default function AddFundsScreen({ onBack }: AddFundsScreenProps) {
           </View>
 
           {/* Devnet Airdrop */}
-          {__DEV__ && (
             <TouchableOpacity
               style={[styles.airdropButton, airdropping && styles.airdropButtonDisabled]}
               onPress={handleAirdrop}
@@ -138,7 +137,7 @@ export default function AddFundsScreen({ onBack }: AddFundsScreenProps) {
                 <Text style={styles.airdropButtonText}>Airdrop 2 SOL (Devnet)</Text>
               )}
             </TouchableOpacity>
-          )}
+          
         </View>
       </LinearGradient>
     </View>

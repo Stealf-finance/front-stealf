@@ -15,6 +15,7 @@ import * as Clipboard from 'expo-clipboard';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { validateMnemonic } from '../../services/solana/transactionsGuard';
+import ComebackIcon from '../../assets/buttons/comeback.svg';
 
 type SetupStep = 'choose' | 'importWallet' | 'showMnemonic';
 
@@ -24,11 +25,12 @@ export type WalletSetupChoice =
 
 interface WalletSetupScreenProps {
   onComplete: (choice: WalletSetupChoice) => void;
+  onCancel?: () => void;
   loading: boolean;
   generatedMnemonic?: string;
 }
 
-export default function WalletSetupScreen({ onComplete, loading, generatedMnemonic }: WalletSetupScreenProps) {
+export default function WalletSetupScreen({ onComplete, onCancel, loading, generatedMnemonic }: WalletSetupScreenProps) {
   const [step, setStep] = useState<SetupStep>(generatedMnemonic ? 'showMnemonic' : 'choose');
   const [importKey, setImportKey] = useState('');
   const [importError, setImportError] = useState('');
@@ -68,6 +70,13 @@ export default function WalletSetupScreen({ onComplete, loading, generatedMnemon
         end={{ x: 0, y: 0 }}
         style={styles.background}
       >
+        {/* Back button — fixed at top */}
+        {step !== 'choose' && (
+          <TouchableOpacity style={styles.backButton} onPress={() => { setStep('choose'); onCancel?.(); }} activeOpacity={0.8}>
+            <ComebackIcon width={18} height={18} />
+          </TouchableOpacity>
+        )}
+
         <KeyboardAvoidingView
           behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
           style={styles.keyboardView}
@@ -226,6 +235,18 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     paddingHorizontal: 32,
     paddingBottom: 40,
+  },
+  backButton: {
+    position: 'absolute',
+    top: 100,
+    left: 24,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: 'rgba(60, 60, 60, 0.9)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: 10,
   },
   title: {
     fontSize: 28,
