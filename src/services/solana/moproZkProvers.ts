@@ -5,7 +5,19 @@
  * Handles: input serialization → Mopro FFI → proof byte conversion.
  */
 
-import { generateCircomProof, ProofLib } from "mopro-ffi";
+// mopro-ffi is a native Rust module — loaded lazily to avoid crash
+// when native binary doesn't include MoproFfi (e.g. plain Expo dev client)
+let _moproFfi: typeof import("mopro-ffi") | null = null;
+function getMoproFfi(): typeof import("mopro-ffi") {
+  if (!_moproFfi) {
+    try {
+      _moproFfi = require("mopro-ffi");
+    } catch {
+      throw new Error("MoproFfi native module not available on this device");
+    }
+  }
+  return _moproFfi!;
+}
 import type { CircomProofResult } from "mopro-ffi";
 import { getCircuitPath } from "./zkCircuitManager";
 import type { CircuitType } from "./zkCircuitManager";
@@ -122,6 +134,7 @@ async function prove(
   const serializedInputs = serializeCircuitInputs(inputs);
 
   // generateCircomProof is synchronous (JSI call into native Rust)
+  const { generateCircomProof, ProofLib } = getMoproFfi();
   const result = generateCircomProof(
     zkeyPath,
     serializedInputs,

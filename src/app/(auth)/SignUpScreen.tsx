@@ -16,6 +16,8 @@ import { LinearGradient } from 'expo-linear-gradient';
 import VerifiedScreen from './VerifiedScreen';
 import { useAuthFlow } from '../../hooks/auth/useSignUp';
 import { useEmailVerificationPolling } from '../../hooks/auth/useEmailVerificationPolling';
+import { useMWAAvailability } from '../../hooks/useMWAAvailability';
+import { useWalletAuth } from '../../hooks/useWalletAuth';
 
 interface SignUpScreenProps {
   onSwitchToSignIn?: () => void;
@@ -24,6 +26,8 @@ interface SignUpScreenProps {
 
 export default function SignUpScreen({ onSwitchToSignIn, onAuthStart }: SignUpScreenProps = {}){
   const authFlow = useAuthFlow();
+  const { isMWAAvailable } = useMWAAvailability();
+  const walletAuth = useWalletAuth();
 
   const [step, setStep] = useState<'email' | 'waiting' | 'verified'>('email');
   const [email, setEmail] = useState('');
@@ -59,6 +63,35 @@ export default function SignUpScreen({ onSwitchToSignIn, onAuthStart }: SignUpSc
       Alert.alert('Error', result.message);
     } else {
       Alert.alert('Success', result.message);
+    }
+  };
+
+  const onWalletConnect = async () => {
+    const result = await walletAuth.connectWallet();
+    if (result.success && result.address && result.publicKeyHex && result.authToken) {
+      const signupResult = await walletAuth.signUpWithWallet({
+        publicKeyHex: result.publicKeyHex,
+        walletAddress: result.address,
+        authToken: result.authToken,
+        label: result.label,
+      });
+
+      if (!signupResult.success) {
+        if (signupResult.error?.includes('already registered') || signupResult.error?.includes('409')) {
+          Alert.alert(
+            'Account Exists',
+            'This wallet already has an account. Would you like to sign in?',
+            [
+              { text: 'Cancel', style: 'cancel' },
+              { text: 'Sign In', onPress: onSwitchToSignIn },
+            ]
+          );
+        } else if (signupResult.error) {
+          Alert.alert('Error', signupResult.error);
+        }
+      }
+    } else if (result.error) {
+      Alert.alert('Error', result.error);
     }
   };
 
@@ -161,6 +194,30 @@ export default function SignUpScreen({ onSwitchToSignIn, onAuthStart }: SignUpSc
                       <Text style={styles.buttonText}>Continue</Text>
                     )}
                   </TouchableOpacity>
+
+                  {/* Wallet Sign Up (Android MWA only) */}
+                  {isMWAAvailable && (
+                    <>
+                      <View style={styles.dividerContainer}>
+                        <View style={styles.dividerLine} />
+                        <Text style={styles.dividerText}>or</Text>
+                        <View style={styles.dividerLine} />
+                      </View>
+
+                      <TouchableOpacity
+                        style={[styles.walletButton, walletAuth.loading && styles.buttonDisabled]}
+                        onPress={onWalletConnect}
+                        disabled={walletAuth.loading}
+                        activeOpacity={0.8}
+                      >
+                        {walletAuth.loading ? (
+                          <ActivityIndicator color="rgba(240, 235, 220, 0.95)" />
+                        ) : (
+                          <Text style={styles.walletButtonText}>Sign up with Wallet</Text>
+                        )}
+                      </TouchableOpacity>
+                    </>
+                  )}
 
                   {/* Sign In Link */}
                   <View style={styles.footer}>
@@ -386,5 +443,37 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontFamily: 'Sansation-Bold',
     color: 'rgba(240, 235, 220, 0.95)',
+  },
+  dividerContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 16,
+    marginBottom: 16,
+  },
+  dividerLine: {
+    flex: 1,
+    height: 1,
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+  },
+  dividerText: {
+    fontSize: 13,
+    color: 'rgba(255, 255, 255, 0.4)',
+    fontFamily: 'Sansation-Regular',
+    marginHorizontal: 16,
+  },
+  walletButton: {
+    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.15)',
+    paddingVertical: 16,
+    borderRadius: 30,
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  walletButtonText: {
+    fontSize: 17,
+    fontWeight: '600',
+    color: 'rgba(240, 235, 220, 0.95)',
+    fontFamily: 'Sansation-Bold',
   },
 });
