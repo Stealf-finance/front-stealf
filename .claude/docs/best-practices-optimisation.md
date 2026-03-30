@@ -436,27 +436,52 @@ Le swipePager custom peut rester comme composant dans le group route (home,priva
 
 | # | Priorite | Item | Statut | Effort |
 |---|----------|------|--------|--------|
-| 1 | P0 | FlatList pour TransactionHistory | Non fait | Faible |
+| 1 | P0 | FlatList pour TransactionHistory | **Fait** | Faible |
 | 2 | P0 | TypeScript strict mode | Non fait | Moyen |
-| 3 | P0 | SafeAreaProvider + contentInsetAdjustmentBehavior | Non fait | Faible |
+| 3 | P0 | SafeAreaProvider + contentInsetAdjustmentBehavior | **Fait** | Faible |
 | 4 | P0 | Tests unitaires | Non fait | Moyen |
-| 5 | P0 | Accessibilite (a11y) | Non fait | Faible |
+| 5 | P0 | Accessibilite (a11y) | Partiel (TransactionHistory) | Faible |
 | 6 | P1 | Validation Zod | Non fait | Moyen |
 | 7 | P1 | Sentry error logging | Non fait | Faible |
-| 8 | P1 | expo-image | Non fait | Faible |
-| 9 | P1 | Split AuthContext | Non fait | Moyen |
-| 10 | P1 | Animated legacy → reanimated | Non fait | Moyen |
-| 11 | P1 | Gestion offline (NetInfo + React Query) | Non fait | Faible |
-| 12 | P1 | Haptics (expo-haptics) | Non fait | Faible |
-| 13 | P2 | useReducer (SignUpScreen, AppNavigator) | Non fait | Faible |
-| 14 | P2 | Memoisation (React.memo, useMemo, useCallback) | Non fait | Faible |
+| 8 | P1 | expo-image | **Fait** | Faible |
+| 9 | P1 | Split AuthContext | Partiel (SplashContext extrait) | Moyen |
+| 10 | P1 | Animated legacy → reanimated | Partiel (overlays migres, tabs encore Animated) | Moyen |
+| 11 | P1 | Gestion offline (NetInfo + React Query) | **Fait** | Faible |
+| 12 | P1 | Haptics (expo-haptics) | **Fait** (SlideToConfirm) | Faible |
+| 13 | P2 | useReducer (SignUpScreen) | Non fait (AppNavigator supprime) | Faible |
+| 14 | P2 | Memoisation (React.memo, useMemo, useCallback) | Partiel (TransactionRow memo) | Faible |
 | 15 | P2 | Responsive design (useWindowDimensions) | Non fait | Moyen |
-| 16 | P2 | Socket singleton (dedup + require dynamique) | Non fait | Faible |
-| 17 | P2 | borderCurve: 'continuous' | Non fait | Trivial |
-| 18 | P2 | fontVariant: 'tabular-nums' sur montants | Non fait | Trivial |
-| 19 | P2 | QueryClient config (gcTime, staleTime) | Non fait | Trivial |
+| 16 | P2 | Socket singleton (dedup + require dynamique) | **Fait** (import statique) | Faible |
+| 17 | P2 | borderCurve: 'continuous' | **Fait** | Trivial |
+| 18 | P2 | fontVariant: 'tabular-nums' sur montants | **Fait** | Trivial |
+| 19 | P2 | QueryClient config (gcTime, staleTime) | **Fait** | Trivial |
 | 20 | P2 | API client standalone (hors hook React) | Non fait | Moyen |
 | 21 | P3 | i18n | Non fait | Eleve |
-| 22 | P3 | Deep linking | Non fait | Moyen |
-| 23 | P3 | Code splitting | Non fait | Faible |
-| 24 | P3 | Migration Expo Router | Non fait | Eleve |
+| 22 | P3 | Deep linking | **Fait** (Expo Router, scheme: stealf) | Moyen |
+| 23 | P3 | Code splitting | **Fait** (Expo Router file-based) | Faible |
+| 24 | P3 | Migration Expo Router | **Fait** | Eleve |
+
+## Changements majeurs realises
+
+### Migration Expo Router (P3 → Fait)
+- expo-router v6 installe, configure avec `root: "src/app"`
+- 20+ fichiers renommes en kebab-case
+- Structure: `src/app/_layout.tsx` (root) + `src/app/(app)/` (protege) + `src/app/sign-in.tsx` (public)
+- Auth guard dans `(app)/_layout.tsx` avec `<Redirect href="/sign-in" />`
+- Overlays → routes modales (`presentation: 'transparentModal'`)
+- RevolutPager conserve dans `(tabs)/_layout.tsx`
+- Splash natif gere par `SplashScreen.preventAutoHideAsync()` + `hideAsync()` dans root
+- WelcomeLoader pour les operations auth (sign-in passkey, sign-up)
+- `AppNavigator.tsx`, `App.tsx`, `index.ts` supprimes
+
+### Fichiers deplacees vers components/
+- `WalletSetup.tsx` (ex wallet-setup) → `src/components/WalletSetup.tsx`
+- `Verified.tsx` (ex verified) → `src/components/Verified.tsx`
+- Ce sont des composants inline, pas des routes
+
+### Nettoyage
+- Fonts centralises dans root `_layout.tsx` (supprime de 8 ecrans)
+- Props callback (`onBack`, `onClose`, etc.) supprimees de 11 ecrans
+- `useLocalSearchParams()` standardise dans tous les ecrans modals
+- Dead code supprime (`pointsEarned`, `showLogoAnimation`, etc.)
+- `useFonts` duplique supprime de 8 ecrans
