@@ -13,6 +13,7 @@ import {
 } from 'react-native';
 import * as Clipboard from 'expo-clipboard';
 import { LinearGradient } from 'expo-linear-gradient';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { validateMnemonic } from '../services/solana/transactionsGuard';
 import ComebackIcon from '../assets/buttons/comeback.svg';
@@ -31,6 +32,7 @@ interface WalletSetupScreenProps {
 }
 
 export default function WalletSetupScreen({ onComplete, onCancel, loading, generatedMnemonic }: WalletSetupScreenProps) {
+  const insets = useSafeAreaInsets();
   const [step, setStep] = useState<SetupStep>(generatedMnemonic ? 'showMnemonic' : 'choose');
   const [importKey, setImportKey] = useState('');
   const [importError, setImportError] = useState('');
@@ -72,7 +74,7 @@ export default function WalletSetupScreen({ onComplete, onCancel, loading, gener
       >
         {/* Back button — fixed at top */}
         {step !== 'choose' && (
-          <TouchableOpacity style={styles.backButton} onPress={() => { setStep('choose'); onCancel?.(); }} activeOpacity={0.8} accessibilityRole="button" accessibilityLabel="Go back">
+          <TouchableOpacity style={[styles.backButton, { top: insets.top + 8 }]} onPress={() => { setStep('choose'); onCancel?.(); }} activeOpacity={0.8} accessibilityRole="button" accessibilityLabel="Go back">
             <ComebackIcon width={18} height={18} />
           </TouchableOpacity>
         )}
@@ -249,7 +251,6 @@ const styles = StyleSheet.create({
   },
   backButton: {
     position: 'absolute',
-    top: 100,
     left: 24,
     width: 40,
     height: 40,

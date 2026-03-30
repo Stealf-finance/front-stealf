@@ -1,7 +1,9 @@
-import React, { useRef, useEffect, useState } from 'react';
-import { View, Text, StyleSheet, Animated, Easing, TouchableOpacity, Alert } from 'react-native';
+import React, { useEffect, useState } from 'react';
+import { View, Text, StyleSheet, TouchableOpacity, Alert } from 'react-native';
+import Animated, { useSharedValue, useAnimatedStyle, withTiming, Easing } from 'react-native-reanimated';
 import { Image } from 'expo-image';
 import { useRouter } from 'expo-router';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import TransactionHistory from '../../../components/TransactionHistory';
 import CashBalanceCard from '../../../components/features/CashBalanceCard';
 import AddFundsModal from '../../../components/AddFundsModal';
@@ -14,7 +16,8 @@ export default function HomeScreen() {
   const router = useRouter();
   const { currentPage, navigateToPage } = usePager();
   const { userData } = useAuth();
-  const slideUpAnim = useRef(new Animated.Value(100)).current;
+  const insets = useSafeAreaInsets();
+  const slideUpAnim = useSharedValue(100);
 
   const [showAddFundsModal, setShowAddFundsModal] = useState(false);
   const [showSendModal, setShowSendModal] = useState(false);
@@ -39,20 +42,23 @@ export default function HomeScreen() {
 
   useEffect(() => {
     if (currentPage === 'home') {
-      Animated.timing(slideUpAnim, {
-        toValue: 0,
+      slideUpAnim.value = withTiming(0, {
         duration: 250,
-        useNativeDriver: true,
         easing: Easing.out(Easing.cubic),
-      }).start();
+      });
     } else {
-      slideUpAnim.setValue(100);
+      slideUpAnim.value = 100;
     }
   }, [currentPage]);
 
+  const activityAnimatedStyle = useAnimatedStyle(() => ({
+    transform: [{ translateY: slideUpAnim.value }],
+    opacity: 1 - slideUpAnim.value / 100,
+  }));
+
   return (
     <View style={styles.container}>
-        <View style={styles.headerSpacer} />
+        <View style={{ height: insets.top + 60 }} />
 
         <CashBalanceCard
           onDeposit={handleAddFundsPress}
@@ -93,13 +99,7 @@ export default function HomeScreen() {
         <Animated.View
           style={[
             styles.activityContainer,
-            {
-              transform: [{ translateY: slideUpAnim }],
-              opacity: slideUpAnim.interpolate({
-                inputRange: [0, 100],
-                outputRange: [1, 0],
-              }),
-            }
+            activityAnimatedStyle,
           ]}
         >
           <View style={styles.activityHeader}>
@@ -133,9 +133,6 @@ const styles = StyleSheet.create({
     flex: 1,
     paddingBottom: 10,
     backgroundColor: '#000000',
-  },
-  headerSpacer: {
-    height: 110,
   },
   activityContainer: {
     flex: 1,

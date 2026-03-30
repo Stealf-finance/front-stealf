@@ -7,6 +7,7 @@ import {
   ActivityIndicator,
   Alert,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import ComebackIcon from '../assets/buttons/comeback.svg';
 
 import WalletSetupScreen, { WalletSetupChoice } from './WalletSetup';
@@ -22,6 +23,7 @@ interface VerifiedScreenProps {
 }
 
 export default function VerifiedScreen({ email, pseudo, preAuthToken, onBack, onAuthStart }: VerifiedScreenProps) {
+  const insets = useSafeAreaInsets();
   const {
     screenState,
     loading,
@@ -101,7 +103,7 @@ export default function VerifiedScreen({ email, pseudo, preAuthToken, onBack, on
         style={styles.background}
       >
         {onBack && (
-          <TouchableOpacity style={styles.backButton} onPress={onBack} accessibilityRole="button" accessibilityLabel="Go back">
+          <TouchableOpacity style={[styles.backButton, { top: insets.top + 8 }]} onPress={onBack} accessibilityRole="button" accessibilityLabel="Go back">
             <ComebackIcon width={20} height={16} />
           </TouchableOpacity>
         )}
@@ -122,7 +124,6 @@ const styles = StyleSheet.create({
   background: { flex: 1 },
   backButton: {
     position: 'absolute',
-    top: 60,
     left: 24,
     zIndex: 10,
     padding: 8,

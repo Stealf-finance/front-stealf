@@ -1,6 +1,8 @@
-import React, { useRef, useEffect, useState } from 'react';
-import { View, Text, StyleSheet, Animated, Easing, Alert } from 'react-native';
+import React, { useEffect, useState } from 'react';
+import { View, Text, StyleSheet, Alert } from 'react-native';
+import Animated, { useSharedValue, useAnimatedStyle, withTiming, Easing } from 'react-native-reanimated';
 import { useRouter } from 'expo-router';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import BalanceCardPrivacy from '../../../components/features/PrivacyBalanceCard';
 import TransactionHistory from '../../../components/TransactionHistory';
 import SegmentedControl from '../../../components/SegmentedControl';
@@ -16,11 +18,12 @@ export default function PrivacyScreen() {
   const router = useRouter();
   const { currentPage, navigateToPage } = usePager();
   const { showSplash } = useSplash();
+  const insets = useSafeAreaInsets();
   const [activeTab, setActiveTab] = useState(0);
   const [showAddFundsModal, setShowAddFundsModal] = useState(false);
   const [generatedMnemonic, setGeneratedMnemonic] = useState<string | undefined>();
   const [pendingWalletAddress, setPendingWalletAddress] = useState<string | null>(null);
-  const slideUpAnim = useRef(new Animated.Value(100)).current;
+  const slideUpAnim = useSharedValue(100);
   const { userData, setUserData } = useAuth();
   const setupWallet = useSetupWallet();
   const api = useAuthenticatedApi();
@@ -72,16 +75,19 @@ export default function PrivacyScreen() {
 
   useEffect(() => {
     if (currentPage === 'privacy') {
-      Animated.timing(slideUpAnim, {
-        toValue: 0,
+      slideUpAnim.value = withTiming(0, {
         duration: 250,
-        useNativeDriver: true,
         easing: Easing.out(Easing.cubic),
-      }).start();
+      });
     } else {
-      slideUpAnim.setValue(100);
+      slideUpAnim.value = 100;
     }
   }, [currentPage]);
+
+  const activityAnimatedStyle = useAnimatedStyle(() => ({
+    transform: [{ translateY: slideUpAnim.value }],
+    opacity: 1 - slideUpAnim.value / 100,
+  }));
 
   const handleAddFundsPress = () => {
     setShowAddFundsModal(true);
@@ -110,7 +116,7 @@ export default function PrivacyScreen() {
 
   return (
     <View style={styles.container}>
-      <View style={styles.headerSpacer} />
+      <View style={{ height: insets.top + 60 }} />
       <View style={styles.cardsContainer}>
         <BalanceCardPrivacy
           mode={activeTab === 0 ? 'public' : 'private'}
@@ -127,13 +133,7 @@ export default function PrivacyScreen() {
         <Animated.View
           style={[
             styles.activityContainer,
-            {
-              transform: [{ translateY: slideUpAnim }],
-              opacity: slideUpAnim.interpolate({
-                inputRange: [0, 100],
-                outputRange: [1, 0],
-              }),
-            }
+            activityAnimatedStyle,
           ]}
         >
           <View style={styles.activityHeader}>
@@ -162,9 +162,6 @@ const styles = StyleSheet.create({
     flex: 1,
     paddingBottom: 10,
     backgroundColor: 'transparent',
-  },
-  headerSpacer: {
-    height: 110,
   },
   cardsContainer: {
     alignItems: 'center',
