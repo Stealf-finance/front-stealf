@@ -3,7 +3,7 @@ import { useTurnkey } from "@turnkey/react-native-wallet-kit";
 import { useAuth as useAuthContext } from "../../contexts/AuthContext";
 import { useSetupWallet } from "../wallet/useInitPrivateWallet";
 import { CASH_WALLET_CONFIG } from "../../constants/turnkey";
-import type { WalletSetupChoice } from "../../app/(auth)/WalletSetupScreen";
+import type { WalletSetupChoice } from "../../components/WalletSetup";
 
 const API_URL = process.env.EXPO_PUBLIC_API_URL;
 

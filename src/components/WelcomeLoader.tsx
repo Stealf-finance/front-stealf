@@ -22,7 +22,6 @@ export function WelcomeLoader({
   const opacity = useRef(new Animated.Value(startOpaque ? 1 : 0)).current;
   const spin = useRef(new Animated.Value(0)).current;
 
-  // Spinner rotation loop
   useEffect(() => {
     if (!visible) return;
 

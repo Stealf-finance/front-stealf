@@ -4,13 +4,14 @@ export default {
   expo: {
     name: "stealf",
     slug: "stealf",
+    scheme: "stealf",
     version: "1.0.0",
     orientation: "portrait",
     icon: "./src/assets/icon.png",
     userInterfaceStyle: "light",
     newArchEnabled: true,
     splash: {
-      image: "./src/assets/logo-transparent.png",
+      image: "./src/assets/logo/splash.png",
       resizeMode: "contain",
       backgroundColor: "#000000"
     },
@@ -29,7 +30,7 @@ export default {
     android: {
       package: "com.stealf.app",
       adaptiveIcon: {
-        foregroundImage: "./src/assets/logo-transparent.png",
+        foregroundImage: "./src/assets/logo/logo-transparent.png",
         backgroundColor: "#000000"
       },
       edgeToEdgeEnabled: true,
@@ -46,10 +47,12 @@ export default {
       ]
     },
     web: {
-      favicon: "./src/assets/logo-transparent.png"
+      favicon: "./src/assets/logo-transparent.png",
+      bundler: "metro"
     },
     plugins: [
-      "expo-secure-store"
+      "expo-secure-store",
+      ["expo-router", { root: "src/app" }]
     ],
     extra: {
       eas: {

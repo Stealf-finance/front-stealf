@@ -1,5 +1,6 @@
 import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator, Image, ScrollView } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator, ScrollView } from 'react-native';
+import { Image } from 'expo-image';
 import { useAuth } from '../../contexts/AuthContext';
 import { useWalletInfos } from '../../hooks/wallet/useWalletInfos';
 

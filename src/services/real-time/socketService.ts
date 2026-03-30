@@ -105,9 +105,8 @@ class SocketService {
     this.subscribedWallets.delete(walletAddress);
   }
 
-  subscribeToYield(subOrgId: string) {
-    const { getUserIdHash } = require('../yield/deposit');
-    this.yieldChannel = getUserIdHash(subOrgId).toString('hex');
+  subscribeToYield(subOrgId: string, userIdHash: string) {
+    this.yieldChannel = userIdHash;
 
     if (this.socket?.connected) {
       this.socket.emit('subscribe:yield', this.yieldChannel);

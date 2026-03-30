@@ -21,6 +21,7 @@ const moduleOverrides = {
   ffjavascript: path.resolve(__dirname, 'node_modules/ffjavascript/build/browser.esm.js'),
   // Subpath exports not resolvable with unstable_enablePackageExports=false
   '@bufbuild/protobuf/codegenv2': path.resolve(__dirname, 'node_modules/@bufbuild/protobuf/dist/cjs/codegenv2/index.js'),
+  'isows': path.resolve(__dirname, 'node_modules/isows/_cjs/native.js'),
   // ethers v6: Metro can't resolve .cjs without extension mapping
   '@adraffy/ens-normalize': path.resolve(__dirname, 'node_modules/@adraffy/ens-normalize/dist/index.mjs'),
 };
@@ -41,10 +42,7 @@ config.transformer = {
   babelTransformerPath: require.resolve('react-native-svg-transformer'),
 };
 
-config.resolver = {
-  ...config.resolver,
-  assetExts: config.resolver.assetExts.filter((ext) => ext !== 'svg'),
-  sourceExts: [...config.resolver.sourceExts, 'svg'],
-};
+config.resolver.assetExts = config.resolver.assetExts.filter((ext) => ext !== 'svg');
+config.resolver.sourceExts = [...config.resolver.sourceExts, 'svg'];
 
 module.exports = config;

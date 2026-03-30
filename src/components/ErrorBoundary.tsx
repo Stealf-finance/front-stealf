@@ -80,6 +80,7 @@ const styles = StyleSheet.create({
     paddingVertical: 16,
     paddingHorizontal: 40,
     borderRadius: 30,
+    borderCurve: 'continuous',
   },
   buttonText: {
     fontSize: 16,

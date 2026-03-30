@@ -1,3 +1,4 @@
+
 import * as SecureStore from 'expo-secure-store';
 
 const SECURE_STORE_KEY = 'stealf_private_key';

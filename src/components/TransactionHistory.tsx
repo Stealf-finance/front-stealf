@@ -1,11 +1,11 @@
-import React, { useState } from 'react';
+import React, { useState, useCallback } from 'react';
 import {
   View,
   Text,
   StyleSheet,
   ActivityIndicator,
   TouchableOpacity,
-  ScrollView,
+  FlatList,
   RefreshControl,
   Linking,
 } from 'react-native';
@@ -20,6 +20,56 @@ interface TransactionHistoryProps {
   style?: any;
   walletType?: 'cash' | 'privacy';
 }
+
+interface Transaction {
+  signature: string;
+  amount: number;
+  amountUSD: number;
+  tokenMint: string | null;
+  tokenSymbol: string;
+  tokenDecimals: number;
+  signatureURL: string;
+  walletAddress: string;
+  dateFormatted: string;
+  status: string;
+  type: 'sent' | 'received' | 'unknown';
+  slot: number;
+}
+
+function getLabel(tx: Transaction) {
+  return tx.type === 'sent' ? 'Sent' : tx.type === 'received' ? 'Received' : 'Transaction';
+}
+
+const TransactionRow = React.memo(function TransactionRow({ tx }: { tx: Transaction }) {
+  return (
+    <TouchableOpacity
+      style={styles.row}
+      onPress={() => Linking.openURL(tx.signatureURL)}
+      activeOpacity={0.7}
+      accessibilityRole="button"
+      accessibilityLabel={`${getLabel(tx)} ${tx.amountUSD.toFixed(2)} dollars ${tx.tokenSymbol}`}
+    >
+      <View style={styles.avatar}>
+        {tx.type === 'sent' ? (
+          <SendIcon width={20} height={20} />
+        ) : (
+          <ReceivedIcon width={20} height={20} />
+        )}
+      </View>
+
+      <View style={styles.details}>
+        <Text style={styles.name}>{getLabel(tx)}</Text>
+        <Text style={styles.subtitle}>
+          {tx.dateFormatted} · {tx.tokenSymbol}
+        </Text>
+      </View>
+
+      <Text style={styles.amount}>
+        {tx.type === 'received' ? '+' : '-'}${tx.amountUSD.toFixed(2)}
+      </Text>
+    </TouchableOpacity>
+  );
+});
 
 export default function TransactionHistory({
   limit = 3,
@@ -43,15 +93,21 @@ export default function TransactionHistory({
   const displayedTransactions = transactions.slice(0, limit);
 
   const [refreshing, setRefreshing] = useState(false);
-  const handleRefresh = async () => {
+  const handleRefresh = useCallback(async () => {
     setRefreshing(true);
     await queryClient.invalidateQueries({
       queryKey: ['wallet-history', wallet],
     });
     setRefreshing(false);
-  };
+  }, [queryClient, wallet]);
 
   const isCompactMode = limit <= 3;
+
+  const renderItem = useCallback(({ item }: { item: Transaction }) => (
+    <TransactionRow tx={item} />
+  ), []);
+
+  const keyExtractor = useCallback((item: Transaction) => item.signature, []);
 
   if (isLoading && displayedTransactions.length === 0) {
     return (
@@ -65,8 +121,13 @@ export default function TransactionHistory({
   if (historyError) {
     return (
       <View style={[styles.container, style]}>
-        <Text style={styles.errorText}>{historyError.message || 'Failed to load transactions'}</Text>
-        <TouchableOpacity style={styles.retryButton} onPress={handleRefresh}>
+        <Text selectable style={styles.errorText}>{historyError.message || 'Failed to load transactions'}</Text>
+        <TouchableOpacity
+          style={styles.retryButton}
+          onPress={handleRefresh}
+          accessibilityRole="button"
+          accessibilityLabel="Retry loading transactions"
+        >
           <Text style={styles.retryButtonText}>Retry</Text>
         </TouchableOpacity>
       </View>
@@ -82,62 +143,22 @@ export default function TransactionHistory({
     );
   }
 
-  const getLabel = (tx: typeof displayedTransactions[0]) => {
-    return tx.type === 'sent' ? 'Sent' : tx.type === 'received' ? 'Received' : 'Transaction';
-  };
-
-  const getDate = (tx: typeof displayedTransactions[0]) => {
-    if (tx.dateFormatted && tx.dateFormatted !== 'Unknown') return tx.dateFormatted;
-    return 'Just now';
-  };
-
-  const transactionsList = (
-    <>
-      {displayedTransactions.map((tx, index) => (
-        <TouchableOpacity
-          key={`${tx.signature}-${index}`}
-          style={styles.row}
-          onPress={() => Linking.openURL(tx.signatureURL)}
-          activeOpacity={0.7}
-        >
-          {/* Avatar */}
-          <View style={styles.avatar}>
-            {tx.type === 'sent' ? (
-              <SendIcon width={20} height={20} />
-            ) : (
-              <ReceivedIcon width={20} height={20} />
-            )}
-          </View>
-
-          {/* Name + date */}
-          <View style={styles.details}>
-            <Text style={styles.name}>{getLabel(tx)}</Text>
-            <Text style={styles.subtitle}>
-              {tx.dateFormatted} · {tx.tokenSymbol}
-            </Text>
-          </View>
-
-          {/* Amount */}
-          <Text style={styles.amount}>
-            {tx.type === 'received' ? '+' : '-'}${tx.amountUSD.toFixed(2)}
-          </Text>
-        </TouchableOpacity>
-      ))}
-
-    </>
-  );
-
   if (isCompactMode) {
     return (
       <View style={[styles.compactContainer, style]}>
-        {transactionsList}
+        {displayedTransactions.map(tx => (
+          <TransactionRow key={tx.signature} tx={tx} />
+        ))}
       </View>
     );
   }
 
   return (
     <View style={[styles.container, style]}>
-      <ScrollView
+      <FlatList
+        data={displayedTransactions}
+        renderItem={renderItem}
+        keyExtractor={keyExtractor}
         showsVerticalScrollIndicator={false}
         refreshControl={
           <RefreshControl
@@ -146,9 +167,7 @@ export default function TransactionHistory({
             tintColor="white"
           />
         }
-      >
-        {transactionsList}
-      </ScrollView>
+      />
     </View>
   );
 }
@@ -192,6 +211,7 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: 'white',
     fontFamily: 'Sansation-Bold',
+    fontVariant: ['tabular-nums'],
     marginLeft: 12,
   },
   loadingText: {
@@ -215,6 +235,7 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     borderWidth: 1,
     borderColor: 'rgba(255, 255, 255, 0.2)',
+    borderCurve: 'continuous',
     alignSelf: 'center',
   },
   retryButtonText: {
@@ -238,22 +259,6 @@ const styles = StyleSheet.create({
     color: 'rgba(255, 255, 255, 0.5)',
     fontSize: 14,
     textAlign: 'center',
-    fontFamily: 'Sansation-Regular',
-  },
-  viewAllButton: {
-    backgroundColor: 'rgba(255, 255, 255, 0.05)',
-    paddingVertical: 12,
-    borderRadius: 12,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginTop: 10,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.1)',
-  },
-  viewAllText: {
-    color: 'rgba(255, 255, 255, 0.7)',
-    fontSize: 14,
-    fontWeight: '600',
     fontFamily: 'Sansation-Regular',
   },
 });

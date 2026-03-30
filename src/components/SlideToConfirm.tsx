@@ -1,5 +1,5 @@
 import React, { useCallback } from 'react';
-import { View, Text, StyleSheet, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, ActivityIndicator, Platform } from 'react-native';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import Animated, {
   useSharedValue,
@@ -9,6 +9,7 @@ import Animated, {
   runOnJS,
   clamp,
 } from 'react-native-reanimated';
+import * as Haptics from 'expo-haptics';
 
 const THUMB_SIZE = 52;
 const RAIL_PADDING = 4;
@@ -18,6 +19,12 @@ interface SlideToConfirmProps {
   onConfirm: () => void;
   loading: boolean;
   label?: string;
+}
+
+function hapticLight() {
+  if (Platform.OS === 'ios') {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+  }
 }
 
 export default function SlideToConfirm({ onConfirm, loading, label = 'Slide to confirm' }: SlideToConfirmProps) {
@@ -31,6 +38,9 @@ export default function SlideToConfirm({ onConfirm, loading, label = 'Slide to c
   };
 
   const fireConfirm = useCallback(() => {
+    if (Platform.OS === 'ios') {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    }
     onConfirm();
     // Reset after a short delay if loading didn't kick in (validation error)
     setTimeout(() => {
@@ -58,6 +68,7 @@ export default function SlideToConfirm({ onConfirm, loading, label = 'Slide to c
           runOnJS(fireConfirm)();
         });
       } else {
+        runOnJS(hapticLight)();
         translateX.value = withSpring(0, { damping: 20, stiffness: 150, overshootClamping: true });
       }
     });

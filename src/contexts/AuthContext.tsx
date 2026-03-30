@@ -4,6 +4,7 @@ import { authStorage } from '../services/auth/authStorage';
 import { socketService } from '../services/real-time/socketService';
 import { walletKeyCache } from '../services/cache/walletKeyCache';
 import { registerYieldSocketListener, unregisterYieldSocketListener, prefetchYieldData } from '../services/yield/balance';
+import { getUserIdHash } from '../services/yield/deposit';
 import { attachWalletListeners, detachWalletListeners } from '../hooks/wallet/useWalletInfos';
 import { useQueryClient } from '@tanstack/react-query';
 import { umbraClearSeed } from '../services/solana/umbraSeed';
@@ -33,32 +34,55 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const queryClient = useQueryClient();
   const [userDataState, setUserDataState] = useState<UserData | null>(null);
   const [loading, setLoading] = useState(true);
+  const [bootDone, setBootDone] = useState(false);
+
+  const sessionToken = session?.token;
+  const userId = user?.userId;
+
 
   useEffect(() => {
+    if (bootDone) return;
+
+    if (sessionToken && userId) {
+      setBootDone(true);
+      return;
+    }
+
+    const timer = setTimeout(() => {
+      if (__DEV__) console.log('[AuthContext] boot timeout — no session restored');
+      setBootDone(true);
+    }, 2000);
+
+    return () => clearTimeout(timer);
+  }, [sessionToken, userId, bootDone]);
+
+  // Once boot is done, load auth data
+  useEffect(() => {
+    if (!bootDone) return;
+
     const loadAuth = async () => {
-      if (__DEV__) console.log('[AuthContext] loadAuth start - session:', !!session, 'user:', !!user);
-      if (session && user) {
+      if (__DEV__) console.log('[AuthContext] loadAuth - session:', !!sessionToken, 'user:', !!userId);
+
+      if (sessionToken && userId) {
         const storedData = await authStorage.getUserData();
 
         setUserDataState({
-          email: user.userEmail || storedData?.email || '',
+          email: user?.userEmail || storedData?.email || '',
           username: storedData?.username || '',
           cash_wallet: storedData?.cash_wallet || '',
           stealf_wallet: storedData?.stealf_wallet || '',
-          subOrgId: user.userId,
+          subOrgId: userId,
           points: storedData?.points ?? 0,
         });
 
-        if (session.token) {
-          attachWalletListeners(queryClient);
-          socketService.connect(session.token);
-          if (storedData?.cash_wallet) socketService.subscribeToWallet(storedData.cash_wallet);
-          if (storedData?.stealf_wallet) socketService.subscribeToWallet(storedData.stealf_wallet);
-          if (user.userId) {
-            socketService.subscribeToYield(user.userId);
-            registerYieldSocketListener(queryClient, user.userId);
-            prefetchYieldData(queryClient, user.userId, session.token);
-          }
+        attachWalletListeners(queryClient);
+        socketService.connect(sessionToken);
+        if (storedData?.cash_wallet) socketService.subscribeToWallet(storedData.cash_wallet);
+        if (storedData?.stealf_wallet) socketService.subscribeToWallet(storedData.stealf_wallet);
+        if (userId) {
+          socketService.subscribeToYield(userId, getUserIdHash(userId).toString('hex'));
+          registerYieldSocketListener(queryClient, userId);
+          prefetchYieldData(queryClient, userId, sessionToken);
         }
       } else {
         setUserDataState(null);
@@ -66,7 +90,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         unregisterYieldSocketListener();
         socketService.disconnect();
       }
-      if (__DEV__) console.log('[AuthContext] loadAuth done, setting loading=false');
+
       setLoading(false);
     };
 
@@ -74,7 +98,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (__DEV__) console.error('[AuthContext] loadAuth crashed:', err);
       setLoading(false);
     });
-  }, [session, user]);
+  }, [bootDone, sessionToken, userId]);
 
   const saveUserData = async (data: UserData | null) => {
     setUserDataState(data);
@@ -91,7 +115,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           socketService.subscribeToWallet(data.stealf_wallet);
         }
         if (data.subOrgId) {
-          socketService.subscribeToYield(data.subOrgId);
+          socketService.subscribeToYield(data.subOrgId, getUserIdHash(data.subOrgId).toString('hex'));
           registerYieldSocketListener(queryClient, data.subOrgId);
           if (session?.token) prefetchYieldData(queryClient, data.subOrgId, session.token);
         }

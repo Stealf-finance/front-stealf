@@ -11,12 +11,15 @@ export function useSignIn() {
 
   const [loading, setLoading] = useState(false);
 
-  const signInWithPasskey = async () => {
+  const signInWithPasskey = async (onPasskeySuccess?: () => void) => {
     setLoading(true);
 
     try {
       const authResult = await loginWithPasskey();
       const { sessionToken } = authResult;
+
+      // Passkey validated — notify caller immediately before backend calls
+      onPasskeySuccess?.();
 
       if (!sessionToken) {
         throw new Error('No session token received from Turnkey');
