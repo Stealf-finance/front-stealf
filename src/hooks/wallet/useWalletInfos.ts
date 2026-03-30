@@ -3,6 +3,7 @@ import { useQuery, useQueryClient, QueryClient } from '@tanstack/react-query';
 import { useAuthenticatedApi } from '../../services/api/clientStealf';
 import { createGetBalance, createGetTransactionsHistory } from '../../services/api/fetchWalletInfos';
 import { socketService } from '../../services/real-time/socketService';
+import { BalanceResponseSchema, HistoryResponseSchema } from '../../services/api/schemas';
 
 interface TokenBalance {
   tokenMint: string | null;
@@ -106,7 +107,7 @@ export function useWalletInfos(address: string) {
     queryKey: ['wallet-balance', address],
     queryFn: async () => {
       const result = await createGetBalance(api, address)();
-      return result;
+      return BalanceResponseSchema.parse(result);
     },
     staleTime: Infinity,
     enabled: !!address,
@@ -118,7 +119,10 @@ export function useWalletInfos(address: string) {
     error: historyError
   } = useQuery<HistoryResponse>({
     queryKey: ['wallet-history', address],
-    queryFn: createGetTransactionsHistory(api, address),
+    queryFn: async () => {
+      const result = await createGetTransactionsHistory(api, address)();
+      return HistoryResponseSchema.parse(result);
+    },
     staleTime: Infinity,
     enabled: !!address,
   });

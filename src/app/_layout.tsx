@@ -6,6 +6,7 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { useFonts } from 'expo-font';
 import { Asset } from 'expo-asset';
 import * as SplashScreen from 'expo-splash-screen';
+import * as Sentry from '@sentry/react-native';
 import { QueryClient, QueryClientProvider, onlineManager } from '@tanstack/react-query';
 import NetInfo from '@react-native-community/netinfo';
 import { TurnkeyProvider } from '@turnkey/react-native-wallet-kit';
@@ -17,6 +18,12 @@ import ErrorBoundary from '../components/ErrorBoundary';
 import { WelcomeLoader } from '../components/WelcomeLoader';
 import { validateEnv } from '../utils/validateEnv';
 import Logo from '../assets/logo/logo.svg';
+
+Sentry.init({
+  dsn: process.env.EXPO_PUBLIC_SENTRY_DSN || '',
+  tracesSampleRate: 0.2,
+  enabled: !__DEV__,
+});
 
 SplashScreen.preventAutoHideAsync();
 
@@ -96,7 +103,7 @@ function RootNavigator() {
   );
 }
 
-export default function RootLayout() {
+export default Sentry.wrap(function RootLayout() {
   const [appReady, setAppReady] = useState(false);
 
   const [fontsLoaded, fontError] = useFonts({
@@ -141,7 +148,7 @@ export default function RootLayout() {
       </GestureHandlerRootView>
     </SafeAreaProvider>
   );
-}
+});
 
 const styles = StyleSheet.create({
   welcomeOverlay: {
