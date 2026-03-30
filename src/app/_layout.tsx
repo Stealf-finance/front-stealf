@@ -54,23 +54,9 @@ function RootNavigator() {
   }, [loading, isAuthenticated, segments, router]);
 
   useEffect(() => {
-    if (loading) {
-      if (__DEV__) console.log('[Splash] waiting — auth loading');
-      return;
-    }
+    if (loading) return;
+    if (isAuthenticated && isLoadingBalance) return;
 
-    if (!isAuthenticated) {
-      if (__DEV__) console.log('[Splash] hiding — not authenticated');
-      SplashScreen.hideAsync();
-      return;
-    }
-
-    if (isLoadingBalance) {
-      if (__DEV__) console.log('[Splash] waiting — balance loading');
-      return;
-    }
-
-    if (__DEV__) console.log('[Splash] hiding — authenticated + balance ready');
     SplashScreen.hideAsync();
   }, [loading, isAuthenticated, isLoadingBalance]);
 
