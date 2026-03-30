@@ -198,10 +198,10 @@ export default function MooveScreen() {
           </Animated.View>
 
           <Animated.View style={[styles.successActions, { opacity: contentFade }]}>
-            <TouchableOpacity style={styles.primaryAction} onPress={handleNewMove} activeOpacity={0.8}>
+            <TouchableOpacity style={styles.primaryAction} onPress={handleNewMove} activeOpacity={0.8} accessibilityRole="button" accessibilityLabel="Move again">
               <Text style={styles.primaryActionText}>Move again</Text>
             </TouchableOpacity>
-            <TouchableOpacity style={styles.secondaryAction} onPress={() => router.back()} activeOpacity={0.8}>
+            <TouchableOpacity style={styles.secondaryAction} onPress={() => router.back()} activeOpacity={0.8} accessibilityRole="button" accessibilityLabel="Back to home">
               <Text style={styles.secondaryActionText}>Back to home</Text>
             </TouchableOpacity>
           </Animated.View>
@@ -223,7 +223,7 @@ export default function MooveScreen() {
 
         {/* Header */}
         <View style={styles.header}>
-          <TouchableOpacity style={styles.backButton} onPress={() => router.back()} activeOpacity={0.8}>
+          <TouchableOpacity style={styles.backButton} onPress={() => router.back()} activeOpacity={0.8} accessibilityRole="button" accessibilityLabel="Go back">
             <ComebackIcon width={18} height={18} />
           </TouchableOpacity>
           <Text style={styles.headerTitle}>Move money</Text>
@@ -237,7 +237,7 @@ export default function MooveScreen() {
             <View style={styles.cardRow}>
               <View>
                 <Text style={styles.cardLabel}>Stealth</Text>
-                <Text style={styles.cardBalance}>{formatBalance(privacyBalance)}</Text>
+                <Text style={styles.cardBalance} accessibilityRole="text">{formatBalance(privacyBalance)}</Text>
               </View>
               <Text style={[styles.cardAmount, amount ? styles.cardAmountActive : null]}>
                 {wealthDelta}${amount || '0'}
@@ -246,7 +246,7 @@ export default function MooveScreen() {
           </View>
 
           {/* Flip Arrow */}
-          <TouchableOpacity style={styles.flipButton} onPress={handleFlip} activeOpacity={0.7}>
+          <TouchableOpacity style={styles.flipButton} onPress={handleFlip} activeOpacity={0.7} accessibilityRole="button" accessibilityLabel="Swap transfer direction">
             <Animated.View style={{
               transform: [{
                 rotate: arrowRotation.interpolate({
@@ -264,7 +264,7 @@ export default function MooveScreen() {
             <View style={styles.cardRow}>
               <View>
                 <Text style={styles.cardLabel}>Cash</Text>
-                <Text style={styles.cardBalance}>{formatBalance(cashBalance)}</Text>
+                <Text style={styles.cardBalance} accessibilityRole="text">{formatBalance(cashBalance)}</Text>
               </View>
               <Text style={[styles.cardAmount, amount ? styles.cardAmountActive : null]}>
                 {cashDelta}${amount || '0'}
@@ -287,6 +287,8 @@ export default function MooveScreen() {
                   key={key}
                   style={styles.key}
                   onPress={() => key === '⌫' ? handleDelete() : handleNumberPress(key)}
+                  accessibilityRole="button"
+                  accessibilityLabel={key === '⌫' ? 'Delete' : key === '.' ? 'Decimal point' : key}
                 >
                   <Text style={styles.keyText}>{key}</Text>
                 </TouchableOpacity>

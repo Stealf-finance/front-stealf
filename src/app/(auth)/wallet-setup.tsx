@@ -14,8 +14,8 @@ import {
 import * as Clipboard from 'expo-clipboard';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
-import { validateMnemonic } from '../services/solana/transactionsGuard';
-import ComebackIcon from '../assets/buttons/comeback.svg';
+import { validateMnemonic } from '../../services/solana/transactionsGuard';
+import ComebackIcon from '../../assets/buttons/comeback.svg';
 
 type SetupStep = 'choose' | 'importWallet' | 'showMnemonic';
 
@@ -72,7 +72,7 @@ export default function WalletSetupScreen({ onComplete, onCancel, loading, gener
       >
         {/* Back button — fixed at top */}
         {step !== 'choose' && (
-          <TouchableOpacity style={styles.backButton} onPress={() => { setStep('choose'); onCancel?.(); }} activeOpacity={0.8} accessibilityRole="button" accessibilityLabel="Go back">
+          <TouchableOpacity style={styles.backButton} onPress={() => { setStep('choose'); onCancel?.(); }} activeOpacity={0.8}>
             <ComebackIcon width={18} height={18} />
           </TouchableOpacity>
         )}
@@ -96,8 +96,6 @@ export default function WalletSetupScreen({ onComplete, onCancel, loading, gener
                 onPress={() => onComplete({ mode: 'create', storage: 'cold' })}
                 activeOpacity={0.7}
                 disabled={loading}
-                accessibilityRole="button"
-                accessibilityLabel="Create new wallet"
               >
                 <View style={styles.optionIcon}>
                   <Ionicons name="add-circle-outline" size={24} color="white" />
@@ -113,8 +111,6 @@ export default function WalletSetupScreen({ onComplete, onCancel, loading, gener
                 onPress={() => setStep('importWallet')}
                 activeOpacity={0.7}
                 disabled={loading}
-                accessibilityRole="button"
-                accessibilityLabel="Import wallet"
               >
                 <View style={styles.optionIcon}>
                   <Ionicons name="download-outline" size={24} color="white" />
@@ -149,7 +145,6 @@ export default function WalletSetupScreen({ onComplete, onCancel, loading, gener
                 autoCorrect={false}
                 multiline
                 editable={!loading}
-                accessibilityLabel="Seed phrase"
               />
 
               {importError ? (
@@ -170,8 +165,6 @@ export default function WalletSetupScreen({ onComplete, onCancel, loading, gener
                 }}
                 activeOpacity={0.7}
                 disabled={!importKey.trim() || loading}
-                accessibilityRole="button"
-                accessibilityLabel="Import wallet"
               >
                 {loading ? (
                   <ActivityIndicator color="#000" />
@@ -198,8 +191,6 @@ export default function WalletSetupScreen({ onComplete, onCancel, loading, gener
                 style={[styles.copyButton, copied && styles.copyButtonCopied]}
                 onPress={handleCopyMnemonic}
                 activeOpacity={0.7}
-                accessibilityRole="button"
-                accessibilityLabel="Copy recovery phrase"
               >
                 <Ionicons
                   name={copied ? 'checkmark-circle' : 'copy-outline'}
@@ -213,8 +204,6 @@ export default function WalletSetupScreen({ onComplete, onCancel, loading, gener
 
               <TouchableOpacity
                 style={styles.primaryButton}
-                accessibilityRole="button"
-                accessibilityLabel="Confirm recovery phrase saved"
                 onPress={() => Alert.alert(
                   'Confirm',
                   'Have you saved your recovery phrase? You won\'t be able to see it again.',

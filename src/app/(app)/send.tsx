@@ -82,7 +82,7 @@ export default function SendScreen() {
 
         {/* Header */}
         <View style={styles.header}>
-          <TouchableOpacity style={styles.backButton} onPress={() => router.back()} activeOpacity={0.8}>
+          <TouchableOpacity style={styles.backButton} onPress={() => router.back()} activeOpacity={0.8} accessibilityRole="button" accessibilityLabel="Go back">
             <ComebackIcon width={18} height={18} />
           </TouchableOpacity>
           <Text style={styles.headerTitle}>Transfer</Text>
@@ -95,7 +95,7 @@ export default function SendScreen() {
             <Text style={styles.currencyText}>$</Text>
             <Text style={styles.amountText}>{amount || '0'}</Text>
           </View>
-          <Text style={styles.balanceText}>Your balance ${totalUSD.toFixed(2)}</Text>
+          <Text style={styles.balanceText} accessibilityRole="text">Your balance ${totalUSD.toFixed(2)}</Text>
         </View>
 
         {/* Continue Button */}
@@ -103,6 +103,8 @@ export default function SendScreen() {
           style={styles.continueButton}
           onPress={handleContinue}
           activeOpacity={0.8}
+          accessibilityRole="button"
+          accessibilityLabel="Continue"
         >
           <Text style={styles.continueText}>Continue</Text>
         </TouchableOpacity>
@@ -110,49 +112,49 @@ export default function SendScreen() {
         {/* Custom Keyboard */}
         <View style={styles.keyboard}>
           <View style={styles.keyboardRow}>
-            <TouchableOpacity style={styles.key} onPress={() => handleNumberPress('1')}>
+            <TouchableOpacity style={styles.key} onPress={() => handleNumberPress('1')} accessibilityRole="button" accessibilityLabel="1">
               <Text style={styles.keyText}>1</Text>
             </TouchableOpacity>
-            <TouchableOpacity style={styles.key} onPress={() => handleNumberPress('2')}>
+            <TouchableOpacity style={styles.key} onPress={() => handleNumberPress('2')} accessibilityRole="button" accessibilityLabel="2">
               <Text style={styles.keyText}>2</Text>
             </TouchableOpacity>
-            <TouchableOpacity style={styles.key} onPress={() => handleNumberPress('3')}>
+            <TouchableOpacity style={styles.key} onPress={() => handleNumberPress('3')} accessibilityRole="button" accessibilityLabel="3">
               <Text style={styles.keyText}>3</Text>
             </TouchableOpacity>
           </View>
 
           <View style={styles.keyboardRow}>
-            <TouchableOpacity style={styles.key} onPress={() => handleNumberPress('4')}>
+            <TouchableOpacity style={styles.key} onPress={() => handleNumberPress('4')} accessibilityRole="button" accessibilityLabel="4">
               <Text style={styles.keyText}>4</Text>
             </TouchableOpacity>
-            <TouchableOpacity style={styles.key} onPress={() => handleNumberPress('5')}>
+            <TouchableOpacity style={styles.key} onPress={() => handleNumberPress('5')} accessibilityRole="button" accessibilityLabel="5">
               <Text style={styles.keyText}>5</Text>
             </TouchableOpacity>
-            <TouchableOpacity style={styles.key} onPress={() => handleNumberPress('6')}>
+            <TouchableOpacity style={styles.key} onPress={() => handleNumberPress('6')} accessibilityRole="button" accessibilityLabel="6">
               <Text style={styles.keyText}>6</Text>
             </TouchableOpacity>
           </View>
 
           <View style={styles.keyboardRow}>
-            <TouchableOpacity style={styles.key} onPress={() => handleNumberPress('7')}>
+            <TouchableOpacity style={styles.key} onPress={() => handleNumberPress('7')} accessibilityRole="button" accessibilityLabel="7">
               <Text style={styles.keyText}>7</Text>
             </TouchableOpacity>
-            <TouchableOpacity style={styles.key} onPress={() => handleNumberPress('8')}>
+            <TouchableOpacity style={styles.key} onPress={() => handleNumberPress('8')} accessibilityRole="button" accessibilityLabel="8">
               <Text style={styles.keyText}>8</Text>
             </TouchableOpacity>
-            <TouchableOpacity style={styles.key} onPress={() => handleNumberPress('9')}>
+            <TouchableOpacity style={styles.key} onPress={() => handleNumberPress('9')} accessibilityRole="button" accessibilityLabel="9">
               <Text style={styles.keyText}>9</Text>
             </TouchableOpacity>
           </View>
 
           <View style={styles.keyboardRow}>
-            <TouchableOpacity style={styles.key} onPress={() => handleNumberPress('.')}>
+            <TouchableOpacity style={styles.key} onPress={() => handleNumberPress('.')} accessibilityRole="button" accessibilityLabel="Decimal point">
               <Text style={styles.keyText}>.</Text>
             </TouchableOpacity>
-            <TouchableOpacity style={styles.key} onPress={() => handleNumberPress('0')}>
+            <TouchableOpacity style={styles.key} onPress={() => handleNumberPress('0')} accessibilityRole="button" accessibilityLabel="0">
               <Text style={styles.keyText}>0</Text>
             </TouchableOpacity>
-            <TouchableOpacity style={styles.key} onPress={handleDelete}>
+            <TouchableOpacity style={styles.key} onPress={handleDelete} accessibilityRole="button" accessibilityLabel="Delete">
               <Text style={styles.keyText}>⌫</Text>
             </TouchableOpacity>
           </View>

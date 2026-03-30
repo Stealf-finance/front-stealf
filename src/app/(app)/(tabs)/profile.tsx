@@ -87,7 +87,7 @@ export default function ProfileScreen() {
         <View style={styles.menuSection}>
           <Text style={styles.sectionLabel}>General</Text>
 
-          <TouchableOpacity style={styles.menuItem} onPress={handleOpenDocumentation} activeOpacity={0.7}>
+          <TouchableOpacity style={styles.menuItem} onPress={handleOpenDocumentation} activeOpacity={0.7} accessibilityRole="button" accessibilityLabel="Open documentation">
             <View style={styles.menuIcon}>
               <Ionicons name="document-text-outline" size={18} color="rgba(255,255,255,0.7)" />
             </View>
@@ -95,7 +95,7 @@ export default function ProfileScreen() {
             <Ionicons name="chevron-forward" size={16} color="rgba(255,255,255,0.25)" />
           </TouchableOpacity>
 
-          <TouchableOpacity style={styles.menuItem} onPress={handleOpenTelegramBot} activeOpacity={0.7}>
+          <TouchableOpacity style={styles.menuItem} onPress={handleOpenTelegramBot} activeOpacity={0.7} accessibilityRole="button" accessibilityLabel="Get help">
             <View style={styles.menuIcon}>
               <Ionicons name="chatbubble-outline" size={18} color="rgba(255,255,255,0.7)" />
             </View>
@@ -107,7 +107,7 @@ export default function ProfileScreen() {
         <View style={styles.menuSection}>
           <Text style={styles.sectionLabel}>Account</Text>
 
-          <TouchableOpacity style={styles.menuItem} onPress={handleLogout} activeOpacity={0.7}>
+          <TouchableOpacity style={styles.menuItem} onPress={handleLogout} activeOpacity={0.7} accessibilityRole="button" accessibilityLabel="Logout">
             <View style={styles.menuIcon}>
               <Ionicons name="log-out-outline" size={18} color="rgba(255,255,255,0.7)" />
             </View>
@@ -115,7 +115,7 @@ export default function ProfileScreen() {
             <Ionicons name="chevron-forward" size={16} color="rgba(255,255,255,0.25)" />
           </TouchableOpacity>
 
-          <TouchableOpacity style={styles.menuItem} onPress={handleDeleteAccount} activeOpacity={0.7}>
+          <TouchableOpacity style={styles.menuItem} onPress={handleDeleteAccount} activeOpacity={0.7} accessibilityRole="button" accessibilityLabel="Delete my account">
             <View style={styles.menuIcon}>
               <Ionicons name="trash-outline" size={18} color="rgba(255,100,100,0.7)" />
             </View>

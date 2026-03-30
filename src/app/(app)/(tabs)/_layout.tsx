@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useCallback } from 'react';
 import { View, StyleSheet } from 'react-native';
 import { useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
@@ -16,14 +16,14 @@ export default function TabsLayout() {
   const { currentPage, navigateToPage, pagerRef, onIndexChange } = usePager();
   const { userData } = useAuth();
 
-  const handleNavigateToPage = (page: PageType) => {
+  const handleNavigateToPage = useCallback((page: PageType) => {
     if (page === 'transactionHistory') {
       const walletType = currentPage === 'privacy' ? 'privacy' : 'cash';
       router.push(`/(app)/transaction-history?walletType=${walletType}`);
       return;
     }
     navigateToPage(page);
-  };
+  }, [currentPage, router, navigateToPage]);
 
   return (
     <View style={styles.container}>

@@ -17,7 +17,7 @@ interface CashBalanceCardProps {
   onBank?: () => void;
 }
 
-export default function CashBalanceCard({
+function CashBalanceCard({
   onDeposit,
   onMoove,
   onSend,
@@ -98,6 +98,8 @@ export default function CashBalanceCard({
     </View>
   );
 }
+
+export default React.memo(CashBalanceCard);
 
 const styles = StyleSheet.create({
   container: {

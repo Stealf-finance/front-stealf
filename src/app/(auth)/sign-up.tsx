@@ -1,4 +1,4 @@
-import React, { useReducer, useCallback } from 'react';
+import React, { useState } from 'react';
 import {
   View,
   TextInput,
@@ -14,77 +14,31 @@ import {
 import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
-import { useSplash } from '../contexts/SplashContext';
-import VerifiedScreen from '../components/Verified';
-import { useAuthFlow } from '../hooks/auth/useSignUp';
-import { useEmailVerificationPolling } from '../hooks/auth/useEmailVerificationPolling';
-
-interface SignUpState {
-  step: 'email' | 'waiting' | 'verified';
-  email: string;
-  pseudo: string;
-  inviteCode: string;
-  loading: boolean;
-  error: string;
-  preAuthToken: string | null;
-}
-
-type SignUpAction =
-  | { type: 'SET_FIELD'; field: keyof SignUpState; value: any }
-  | { type: 'SET_STEP'; step: SignUpState['step'] }
-  | { type: 'SET_LOADING'; loading: boolean }
-  | { type: 'SET_ERROR'; error: string }
-  | { type: 'SET_PRE_AUTH_TOKEN'; token: string | null };
-
-const initialState: SignUpState = {
-  step: 'email',
-  email: '',
-  pseudo: '',
-  inviteCode: '',
-  loading: false,
-  error: '',
-  preAuthToken: null,
-};
-
-function signUpReducer(state: SignUpState, action: SignUpAction): SignUpState {
-  switch (action.type) {
-    case 'SET_FIELD':
-      return { ...state, [action.field]: action.value };
-    case 'SET_STEP':
-      return { ...state, step: action.step };
-    case 'SET_LOADING':
-      return { ...state, loading: action.loading };
-    case 'SET_ERROR':
-      return { ...state, error: action.error };
-    case 'SET_PRE_AUTH_TOKEN':
-      return { ...state, preAuthToken: action.token };
-    default:
-      return state;
-  }
-}
+import { useSplash } from '../../contexts/SplashContext';
+import VerifiedScreen from './verified';
+import { useAuthFlow } from '../../hooks/auth/useSignUp';
+import { useEmailVerificationPolling } from '../../hooks/auth/useEmailVerificationPolling';
 
 export default function SignUpScreen(){
   const router = useRouter();
   const { showSplash } = useSplash();
   const authFlow = useAuthFlow();
 
-  const [state, dispatch] = useReducer(signUpReducer, initialState);
-  const { step, email, pseudo, inviteCode, loading, error, preAuthToken } = state;
-
-  // Wrapper setters compatible with hooks that expect (value) => void
-  const setStep = useCallback((s: SignUpState['step']) => dispatch({ type: 'SET_STEP', step: s }), []);
-  const setLoading = useCallback((l: boolean) => dispatch({ type: 'SET_LOADING', loading: l }), []);
-  const setEmail = useCallback((v: string) => dispatch({ type: 'SET_FIELD', field: 'email', value: v }), []);
-  const setPseudo = useCallback((v: string) => dispatch({ type: 'SET_FIELD', field: 'pseudo', value: v }), []);
-  const setInviteCode = useCallback((v: string) => dispatch({ type: 'SET_FIELD', field: 'inviteCode', value: v }), []);
+  const [step, setStep] = useState<'email' | 'waiting' | 'verified'>('email');
+  const [email, setEmail] = useState('');
+  const [pseudo, setPseudo] = useState('');
+  const [inviteCode, setInviteCode] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+  const [preAuthToken, setPreAuthToken] = useState<string | null>(null);
 
   useEmailVerificationPolling({
     preAuthToken,
     enabled: step === 'waiting',
     onVerified: (data) => {
-      dispatch({ type: 'SET_FIELD', field: 'email', value: data.email });
-      dispatch({ type: 'SET_FIELD', field: 'pseudo', value: data.pseudo });
-      dispatch({ type: 'SET_STEP', step: 'verified' });
+      setEmail(data.email);
+      setPseudo(data.pseudo);
+      setStep('verified');
     },
   });
 
@@ -117,13 +71,13 @@ export default function SignUpScreen(){
     } else {
 
       if (result.preAuthToken) {
-        dispatch({ type: 'SET_PRE_AUTH_TOKEN', token: result.preAuthToken });
+        setPreAuthToken(result.preAuthToken);
       }
     }
   };
 
   if (step === 'verified' && email && pseudo) {
-    return <VerifiedScreen email={email} pseudo={pseudo} preAuthToken={preAuthToken} onBack={() => dispatch({ type: 'SET_STEP', step: 'email' })} onAuthStart={() => showSplash()} />;
+    return <VerifiedScreen email={email} pseudo={pseudo} preAuthToken={preAuthToken} onBack={() => setStep('email')} onAuthStart={() => showSplash()} />;
   }
 
   return (
@@ -147,7 +101,7 @@ export default function SignUpScreen(){
           >
             {/* Header */}
             <View style={styles.header}>
-              <Image source={require('../assets/logo/logo-transparent.png')} style={styles.logo} transition={200} />
+              <Image source={require('../../assets/logo-transparent.png')} style={styles.logo} transition={200} />
               <Text style={styles.title}>Welcome</Text>
               <Text style={styles.subtitle}>Create your Stealf account</Text>
             </View>
@@ -168,7 +122,6 @@ export default function SignUpScreen(){
                       autoCapitalize="none"
                       autoCorrect={false}
                       editable={!loading}
-                      accessibilityLabel="Pseudo"
                     />
                   </View>
 
@@ -185,7 +138,6 @@ export default function SignUpScreen(){
                       autoCapitalize="none"
                       autoCorrect={false}
                       editable={!loading}
-                      accessibilityLabel="Email"
                     />
                   </View>
 
@@ -201,7 +153,6 @@ export default function SignUpScreen(){
                       autoCapitalize="characters"
                       autoCorrect={false}
                       editable={!loading}
-                      accessibilityLabel="Invite code"
                     />
                   </View>
 
@@ -214,8 +165,6 @@ export default function SignUpScreen(){
                     onPress={onEmailSubmit}
                     disabled={loading || !email || !pseudo || !inviteCode}
                     activeOpacity={0.8}
-                    accessibilityRole="button"
-                    accessibilityLabel="Continue"
                   >
                     {loading ? (
                       <ActivityIndicator color="#000" />
@@ -227,7 +176,7 @@ export default function SignUpScreen(){
                   {/* Sign In Link */}
                   <View style={styles.footer}>
                     <Text style={styles.footerText}>Already have an account? </Text>
-                    <TouchableOpacity onPress={() => router.replace('/sign-in')} accessibilityRole="button" accessibilityLabel="Sign in">
+                    <TouchableOpacity onPress={() => router.replace('/(auth)/sign-in')}>
                       <Text style={styles.footerLink}>Sign In</Text>
                     </TouchableOpacity>
                   </View>
@@ -255,8 +204,6 @@ export default function SignUpScreen(){
                       onPress={onResendMagicLink}
                       disabled={loading}
                       activeOpacity={0.7}
-                      accessibilityRole="button"
-                      accessibilityLabel="Resend magic link"
                     >
                       {loading ? (
                         <ActivityIndicator color="rgba(240, 235, 220, 0.95)" />
@@ -269,8 +216,6 @@ export default function SignUpScreen(){
                       style={styles.changeEmailButton}
                       onPress={() => setStep('email')}
                       activeOpacity={0.7}
-                      accessibilityRole="button"
-                      accessibilityLabel="Change email"
                     >
                       <Text style={styles.changeEmailText}>Change Email</Text>
                     </TouchableOpacity>

@@ -24,7 +24,7 @@ interface PrivacyBalanceCardProps {
   onGrow?: () => void;
 }
 
-export default function BalanceCardPrivacy({
+function BalanceCardPrivacy({
   mode = 'public',
   onTopUp,
   onWithdraw,
@@ -238,6 +238,8 @@ export default function BalanceCardPrivacy({
     </View>
   );
 }
+
+export default React.memo(BalanceCardPrivacy);
 
 const styles = StyleSheet.create({
   container: {

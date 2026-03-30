@@ -78,6 +78,8 @@ export default function HomeScreen() {
                   style={styles.bankCardAction}
                   activeOpacity={0.7}
                   onPress={() => Alert.alert('Coming soon', 'Bank accounts will be available soon.')}
+                  accessibilityRole="button"
+                  accessibilityLabel="Get bank account"
                 >
                   <SendIcon width={16} height={16} />
                   <Text style={styles.bankCardActionText} numberOfLines={1}>Get bank account</Text>

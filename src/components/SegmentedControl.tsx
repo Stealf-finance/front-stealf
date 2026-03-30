@@ -13,7 +13,7 @@ interface SegmentedControlProps {
   onChange: (index: number) => void;
 }
 
-export default function SegmentedControl({ tabs, activeIndex, onChange }: SegmentedControlProps) {
+function SegmentedControl({ tabs, activeIndex, onChange }: SegmentedControlProps) {
   const tabLayouts = React.useRef<{ x: number; width: number }[]>([]);
   const pillX = useSharedValue(0);
   const pillWidth = useSharedValue(0);
@@ -72,6 +72,8 @@ export default function SegmentedControl({ tabs, activeIndex, onChange }: Segmen
     </View>
   );
 }
+
+export default React.memo(SegmentedControl);
 
 const styles = StyleSheet.create({
   container: {

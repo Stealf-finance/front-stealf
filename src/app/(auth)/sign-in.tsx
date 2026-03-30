@@ -10,8 +10,8 @@ import {
 import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
-import { useSplash } from '../contexts/SplashContext';
-import { useSignIn } from '../hooks/auth/useSignIn';
+import { useSplash } from '../../contexts/SplashContext';
+import { useSignIn } from '../../hooks/auth/useSignIn';
 
 export default function SignInScreen() {
   const router = useRouter();
@@ -19,7 +19,8 @@ export default function SignInScreen() {
   const { loading, signInWithPasskey } = useSignIn();
 
   const handleSignIn = async () => {
-    const result = await signInWithPasskey(showSplash);
+    showSplash();
+    const result = await signInWithPasskey();
 
     if (!result.success) {
       Alert.alert(result.message || 'Error', result.description || 'An error occurred');
@@ -40,7 +41,7 @@ export default function SignInScreen() {
           {/* Logo */}
           <View style={styles.logoContainer}>
             <Image
-              source={require('../assets/logo/logo-transparent.png')}
+              source={require('../../assets/logo-transparent.png')}
               style={styles.logo}
               contentFit="contain"
               transition={200}
@@ -57,8 +58,6 @@ export default function SignInScreen() {
             onPress={handleSignIn}
             disabled={loading}
             activeOpacity={0.8}
-            accessibilityRole="button"
-            accessibilityLabel="Sign in with passkey"
           >
             <Text style={styles.buttonText}>Sign In with Passkey</Text>
           </TouchableOpacity>
@@ -66,7 +65,7 @@ export default function SignInScreen() {
           {/* Sign Up Link */}
           <View style={styles.footer}>
             <Text style={styles.footerText}>Don't have an account? </Text>
-            <TouchableOpacity onPress={() => router.replace('/sign-up')} accessibilityRole="button" accessibilityLabel="Sign up">
+            <TouchableOpacity onPress={() => router.replace('/(auth)/sign-up')}>
               <Text style={styles.footerLink}>Sign Up</Text>
             </TouchableOpacity>
           </View>

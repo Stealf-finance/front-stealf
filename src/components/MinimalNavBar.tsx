@@ -10,7 +10,7 @@ interface MinimalNavBarProps {
   username?: string;
 }
 
-export default function MinimalNavBar({
+function MinimalNavBar({
   onOpenProfile,
   onNavigateToPage,
   currentPage,
@@ -60,6 +60,8 @@ export default function MinimalNavBar({
     </View>
   );
 }
+
+export default React.memo(MinimalNavBar);
 
 const styles = StyleSheet.create({
   container: {

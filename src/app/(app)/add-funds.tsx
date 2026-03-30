@@ -72,7 +72,7 @@ export default function AddFundsScreen() {
         
         {/* Header */}
         <View style={styles.header}>
-          <TouchableOpacity style={styles.backButton} onPress={() => router.back()} activeOpacity={0.8}>
+          <TouchableOpacity style={styles.backButton} onPress={() => router.back()} activeOpacity={0.8} accessibilityRole="button" accessibilityLabel="Go back">
             <ComebackIcon width={18} height={18} />
           </TouchableOpacity>
           <Text style={styles.headerTitle}>Add Funds</Text>
@@ -101,6 +101,8 @@ export default function AddFundsScreen() {
               style={styles.addressButton}
               onPress={handleCopy}
               activeOpacity={0.8}
+              accessibilityRole="button"
+              accessibilityLabel="Copy wallet address"
             >
               <Text style={styles.addressButtonText} numberOfLines={1} ellipsizeMode="middle">
                 {copied ? 'Copied!' : (walletAddress || 'Loading...')}
@@ -120,6 +122,8 @@ export default function AddFundsScreen() {
               onPress={handleAirdrop}
               disabled={airdropping}
               activeOpacity={0.8}
+              accessibilityRole="button"
+              accessibilityLabel="Airdrop 2 SOL on devnet"
             >
               {airdropping ? (
                 <ActivityIndicator color="#000" />
