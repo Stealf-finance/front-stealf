@@ -46,156 +46,107 @@
 ```
 front-stealf/
 |
-|-- index.ts                    Entrypoint : polyfills + registerRootComponent
-|-- App.tsx                     Root : QueryClient + TurnkeyProvider + AuthProvider + fonts
+|-- index.js                    Entrypoint : polyfills + expo-router/entry
 |-- polyfills.ts                Crypto.subtle, Buffer, TextEncoder, DOMException, Blob patch
 |-- metro.config.js             Module resolution, shims, SVG transformer
 |-- crypto-shim.js              randomBytes + createHash("sha256") via @noble/hashes
 |-- fs-shim.js                  Module vide (shim pour @arcium-hq/client)
+|-- codegenv2-shim.js           Module vide (shim pour @bufbuild/protobuf/codegenv2)
 |-- babel.config.js             Expo preset + reanimated plugin
-|-- app.config.js               Expo config (bundle ID, passkey RP, plugins)
-|-- tsconfig.json               TS config (strict: false, skipLibCheck: true)
-|-- package.json                Dependencies + scripts + patch-package
+|-- app.config.js               Expo config (bundle ID, passkey RP, expo-router, sentry)
+|-- tsconfig.json               TS config (strict: true, baseUrl: ".", jsx: react-jsx)
+|-- package.json                Dependencies + scripts (main: ./index.js)
 |-- .env                        Variables d'environnement (non commite)
 |
 |-- src/
 |   |
-|   |-- app/                                    SCREENS
-|   |   |-- (auth)/
-|   |   |   |-- SignInScreen.tsx                Login passkey
-|   |   |   |-- SignUpScreen.tsx                Inscription multi-etapes
-|   |   |   |-- VerifiedScreen.tsx              Email verifie
-|   |   |   +-- WalletSetupScreen.tsx           Choix creer/importer wallet
+|   |-- app/                                    ROUTES (Expo Router, root: src/app)
+|   |   |-- _layout.tsx                         Root layout: providers, splash, navigation
+|   |   |-- sign-in.tsx                         Login passkey (public route)
+|   |   |-- sign-up.tsx                         Inscription multi-etapes (public route)
 |   |   |
-|   |   |-- (tabs)/
-|   |   |   |-- HomeScreen.tsx                  Dashboard cash wallet
-|   |   |   |-- PrivacyScreen.tsx               Dashboard privacy wallet
-|   |   |   +-- Profile.tsx                     Profil utilisateur
-|   |   |
-|   |   |-- (send)/
-|   |   |   |-- Send.tsx                        Envoi cash (montant)
-|   |   |   |-- SendConfirmation.tsx            Confirmation envoi
-|   |   |   |-- SendPrivate.tsx                 Envoi prive (Umbra)
-|   |   |   |-- SendPrivateConfirmation.tsx     Confirmation prive
-|   |   |   +-- moove.tsx                       Transfert cash <-> privacy
-|   |   |
-|   |   |-- (add)/
-|   |   |   |-- AddFunds.tsx                    Alimenter cash wallet
-|   |   |   +-- AddFundsPrivacy.tsx             Alimenter privacy wallet
-|   |   |
-|   |   |-- (deposit)/
-|   |   |   +-- DepositPrivateCash.tsx          Depot dans yield vault
-|   |   |
-|   |   |-- (savings)/
-|   |   |   |-- SavingsScreen.tsx               Dashboard yield (APY, balance)
-|   |   |   +-- DepositWithdrawModal.tsx         Modal deposit/withdraw
-|   |   |
-|   |   +-- (infos)/
-|   |       |-- InfoScreen.tsx                  Infos bancaires
-|   |       |-- CardScreen.tsx                  Gestion carte
-|   |       +-- TransactionHistoryScreen.tsx    Historique complet
+|   |   +-- (app)/                              GROUPE PROTEGE (auth guard)
+|   |       |-- _layout.tsx                     Auth guard + PagerProvider + Stack modals
+|   |       |
+|   |       |-- (tabs)/
+|   |       |   |-- _layout.tsx                 MinimalNavBar + RevolutPager
+|   |       |   |-- index.tsx                   Dashboard cash wallet
+|   |       |   |-- privacy.tsx                 Dashboard privacy wallet
+|   |       |   +-- profile.tsx                 Profil utilisateur
+|   |       |
+|   |       |-- send.tsx                        Envoi cash (montant) — modal
+|   |       |-- send-confirmation.tsx           Confirmation envoi — modal
+|   |       |-- send-private.tsx                Envoi prive (Umbra) — modal
+|   |       |-- send-private-confirmation.tsx   Confirmation prive — modal
+|   |       |-- moove.tsx                       Transfert cash <-> privacy — modal
+|   |       |-- add-funds.tsx                   Alimenter cash wallet — modal
+|   |       |-- add-funds-privacy.tsx           Alimenter privacy wallet — modal
+|   |       |-- deposit-private.tsx             Depot dans yield vault — modal
+|   |       |-- saving-dashboard.tsx            Dashboard yield (APY, balance) — modal
+|   |       |-- deposit-withdraw.tsx            Modal deposit/withdraw
+|   |       |-- info.tsx                        Infos bancaires — modal
+|   |       +-- transaction-history.tsx         Historique complet — modal
 |   |
 |   |-- components/
-|   |   |-- MinimalNavBar.tsx                   Barre nav fixe (top)
-|   |   |-- SlideToConfirm.tsx                  Swipe-to-confirm gesture
-|   |   |-- TransactionHistory.tsx              Liste transactions
-|   |   |-- SegmentedControl.tsx                Tab selector
-|   |   |-- WelcomeLoader.tsx                   Splash anime
+|   |   |-- MinimalNavBar.tsx                   Barre nav fixe (React.memo)
+|   |   |-- SlideToConfirm.tsx                  Swipe-to-confirm (reanimated + haptics)
+|   |   |-- TransactionHistory.tsx              FlatList transactions (React.memo rows)
+|   |   |-- SegmentedControl.tsx                Tab selector (React.memo)
+|   |   |-- WelcomeLoader.tsx                   Loader anime (pendant auth operations)
+|   |   |-- Verified.tsx                        Email verifie + passkey creation
+|   |   |-- WalletSetup.tsx                     Choix creer/importer wallet
+|   |   |-- AnimatedSplash.tsx                  Splash anime (expo-image)
+|   |   |-- ErrorBoundary.tsx                   Error boundary (+ Sentry capture)
 |   |   |-- AddFundsModal.tsx                   Modal ajout fonds
 |   |   |-- SendModal.tsx / SendPrivacyModal.tsx
 |   |   +-- features/
-|   |       |-- CashBalanceCard.tsx             Carte balance cash
-|   |       |-- PrivacyBalanceCard.tsx          Carte balance privacy
+|   |       |-- CashBalanceCard.tsx             Carte balance cash (React.memo)
+|   |       |-- PrivacyBalanceCard.tsx          Carte balance privacy (React.memo)
 |   |       |-- PointsCard.tsx                  Points/rewards
 |   |       +-- StatsCard.tsx                   Stats app
 |   |
 |   |-- contexts/
-|   |   +-- AuthContext.tsx                     State global auth
-|   |       UserData: { email, username, cash_wallet, stealf_wallet, subOrgId, points }
-|   |       Fonctions: setUserData, logout
-|   |       Auto-subscribe socket sur auth
+|   |   |-- AuthContext.tsx                     State global auth (bootDone + session restore)
+|   |   +-- SplashContext.tsx                   State WelcomeLoader (showSplash/hideSplash)
 |   |
 |   |-- navigation/
-|   |   |-- AppNavigator.tsx                    Nav principal (auth conditionnel + overlays)
-|   |   |-- swipePager.tsx                      Pager 3 pages (gesture + spring physics)
+|   |   |-- swipePager.tsx                      RevolutPager (gesture + spring physics)
+|   |   |-- PagerContext.tsx                    State swipe index (currentPage, navigateToPage)
 |   |   +-- types.ts                            PageType definition
 |   |
 |   |-- hooks/
 |   |   |-- auth/
-|   |   |   |-- useSignUp.ts                    Flow inscription complet
-|   |   |   |-- useSignIn.ts                    Login passkey
+|   |   |   |-- useSignUp.ts                    Flow inscription (useReducer)
+|   |   |   |-- useSignIn.ts                    Login passkey (onPasskeySuccess callback)
 |   |   |   +-- useEmailVerificationPolling.ts  Polling verification email
-|   |   |
 |   |   |-- wallet/
-|   |   |   |-- useWalletInfos.ts               React Query balance + history + socket
-|   |   |   |-- useSetupWallet.ts               Creer/importer wallet (BIP39)
+|   |   |   |-- useWalletInfos.ts               React Query + Zod validation + socket
 |   |   |   |-- useExportWallet.ts              Export cle privee
 |   |   |   +-- useInitPrivateWallet.ts         Init Umbra registration
-|   |   |
 |   |   |-- transactions/
-|   |   |   |-- useSendSimpleTransaction.ts     buildTransaction + transactionTurnkey/Simple
-|   |   |   +-- useUmbra.ts                     Wrapper Umbra SDK complet
-|   |   |
-|   |   |-- useSocket.ts                        Attach/detach socket listeners
+|   |   |   |-- useSendSimpleTransaction.ts     buildTransaction + signing
+|   |   |   +-- useUmbra.ts                     Wrapper Umbra SDK
+|   |   |-- useSocket.ts                        Socket listeners
 |   |   |-- useAppStats.ts                      Stats app
 |   |   +-- useReserveProof.ts
 |   |
 |   |-- services/
 |   |   |-- api/
-|   |   |   |-- clientStealf.ts                 useAuthenticatedApi() { get, post, del }
-|   |   |   +-- fetchWalletInfos.ts             Query factories (balance, history, price, yield)
-|   |   |
-|   |   |-- yield/
-|   |   |   |-- deposit.ts                      Encrypt + transfer vers Jito vault
-|   |   |   |-- withdraw.ts                     POST /api/yield/withdraw
-|   |   |   |-- balance.ts                      GET /api/yield/balance/:userId
-|   |   |   +-- private_yield.json              IDL Anchor (programme Arcium)
-|   |   |
-|   |   |-- real-time/
-|   |   |   +-- socketService.ts                Singleton Socket.io
-|   |   |
-|   |   |-- solana/
-|   |   |   |-- transactionsGuard.ts            Validation pre-envoi
-|   |   |   |-- moproZkProvers.ts               Adapteurs Mopro FFI -> Umbra
-|   |   |   |-- zkCircuitManager.ts             Download + cache .zkey depuis CDN
-|   |   |   |-- umbraSeed.ts                    Stockage master seed Umbra (Keychain)
-|   |   |   +-- swapService.ts                  (futur) Swap tokens
-|   |   |
-|   |   |-- cache/
-|   |   |   +-- walletKeyCache.ts               RAM + Keychain, TTL 15 min
-|   |   |
-|   |   +-- auth/
-|   |       +-- authStorage.ts                  SecureStore user data
+|   |   |   |-- clientStealf.ts                 useAuthenticatedApi() hook
+|   |   |   |-- client.ts                       Standalone API client (apiGet, apiPost, apiDelete)
+|   |   |   |-- fetchWalletInfos.ts             Query factories
+|   |   |   +-- schemas.ts                      Zod schemas (balance, history, yield)
+|   |   |-- yield/ deposit.ts, withdraw.ts, balance.ts
+|   |   |-- real-time/ socketService.ts         Singleton Socket.io
+|   |   |-- solana/ transactionsGuard.ts, moproZkProvers.ts, etc.
+|   |   |-- cache/ walletKeyCache.ts
+|   |   +-- auth/ authStorage.ts
 |   |
-|   |-- constants/
-|   |   |-- solana.ts                           SOL_MINT, USDC_MINT, STEALF_JITO_VAULT
-|   |   +-- turnkey.ts                          Org ID, RP stealf.xyz, ED25519, derivation path
-|   |
-|   |-- types/
-|   |   |-- index.ts                            Re-export
-|   |   |-- navigation.ts                       Props screens, PageType
-|   |   +-- svg.d.ts                            Declaration SVG
-|   |
-|   |-- utils/
-|   |   +-- animations.ts                       animateScreenIn/Out
-|   |
-|   +-- assets/
-|       |-- fonts/Sansation/                    Bold, Regular, Light, Italic
-|       |-- buttons/                            SVG icons
-|       |-- logo/
-|       +-- images/
+|   |-- constants/ solana.ts, turnkey.ts
+|   |-- types/ index.ts, navigation.ts, svg.d.ts
+|   +-- assets/ fonts, buttons, logo, images
 |
-+-- modules/
-    +-- mopro-ffi/                              MODULE NATIF RUST
-        |-- Cargo.toml                          Config build Rust
-        +-- MoproReactNativeBindings/
-            |-- package.json                    mopro-ffi v0.1.0
-            |-- src/                            Source TS + native
-            |-- lib/                            JS compile
-            |-- ios/                            Objective-C bindings
-            |-- android/                        Kotlin + JNI bindings
-            |-- cpp/                            C++ FFI wrapper
-            +-- MoproFfiFramework.xcframework/  iOS framework (libsteal.a)
++-- modules/mopro-ffi/                         MODULE NATIF RUST (ZK proofs)
 ```
 
 ## Polyfills & Shims
@@ -204,18 +155,22 @@ React Native (Hermes engine) ne supporte pas nativement les APIs Node.js/Web uti
 par les libs Solana, Umbra, et Arcium. Voici la chaine de polyfills :
 
 ```
-index.ts
+index.js (NEW — replaces index.ts)
   |
-  +-- import './polyfills'  (PREMIER import, avant tout le reste)
-       |
-       +-- react-native-get-random-values     crypto.getRandomValues
-       +-- react-native-quick-crypto          crypto.subtle (Web Crypto API)
-       +-- react-native-url-polyfill          URL, URLSearchParams
-       +-- buffer                             global.Buffer
-       +-- text-encoding-polyfill             TextEncoder / TextDecoder
-       +-- DOMException class                 Pour instanceof DOMException
-       +-- AbortSignal.throwIfAborted         Pour Umbra SDK
-       +-- Blob patch                         Pour ffjavascript (snarkjs)
+  +-- import './polyfills'  (PREMIER import)
+  +-- import 'react-native-gesture-handler'
+  +-- import 'expo-router/entry'  (lance Expo Router)
+
+polyfills.ts
+  |
+  +-- react-native-get-random-values     crypto.getRandomValues
+  +-- react-native-quick-crypto          crypto.subtle (Web Crypto API)
+  +-- react-native-url-polyfill          URL, URLSearchParams
+  +-- buffer                             global.Buffer
+  +-- text-encoding-polyfill             TextEncoder / TextDecoder
+  +-- DOMException class                 Pour instanceof DOMException
+  +-- AbortSignal.throwIfAborted         Pour Umbra SDK
+  +-- Blob patch                         Pour ffjavascript (snarkjs)
 
 metro.config.js
   |
@@ -224,11 +179,12 @@ metro.config.js
   |     buffer  -> buffer
   |     crypto  -> crypto-shim.js        randomBytes + createHash("sha256")
   |     fs      -> fs-shim.js            Module vide (pour @arcium-hq/client)
+  |     isows   -> isows                 WebSocket shim
   |
   +-- resolveRequest overrides:
   |     snarkjs       -> build/browser.esm.js    (evite imports Node)
   |     ffjavascript   -> build/browser.esm.js
-  |     @bufbuild/protobuf/codegenv2             (fix package exports)
+  |     @bufbuild/protobuf/codegenv2  -> codegenv2-shim.js  (fix package exports)
   |     @adraffy/ens-normalize                   (fix .cjs resolution)
   |
   +-- SVG transformer (react-native-svg-transformer)
@@ -285,41 +241,52 @@ mopro-ffi (Rust + UBRN)
 ## State Management
 
 ```
-+------------------+     +------------------+     +------------------+
-|   AuthContext     |     |   React Query    |     |   Socket.io      |
-|                  |     |                  |     |                  |
-| - userData       |     | - wallet-balance |     | - balance:updated|
-| - session        |     | - wallet-history |     | - transaction:new|
-| - isAuthenticated|     | - sol-price-usd  |     | - private-balance|
-| - logout()       |     | - yield-stats    |     |   :updated       |
-+------------------+     +------------------+     +------------------+
-        |                        ^                        |
-        |                        |   invalidate           |
-        +----> socket subscribe  +------------------------+
++------------------+  +------------------+  +------------------+
+|   AuthContext     |  |  SplashContext   |  |  PagerContext    |
+| - userData        |  | - splashVisible  |  | - currentPage   |
+| - isAuthenticated |  | - showSplash()   |  | - navigateToPage|
+| - loading         |  | - hideSplash()   |  | - pagerRef      |
+| - bootDone        |  +------------------+  +------------------+
++------------------+
+
++------------------+     +------------------+
+|   React Query    |     |   Socket.io      |
+|                  |     |                  |
+| - wallet-balance |     | - balance:updated|
+| - wallet-history |     | - transaction:new|
+| - sol-price-usd  |     | - private-balance|
+| - yield-stats    |     |   :updated       |
++------------------+     +------------------+
+        ^                        |
+        |   invalidate           |
+        +------------------------+
 ```
 
 ## Navigation
 
 ```
-AppNavigator
+Expo Router (file-based routing)
+  |
+  +-- src/app/_layout.tsx (Root)
+  |     Providers + SplashScreen + auth navigation
   |
   +-- [Non authentifie]
-  |     SignInScreen <-> SignUpScreen -> VerifiedScreen -> WalletSetupScreen
+  |     sign-in.tsx <-> sign-up.tsx (fade transition)
+  |     sign-up.tsx renders Verified + WalletSetup inline
   |
-  +-- [Authentifie]
+  +-- [Authentifie] — (app)/ group
         |
-        +-- MinimalNavBar (fixe en haut)
+        +-- (app)/_layout.tsx
+        |     Auth guard: if (!isAuthenticated) <Redirect href="/sign-in" />
+        |     PagerProvider + Stack (modals: transparentModal, slide_from_bottom)
         |
-        +-- RevolutPager (swipe horizontal, spring physics)
-        |     |
-        |     +-- Page 0: HomeScreen      (cash wallet)
-        |     +-- Page 1: PrivacyScreen   (privacy wallet)
-        |     +-- Page 2: Profile
+        +-- (tabs)/_layout.tsx
+        |     MinimalNavBar (fixe en haut)
+        |     RevolutPager (swipe horizontal, spring physics)
+        |       Page 0: index.tsx (Home/cash)
+        |       Page 1: privacy.tsx
+        |       Page 2: profile.tsx
         |
-        +-- Overlays (slide-up depuis le bas)
-              |
-              +-- send / sendPrivate / moove
-              +-- addFunds / addFundsPrivacy
-              +-- depositPrivateCash / savings
-              +-- info / transactionHistory
+        +-- Modal routes (push from tabs)
+              send, send-private, moove, add-funds, etc.
 ```

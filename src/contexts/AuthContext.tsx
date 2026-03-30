@@ -56,7 +56,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return () => clearTimeout(timer);
   }, [sessionToken, userId, bootDone]);
 
-  // Once boot is done, load auth data
   useEffect(() => {
     if (!bootDone) return;
 
@@ -65,6 +64,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       if (sessionToken && userId) {
         const storedData = await authStorage.getUserData();
+        if (__DEV__) console.log('[AuthContext] storedData:', JSON.stringify(storedData));
 
         setUserDataState({
           email: user?.userEmail || storedData?.email || '',
@@ -101,24 +101,39 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [bootDone, sessionToken, userId]);
 
   const saveUserData = async (data: UserData | null) => {
-    setUserDataState(data);
+    if (__DEV__) console.log('[AuthContext] saveUserData called:', JSON.stringify(data));
+
     if (data === null) {
+      setUserDataState(null);
       await authStorage.clearUserData();
       socketService.disconnect();
-    } else {
-      await authStorage.setUserData(data);
-      if (data.cash_wallet) {
-        attachWalletListeners(queryClient);
-        if (session?.token) socketService.connect(session.token);
-        socketService.subscribeToWallet(data.cash_wallet);
-        if (data.stealf_wallet) {
-          socketService.subscribeToWallet(data.stealf_wallet);
-        }
-        if (data.subOrgId) {
-          socketService.subscribeToYield(data.subOrgId, getUserIdHash(data.subOrgId).toString('hex'));
-          registerYieldSocketListener(queryClient, data.subOrgId);
-          if (session?.token) prefetchYieldData(queryClient, data.subOrgId, session.token);
-        }
+      return;
+    }
+
+    // Preserve stealf_wallet from local storage (never returned by backend)
+    const existing = await authStorage.getUserData();
+    if (__DEV__) console.log('[AuthContext] existing in storage:', JSON.stringify(existing));
+
+    const merged: UserData = {
+      ...data,
+      stealf_wallet: data.stealf_wallet || existing?.stealf_wallet || '',
+    };
+
+    if (__DEV__) console.log('[AuthContext] merged result:', JSON.stringify(merged));
+
+    setUserDataState(merged);
+    await authStorage.setUserData(merged);
+    if (merged.cash_wallet) {
+      attachWalletListeners(queryClient);
+      if (session?.token) socketService.connect(session.token);
+      socketService.subscribeToWallet(merged.cash_wallet);
+      if (merged.stealf_wallet) {
+        socketService.subscribeToWallet(merged.stealf_wallet);
+      }
+      if (merged.subOrgId) {
+        socketService.subscribeToYield(merged.subOrgId, getUserIdHash(merged.subOrgId).toString('hex'));
+        registerYieldSocketListener(queryClient, merged.subOrgId);
+        if (session?.token) prefetchYieldData(queryClient, merged.subOrgId, session.token);
       }
     }
   };

@@ -1,6 +1,6 @@
 # Audit Securite -- Stealf Frontend
 
-Date : Mars 2026 (mise a jour 24/03/2026)
+Date : Mars 2026 (mise a jour 30/03/2026)
 Phase : MVP / Beta
 
 ## Resume
@@ -28,7 +28,7 @@ Phase : MVP / Beta
 - **Fix**: Wrapper dans `if (__DEV__)` ou strip via babel plugin prod.
 
 ### ~~CRIT-02: Mnemonic copie dans le clipboard pendant 60s~~ FIXE
-- **Fichier**: `app/(auth)/WalletSetupScreen.tsx:52-59`
+- **Fichier**: `components/WalletSetup.tsx`
 - Auto-clear reduit de 60s a **5s**.
 
 ### ~~CRIT-03: Mnemonic copie dans le clipboard sans auto-clear~~ FIXE
@@ -207,7 +207,7 @@ Phase : MVP / Beta
 - ~~**[MEDIUM] derivePath duplique**~~: FIXE — extrait dans `utils/solanaKeyDerivation.ts`, importe par `moove.tsx` et `useInitPrivateWallet.ts`.
 - ~~**[LOW] Import `use` inutilise**~~: FIXE — supprime de `useSocket.ts`.
 - ~~**[LOW] Import `useEffect` inutilise**~~: FIXE — supprime de `AddFundsPrivacy.tsx`.
-- **[LOW] `useFonts` appele dans chaque screen** au lieu d'une seule fois au niveau App. Pas un bug mais du gaspillage.
+- ~~**[LOW] `useFonts` appele dans chaque screen**~~ FIXE — centralise dans root `_layout.tsx`.
 - **[LOW] 3 instances Connection Solana** separees (`useSendSimpleTransaction.ts:10`, `moove.tsx:28`, `deposit.ts:17`). Creer un singleton partage.
 
 ---
@@ -216,11 +216,11 @@ Phase : MVP / Beta
 
 ### Performance
 - **[MEDIUM] useAnimatedStyle dans .map()** (`swipePager.tsx:118-141`): Violation Rules of Hooks. Fonctionne car le tableau est stable, mais cassera si les pages changent dynamiquement.
-- **[MEDIUM] 3 tab screens toujours rendus** (`AppNavigator.tsx:199-255`): HomeScreen, PrivacyScreen, ProfileScreen sont tous rendus simultanement avec leurs queries et listeners. Envisager le lazy-loading.
+- **[MEDIUM] 3 tab screens toujours rendus** (`(app)/(tabs)/_layout.tsx` via RevolutPager): HomeScreen, PrivacyScreen, ProfileScreen sont tous rendus simultanement avec leurs queries et listeners. Envisager le lazy-loading.
 
 ### Race Conditions
-- **[HIGH] loadAuth sans annulation** (`AuthContext.tsx:37-71`): Pas d'AbortController. Si `session`/`user` changent rapidement → multiple `loadAuth` concurrents → sockets dupliques, prefetch dupliques. Ajouter un cleanup ou debounce.
-- **[MEDIUM] saveUserData sans mutex** (`AuthContext.tsx:74-96`): Appels async qui peuvent s'entrelacer si appeles rapidement (signup flow).
+- **[HIGH] loadAuth sans annulation** (`AuthContext.tsx`): Pas d'AbortController. Le mecanisme `bootDone` empeche desormais le chargement premature, mais si `session`/`user` changent rapidement → multiple `loadAuth` concurrents restent possibles → sockets dupliques, prefetch dupliques. AbortController toujours non implemente.
+- **[MEDIUM] saveUserData sans mutex** (`AuthContext.tsx`): Appels async qui peuvent s'entrelacer si appeles rapidement (signup flow).
 - **[MEDIUM] useEmailVerificationPolling onVerified** dans les deps du useEffect (`useEmailVerificationPolling.ts:71`): Callback pas memoize → polling restart a chaque render.
 - **[MEDIUM] onAuthStart appele dans le render** au lieu d'un useEffect (`VerifiedScreen.tsx:92`).
 
@@ -262,6 +262,9 @@ Phase : MVP / Beta
 - [x] ~~Extraire derivePath dans un module utilitaire partage~~ FAIT
 - [x] ~~Valider le montant withdraw cote front~~ FAIT
 - [x] ~~Nettoyer imports morts (useSocket, AddFundsPrivacy)~~ FAIT
+- [x] `useFonts centralise dans root layout` FAIT
+- [x] `Sentry error logging ajoute` FAIT
+- [x] `Zod validation sur les reponses API` FAIT
 - [ ] Wrapper tous les `console.log`/`console.error` sensibles dans `__DEV__` ou strip via babel
 
 ### Court terme (pre-mainnet)

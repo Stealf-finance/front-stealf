@@ -437,25 +437,25 @@ Le swipePager custom peut rester comme composant dans le group route (home,priva
 | # | Priorite | Item | Statut | Effort |
 |---|----------|------|--------|--------|
 | 1 | P0 | FlatList pour TransactionHistory | **Fait** | Faible |
-| 2 | P0 | TypeScript strict mode | Non fait | Moyen |
+| 2 | P0 | TypeScript strict mode | **Fait** | Moyen |
 | 3 | P0 | SafeAreaProvider + contentInsetAdjustmentBehavior | **Fait** | Faible |
 | 4 | P0 | Tests unitaires | Non fait | Moyen |
-| 5 | P0 | Accessibilite (a11y) | Partiel (TransactionHistory) | Faible |
-| 6 | P1 | Validation Zod | Non fait | Moyen |
-| 7 | P1 | Sentry error logging | Non fait | Faible |
+| 5 | P0 | Accessibilite (a11y) | **Fait** | Faible |
+| 6 | P1 | Validation Zod | **Fait** | Moyen |
+| 7 | P1 | Sentry error logging | **Fait** | Faible |
 | 8 | P1 | expo-image | **Fait** | Faible |
 | 9 | P1 | Split AuthContext | Partiel (SplashContext extrait) | Moyen |
-| 10 | P1 | Animated legacy → reanimated | Partiel (overlays migres, tabs encore Animated) | Moyen |
+| 10 | P1 | Animated legacy → reanimated | **Fait** | Moyen |
 | 11 | P1 | Gestion offline (NetInfo + React Query) | **Fait** | Faible |
 | 12 | P1 | Haptics (expo-haptics) | **Fait** (SlideToConfirm) | Faible |
-| 13 | P2 | useReducer (SignUpScreen) | Non fait (AppNavigator supprime) | Faible |
-| 14 | P2 | Memoisation (React.memo, useMemo, useCallback) | Partiel (TransactionRow memo) | Faible |
-| 15 | P2 | Responsive design (useWindowDimensions) | Non fait | Moyen |
+| 13 | P2 | useReducer (SignUpScreen) | **Fait** | Faible |
+| 14 | P2 | Memoisation (React.memo, useMemo, useCallback) | **Fait** | Faible |
+| 15 | P2 | Responsive design (useWindowDimensions) | **Fait** | Moyen |
 | 16 | P2 | Socket singleton (dedup + require dynamique) | **Fait** (import statique) | Faible |
 | 17 | P2 | borderCurve: 'continuous' | **Fait** | Trivial |
 | 18 | P2 | fontVariant: 'tabular-nums' sur montants | **Fait** | Trivial |
 | 19 | P2 | QueryClient config (gcTime, staleTime) | **Fait** | Trivial |
-| 20 | P2 | API client standalone (hors hook React) | Non fait | Moyen |
+| 20 | P2 | API client standalone (hors hook React) | **Fait** | Moyen |
 | 21 | P3 | i18n | Non fait | Eleve |
 | 22 | P3 | Deep linking | **Fait** (Expo Router, scheme: stealf) | Moyen |
 | 23 | P3 | Code splitting | **Fait** (Expo Router file-based) | Faible |
@@ -485,3 +485,14 @@ Le swipePager custom peut rester comme composant dans le group route (home,priva
 - `useLocalSearchParams()` standardise dans tous les ecrans modals
 - Dead code supprime (`pointsEarned`, `showLogoAnimation`, etc.)
 - `useFonts` duplique supprime de 8 ecrans
+
+### Batch optimisations (30/03/2026)
+- TypeScript strict mode active (0 erreur)
+- Zod validation sur les reponses API (schemas.ts + useWalletInfos)
+- Sentry error logging (root layout + ErrorBoundary)
+- Animated → reanimated dans les tabs (index.tsx, privacy.tsx)
+- Responsive design (useSafeAreaInsets dans 5 fichiers)
+- API client standalone (services/api/client.ts)
+- Accessibility (accessibilityRole + accessibilityLabel sur 11 fichiers)
+- React.memo sur CashBalanceCard, PrivacyBalanceCard, MinimalNavBar, SegmentedControl
+- useReducer dans sign-up.tsx (7 useState → 1 useReducer)
