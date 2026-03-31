@@ -1,14 +1,14 @@
 import { useState, useCallback } from "react";
 import {
   createSignerFromPrivateKeyBytes,
-  getUmbraClientFromSigner,
+  getUmbraClient,
   getUserRegistrationFunction,
-  getDirectDepositIntoEncryptedBalanceFunction,
-  getDirectWithdrawIntoPublicBalanceV3Function,
-  getCreateReceiverClaimableUtxoFromEncryptedBalanceFunction,
-  getCreateSelfClaimableUtxoFromEncryptedBalanceFunction,
-  getClaimReceiverClaimableUtxoIntoEncryptedBalanceFunction,
-  getClaimSelfClaimableUtxoIntoEncryptedBalanceFunction,
+  getPublicBalanceToEncryptedBalanceDirectDepositorFunction,
+  getEncryptedBalanceToPublicBalanceDirectWithdrawerFunction,
+  getEncryptedBalanceToReceiverClaimableUtxoCreatorFunction,
+  getEncryptedBalanceToSelfClaimableUtxoCreatorFunction,
+  getReceiverClaimableUtxoToEncryptedBalanceClaimerFunction,
+  getSelfClaimableUtxoToEncryptedBalanceClaimerFunction,
   getUmbraRelayer,
 } from "@umbra-privacy/sdk";
 import {
@@ -17,8 +17,9 @@ import {
   getMoproClaimReceiverIntoEncryptedProver,
   getMoproClaimSelfIntoEncryptedProver,
 } from "../../services/solana/moproZkProvers";
-import type { IUmbraClient } from "@umbra-privacy/sdk/interfaces";
 import { isEncryptedDepositError } from "@umbra-privacy/sdk/errors";
+
+type UmbraClient = Awaited<ReturnType<typeof getUmbraClient>>;
 import bs58 from "bs58";
 import { walletKeyCache } from "../../services/cache/walletKeyCache";
 import { masterSeedStorage, umbraClearSeed } from "../../services/solana/umbraSeed";
@@ -38,13 +39,14 @@ const RPC_URL = process.env.EXPO_PUBLIC_SOLANA_RPC_URL || "";
 const WSS_URL = process.env.EXPO_PUBLIC_SOLANA_WSS_URL || "";
 const NETWORK = "devnet" as const;
 const RELAYER_API = process.env.EXPO_PUBLIC_UMBRA_RELAYER_URL || "https://relayer.umbra.finance";
+const INDEXER_API = process.env.EXPO_PUBLIC_UMBRA_INDEXER_URL || "https://indexer.umbra.finance";
 
 // --- Client singleton ---
 
-let cachedClient: IUmbraClient | null = null;
+let cachedClient: UmbraClient | null = null;
 let cachedSignerKey: string | null = null;
 
-async function getClient(): Promise<IUmbraClient> {
+async function getClient(): Promise<UmbraClient> {
   const privateKeyB58 = await walletKeyCache.getPrivateKey();
   if (!privateKeyB58) {
     throw new Error("No stealf_wallet key — wallet setup required");
@@ -58,16 +60,19 @@ async function getClient(): Promise<IUmbraClient> {
 
   const signer = await createSignerFromPrivateKeyBytes(bs58.decode(privateKeyB58));
 
-  cachedClient = await getUmbraClientFromSigner(
+  cachedClient = await getUmbraClient(
     {
       signer,
       network: NETWORK,
       rpcUrl: RPC_URL,
       rpcSubscriptionsUrl: WSS_URL,
-      deferMasterSeedSignature: true,
+      indexerApiEndpoint: INDEXER_API,
     },
     {
-      masterSeedStorage: masterSeedStorage as any,
+      masterSeedStorage: {
+        load: masterSeedStorage.load as any,
+        store: masterSeedStorage.store as any,
+      },
     }
   );
 
@@ -145,13 +150,14 @@ export function useUmbra() {
     [wrap]
   );
 
+  
   /** Deposit tokens into encrypted balance. Auto-registers if needed. */
   const deposit = useCallback(
-    async (mint: string, amount: bigint): Promise<string | null> => {
+    async (mint: string, amount: bigint) => {
       return wrap("deposit", async () => {
         await ensureRegistered();
         const client = await getClient();
-        const doDeposit = getDirectDepositIntoEncryptedBalanceFunction({ client });
+        const doDeposit = getPublicBalanceToEncryptedBalanceDirectDepositorFunction({ client });
         return doDeposit(client.signer.address as any, mint as any, amount as any);
       });
     },
@@ -160,10 +166,10 @@ export function useUmbra() {
 
   /** Withdraw tokens from encrypted balance back to public ATA. */
   const withdraw = useCallback(
-    async (mint: string, amount: bigint): Promise<string | null> => {
+    async (mint: string, amount: bigint) => {
       return wrap("withdraw", async () => {
         const client = await getClient();
-        const doWithdraw = getDirectWithdrawIntoPublicBalanceV3Function({ client });
+        const doWithdraw = getEncryptedBalanceToPublicBalanceDirectWithdrawerFunction({ client });
         return doWithdraw(client.signer.address as any, mint as any, amount as any);
       });
     },
@@ -177,7 +183,7 @@ export function useUmbra() {
         await ensureRegistered();
         const client = await getClient();
         const zkProver = getMoproCreateReceiverClaimableUtxoProver();
-        const createUtxo = getCreateReceiverClaimableUtxoFromEncryptedBalanceFunction(
+        const createUtxo = getEncryptedBalanceToReceiverClaimableUtxoCreatorFunction(
           { client },
           { zkProver: zkProver as any }
         );
@@ -198,7 +204,7 @@ export function useUmbra() {
         await ensureRegistered();
         const client = await getClient();
         const zkProver = getMoproCreateSelfClaimableUtxoProver();
-        const createUtxo = getCreateSelfClaimableUtxoFromEncryptedBalanceFunction(
+        const createUtxo = getEncryptedBalanceToSelfClaimableUtxoCreatorFunction(
           { client },
           { zkProver: zkProver as any }
         );
@@ -219,9 +225,9 @@ export function useUmbra() {
         const client = await getClient();
         const zkProver = getMoproClaimSelfIntoEncryptedProver();
         const relayer = getRelayer();
-        const claimFn = getClaimSelfClaimableUtxoIntoEncryptedBalanceFunction(
+        const claimFn = getSelfClaimableUtxoToEncryptedBalanceClaimerFunction(
           { client },
-          { zkProver: zkProver as any, relayer }
+          { zkProver: zkProver as any, relayer, fetchBatchMerkleProof: client.fetchBatchMerkleProof! }
         );
         return claimFn(utxos as any);
       });
@@ -236,9 +242,9 @@ export function useUmbra() {
         const client = await getClient();
         const zkProver = getMoproClaimReceiverIntoEncryptedProver();
         const relayer = getRelayer();
-        const claimFn = getClaimReceiverClaimableUtxoIntoEncryptedBalanceFunction(
+        const claimFn = getReceiverClaimableUtxoToEncryptedBalanceClaimerFunction(
           { client },
-          { zkProver: zkProver as any, relayer }
+          { zkProver: zkProver as any, relayer, fetchBatchMerkleProof: client.fetchBatchMerkleProof! }
         );
         return claimFn(utxos as any);
       });

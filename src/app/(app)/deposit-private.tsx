@@ -54,7 +54,7 @@ export default function DepositPrivateCash() {
         throw new Error(error || 'Shield failed');
       }
 
-      setTransactionSignature(signature);
+      setTransactionSignature(typeof signature === 'string' ? signature : JSON.stringify(signature));
       setShowSuccessModal(true);
 
       Animated.sequence([
