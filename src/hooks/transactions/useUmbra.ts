@@ -18,11 +18,12 @@ import {
   getMoproClaimSelfIntoEncryptedProver,
 } from "../../services/solana/moproZkProvers";
 import { isEncryptedDepositError } from "@umbra-privacy/sdk/errors";
-
-type UmbraClient = Awaited<ReturnType<typeof getUmbraClient>>;
+import type { Address } from "@solana/kit";
 import bs58 from "bs58";
 import { walletKeyCache } from "../../services/cache/walletKeyCache";
 import { masterSeedStorage, umbraClearSeed } from "../../services/solana/umbraSeed";
+
+type UmbraClient = Awaited<ReturnType<typeof getUmbraClient>>;
 
 export { umbraClearSeed };
 
@@ -52,7 +53,6 @@ async function getClient(): Promise<UmbraClient> {
     throw new Error("No stealf_wallet key — wallet setup required");
   }
 
-  // Invalidate if signer changed
   if (cachedClient && cachedSignerKey !== privateKeyB58) {
     cachedClient = null;
   }
@@ -69,6 +69,7 @@ async function getClient(): Promise<UmbraClient> {
       indexerApiEndpoint: INDEXER_API,
     },
     {
+      // as any: our storage returns Uint8Array, SDK expects branded MasterSeed type
       masterSeedStorage: {
         load: masterSeedStorage.load as any,
         store: masterSeedStorage.store as any,
@@ -88,12 +89,12 @@ function getRelayer() {
 
 let registered = false;
 
-async function ensureRegistered(): Promise<void> {
+export async function ensureRegistered(): Promise<void> {
   if (registered) return;
   try {
     const client = await getClient();
     const register = getUserRegistrationFunction({ client });
-    await register({ confidential: true, anonymous: false });
+    await register({ confidential: true, anonymous: true });
     registered = true;
   } catch (err: any) {
     const msg = err?.message || "";
@@ -144,33 +145,32 @@ export function useUmbra() {
     []
   );
 
-  /** Register on-chain (confidential balances, no mixer). */
   const register = useCallback(
     () => wrap("register", () => ensureRegistered()),
     [wrap]
   );
 
-  
-  /** Deposit tokens into encrypted balance. Auto-registers if needed. */
+  /** Deposit tokens into encrypted balance. */
   const deposit = useCallback(
-    async (mint: string, amount: bigint) => {
+    async (mint: Address, amount: bigint) => {
       return wrap("deposit", async () => {
         await ensureRegistered();
         const client = await getClient();
         const doDeposit = getPublicBalanceToEncryptedBalanceDirectDepositorFunction({ client });
-        return doDeposit(client.signer.address as any, mint as any, amount as any);
+        // as any on amount: SDK expects branded U64 type
+        return doDeposit(client.signer.address, mint, amount as any);
       });
     },
     [wrap]
   );
 
-  /** Withdraw tokens from encrypted balance back to public ATA. */
+  /** Withdraw tokens from encrypted balance. */
   const withdraw = useCallback(
-    async (mint: string, amount: bigint) => {
+    async (mint: Address, amount: bigint) => {
       return wrap("withdraw", async () => {
         const client = await getClient();
         const doWithdraw = getEncryptedBalanceToPublicBalanceDirectWithdrawerFunction({ client });
-        return doWithdraw(client.signer.address as any, mint as any, amount as any);
+        return doWithdraw(client.signer.address, mint, amount as any);
       });
     },
     [wrap]
@@ -178,18 +178,19 @@ export function useUmbra() {
 
   /** Send private transfer — creates a UTXO claimable by recipient. */
   const sendPrivate = useCallback(
-    async (recipient: string, mint: string, amount: bigint) => {
+    async (recipient: Address, mint: Address, amount: bigint) => {
       return wrap("sendPrivate", async () => {
         await ensureRegistered();
         const client = await getClient();
         const zkProver = getMoproCreateReceiverClaimableUtxoProver();
+        // as any on zkProver: mopro interface differs from SDK's IZkProver
         const createUtxo = getEncryptedBalanceToReceiverClaimableUtxoCreatorFunction(
           { client },
           { zkProver: zkProver as any }
         );
         return createUtxo({
-          destinationAddress: recipient as any,
-          mint: mint as any,
+          destinationAddress: recipient,
+          mint,
           amount: amount as any,
         });
       });
@@ -197,9 +198,9 @@ export function useUmbra() {
     [wrap]
   );
 
-  /** Self-shield — creates a UTXO claimable by self (for rebalancing). */
+  /** Self-shield — creates a UTXO claimable by self. */
   const selfShield = useCallback(
-    async (mint: string, amount: bigint) => {
+    async (mint: Address, amount: bigint) => {
       return wrap("selfShield", async () => {
         await ensureRegistered();
         const client = await getClient();
@@ -209,8 +210,8 @@ export function useUmbra() {
           { zkProver: zkProver as any }
         );
         return createUtxo({
-          destinationAddress: client.signer.address as any,
-          mint: mint as any,
+          destinationAddress: client.signer.address,
+          mint,
           amount: amount as any,
         });
       });
@@ -229,7 +230,7 @@ export function useUmbra() {
           { client },
           { zkProver: zkProver as any, relayer, fetchBatchMerkleProof: client.fetchBatchMerkleProof! }
         );
-        return claimFn(utxos as any);
+        return claimFn(utxos);
       });
     },
     [wrap]
@@ -246,7 +247,7 @@ export function useUmbra() {
           { client },
           { zkProver: zkProver as any, relayer, fetchBatchMerkleProof: client.fetchBatchMerkleProof! }
         );
-        return claimFn(utxos as any);
+        return claimFn(utxos);
       });
     },
     [wrap]

@@ -1,4 +1,4 @@
-import { useAuthenticatedApi } from '../api/clientStealf';
+import { useAuthenticatedApi } from '../../hooks/api/useApi';
 import { useCallback } from 'react';
 
 export interface OrderRequest {

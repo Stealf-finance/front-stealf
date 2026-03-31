@@ -47,7 +47,7 @@ export function useAuthFlow() {
   const [pendingUser, setPendingUser] = useState<any>(null);
 
   /**
-   *Create passkey and cash wallet via Turnkey
+   * Create passkey and cash wallet via Turnkey
    */
   const createPasskey = useCallback(async (email: string, pseudo: string, preAuthToken?: string): Promise<PasskeyResult> => {
     try {
@@ -69,7 +69,6 @@ export function useAuthFlow() {
 
       setCashWallet(cashAddr);
 
-      // Register with backend immediately (skip private wallet setup)
       const headers: Record<string, string> = {
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${token}`,

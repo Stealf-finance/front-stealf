@@ -3,7 +3,7 @@ import { StyleSheet, View, Text, TouchableOpacity, ScrollView, Alert, Linking } 
 import { Image } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../../../contexts/AuthContext';
-import { useAuthenticatedApi } from '../../../services/api/clientStealf';
+import { useAuthenticatedApi } from '../../../hooks/api/useApi';
 import { usePager } from '../../../navigation/PagerContext';
 
 export default function ProfileScreen() {

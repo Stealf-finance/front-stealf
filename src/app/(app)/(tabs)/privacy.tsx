@@ -9,7 +9,7 @@ import SegmentedControl from '../../../components/SegmentedControl';
 import WalletSetupScreen, { WalletSetupChoice } from '../../../components/WalletSetup';
 import { useAuth } from '../../../contexts/AuthContext';
 import { useSetupWallet } from '../../../hooks/wallet/useInitPrivateWallet';
-import { useAuthenticatedApi } from '../../../services/api/clientStealf';
+import { useAuthenticatedApi } from '../../../hooks/api/useApi';
 import { socketService } from '../../../services/real-time/socketService';
 import { usePager } from '../../../navigation/PagerContext';
 import { useSplash } from '../../../contexts/SplashContext';

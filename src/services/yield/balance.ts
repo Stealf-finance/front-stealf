@@ -15,7 +15,6 @@ interface YieldBalanceData {
   timestamp: string;
 }
 
-// Singleton socket listener — updates React Query cache globally
 let yieldHandler: ((data: YieldBalanceData) => void) | null = null;
 
 export function registerYieldSocketListener(queryClient: ReturnType<typeof useQueryClient>, subOrgId: string) {

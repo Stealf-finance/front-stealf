@@ -4,6 +4,7 @@ import bs58 from "bs58";
 import * as bip39 from "bip39";
 import { walletKeyCache } from "../../services/cache/walletKeyCache";
 import { derivePath } from "../../utils/solanaKeyDerivation";
+import { ensureRegistered } from "../transactions/useUmbra";
 
 interface SetupWalletResult {
   success: boolean;
@@ -37,6 +38,13 @@ export function useSetupWallet() {
 
       await walletKeyCache.store(privateKey, mnemonic);
 
+      // Register on Umbra protocol (confidential balances)
+      try {
+        await ensureRegistered();
+      } catch (err) {
+        if (__DEV__) console.warn("[Wallet] Umbra registration failed (will retry on first operation):", err);
+      }
+
       return { success: true, walletAddress, mnemonic };
     } catch (error: any) {
       if (__DEV__) console.error("Create local wallet failed:", error);
@@ -64,6 +72,13 @@ export function useSetupWallet() {
       const walletAddress = signer.address;
 
       await walletKeyCache.store(privateKey, mnemonic);
+
+      // Register on Umbra protocol (confidential balances)
+      try {
+        await ensureRegistered();
+      } catch (err) {
+        if (__DEV__) console.warn("[Wallet] Umbra registration failed (will retry on first operation):", err);
+      }
 
       return { success: true, walletAddress };
     } catch (error: any) {

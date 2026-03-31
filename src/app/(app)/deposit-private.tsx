@@ -14,7 +14,7 @@ import * as Clipboard from 'expo-clipboard';
 import { StatusBar } from 'expo-status-bar';
 import { useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
-import { LAMPORTS_PER_SOL } from '../../services/solana/kit';
+import { LAMPORTS_PER_SOL, toAddress } from '../../services/solana/kit';
 import { useUmbra } from '../../hooks/transactions/useUmbra';
 import { SOL_MINT } from '../../constants/solana';
 import ComebackIcon from '../../assets/buttons/comeback.svg';
@@ -48,7 +48,7 @@ export default function DepositPrivateCash() {
     try {
       const amountSOL = parseFloat(amount);
       const amountLamports = BigInt(Math.floor(amountSOL * LAMPORTS_PER_SOL));
-      const signature = await deposit(SOL_MINT, amountLamports);
+      const signature = await deposit(toAddress(SOL_MINT), amountLamports);
 
       if (!signature) {
         throw new Error(error || 'Shield failed');

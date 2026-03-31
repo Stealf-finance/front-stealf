@@ -1,6 +1,6 @@
 import { useEffect } from 'react';
 import { useQuery, useQueryClient, QueryClient } from '@tanstack/react-query';
-import { useAuthenticatedApi } from '../../services/api/clientStealf';
+import { useAuthenticatedApi } from '../api/useApi';
 import { createGetBalance, createGetTransactionsHistory } from '../../services/api/fetchWalletInfos';
 import { socketService } from '../../services/real-time/socketService';
 import { BalanceResponseSchema, HistoryResponseSchema } from '../../services/api/schemas';

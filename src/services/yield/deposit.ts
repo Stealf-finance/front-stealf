@@ -24,7 +24,7 @@ import {
   createSignerFromBase58,
 } from '../solana/kit';
 import { useAuth } from '../../contexts/AuthContext';
-import { useAuthenticatedApi } from '../api/clientStealf';
+import { useAuthenticatedApi } from '../../hooks/api/useApi';
 import { STEALF_JITO_VAULT } from '../../constants/solana';
 import { validateBalance } from '../solana/transactionsGuard';
 import { walletKeyCache } from '../cache/walletKeyCache';
