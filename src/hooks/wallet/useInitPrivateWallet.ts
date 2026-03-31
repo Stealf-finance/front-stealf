@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Keypair } from "@solana/web3.js";
+import { createKeyPairSignerFromPrivateKeyBytes } from "@solana/kit";
 import bs58 from "bs58";
 import * as bip39 from "bip39";
 import { walletKeyCache } from "../../services/cache/walletKeyCache";
@@ -31,9 +31,9 @@ export function useSetupWallet() {
         throw new Error("Derivation failed: invalid derived key");
       }
 
-      const keypair = Keypair.fromSeed(key);
-      const privateKey = bs58.encode(keypair.secretKey);
-      const walletAddress = keypair.publicKey.toBase58();
+      const signer = await createKeyPairSignerFromPrivateKeyBytes(key);
+      const privateKey = bs58.encode(key);
+      const walletAddress = signer.address;
 
       await walletKeyCache.store(privateKey, mnemonic);
 
@@ -59,9 +59,9 @@ export function useSetupWallet() {
         throw new Error("Derivation failed: invalid derived key");
       }
 
-      const keypair = Keypair.fromSeed(key);
-      const privateKey = bs58.encode(keypair.secretKey);
-      const walletAddress = keypair.publicKey.toBase58();
+      const signer = await createKeyPairSignerFromPrivateKeyBytes(key);
+      const privateKey = bs58.encode(key);
+      const walletAddress = signer.address;
 
       await walletKeyCache.store(privateKey, mnemonic);
 

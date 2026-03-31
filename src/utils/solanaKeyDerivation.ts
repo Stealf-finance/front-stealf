@@ -1,4 +1,5 @@
-import { Keypair } from "@solana/web3.js";
+import { createKeyPairFromBytes, createKeyPairFromPrivateKeyBytes, getAddressFromPublicKey } from "@solana/kit";
+import type { Address } from "@solana/kit";
 import bs58 from "bs58";
 import * as bip39 from "bip39";
 import { hmac } from "@noble/hashes/hmac";
@@ -35,18 +36,35 @@ export function derivePath(path: string, seed: Uint8Array): { key: Uint8Array } 
 }
 
 /**
- * Get the privacy wallet Keypair from cache (private key or mnemonic).
+ * Get the privacy wallet CryptoKeyPair from cache (private key or mnemonic).
+ *
+ * Handles both legacy 64-byte secret keys (stored by old @solana/web3.js code)
+ * and new 32-byte private key seeds.
  */
-export async function getPrivacyKeypair(): Promise<Keypair> {
+export async function getPrivacyKeypair(): Promise<CryptoKeyPair> {
   const storedKey = await walletKeyCache.getPrivateKey();
   if (storedKey) {
-    return Keypair.fromSecretKey(bs58.decode(storedKey));
+    const decoded = bs58.decode(storedKey);
+    if (decoded.length === 64) {
+      // Legacy format: 64 bytes (32 private + 32 public)
+      return await createKeyPairFromBytes(decoded);
+    }
+    // New format: 32-byte private key seed
+    return await createKeyPairFromPrivateKeyBytes(decoded);
   }
   const storedMnemonic = walletKeyCache.getMnemonic();
   if (storedMnemonic) {
     const seed = await bip39.mnemonicToSeed(storedMnemonic);
     const { key } = derivePath("m/44'/501'/0'/0'", new Uint8Array(seed));
-    return Keypair.fromSeed(key);
+    return await createKeyPairFromPrivateKeyBytes(key);
   }
   throw new Error('No privacy wallet key found');
+}
+
+/**
+ * Get the privacy wallet address (base58) from cache.
+ */
+export async function getPrivacyAddress(): Promise<Address> {
+  const keyPair = await getPrivacyKeypair();
+  return await getAddressFromPublicKey(keyPair.publicKey);
 }

@@ -1,6 +1,6 @@
 import { useAuth } from "../../contexts/AuthContext";
 import { useQuery, useQueryClient, QueryClient } from "@tanstack/react-query";
-import { LAMPORTS_PER_SOL } from "@solana/web3.js";
+import { LAMPORTS_PER_SOL } from "../solana/kit";
 import { socketService } from "../real-time/socketService";
 import { getUserIdHash } from "./deposit";
 

@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { LAMPORTS_PER_SOL } from "@solana/web3.js";
+import { LAMPORTS_PER_SOL } from "../solana/kit";
 import { useAuth } from '../../contexts/AuthContext';
 import { useAuthenticatedApi } from '../api/clientStealf';
 import { getUserIdHash } from './deposit';

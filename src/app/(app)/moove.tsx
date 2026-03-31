@@ -10,8 +10,22 @@ import {
 import { StatusBar } from 'expo-status-bar';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
-import { Connection, Transaction, SystemProgram, PublicKey, LAMPORTS_PER_SOL, sendAndConfirmTransaction } from '@solana/web3.js';
-import { getPrivacyKeypair } from '../../utils/solanaKeyDerivation';
+import {
+  getRpc,
+  getRpcSubscriptions,
+  toAddress,
+  LAMPORTS_PER_SOL,
+  createSignerFromBase58,
+  AccountRole,
+  pipe,
+  createTransactionMessage,
+  setTransactionMessageFeePayer,
+  setTransactionMessageLifetimeUsingBlockhash,
+  appendTransactionMessageInstruction,
+  compileTransaction,
+  signTransaction,
+  sendAndConfirmTransactionFactory,
+} from '../../services/solana/kit';
 import { useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '../../contexts/AuthContext';
 import { useWalletInfos } from '../../hooks/wallet/useWalletInfos';
@@ -21,8 +35,22 @@ import SlideToConfirm from '../../components/SlideToConfirm';
 import ArrowIcon from '../../assets/buttons/arrow.svg';
 import ComebackIcon from '../../assets/buttons/comeback.svg';
 
-const RPC_ENDPOINT = process.env.EXPO_PUBLIC_SOLANA_RPC_URL || '';
-const connection = new Connection(RPC_ENDPOINT, 'confirmed');
+const SYSTEM_PROGRAM = toAddress('11111111111111111111111111111111');
+
+function createTransferInstruction(from: string, to: string, lamportsAmount: bigint) {
+  const data = new Uint8Array(12);
+  const view = new DataView(data.buffer);
+  view.setUint32(0, 2, true);
+  view.setBigUint64(4, lamportsAmount, true);
+  return {
+    programAddress: SYSTEM_PROGRAM,
+    accounts: [
+      { address: toAddress(from), role: AccountRole.WRITABLE_SIGNER },
+      { address: toAddress(to), role: AccountRole.WRITABLE },
+    ],
+    data,
+  };
+}
 
 
 export default function MooveScreen() {
@@ -58,7 +86,7 @@ export default function MooveScreen() {
   const contentFade = useRef(new Animated.Value(0)).current;
 
   const fromAddress = direction === 'toCash' ? userData?.stealf_wallet : userData?.cash_wallet;
-  const toAddress = direction === 'toCash' ? userData?.cash_wallet : userData?.stealf_wallet;
+  const destinationAddress = direction === 'toCash' ? userData?.cash_wallet : userData?.stealf_wallet;
 
   const wealthDelta = direction === 'toCash' ? '-' : '+';
   const cashDelta = direction === 'toCash' ? '+' : '-';
@@ -113,7 +141,7 @@ export default function MooveScreen() {
   const handleMove = async () => {
     const amountUSD = parseFloat(amount);
     if (!amount || isNaN(amountUSD) || amountUSD <= 0) return;
-    if (!fromAddress || !toAddress) return;
+    if (!fromAddress || !destinationAddress) return;
 
     const sourceBalance = direction === 'toCash' ? privacyBalance : cashBalance;
     if (sourceBalance !== undefined && amountUSD > sourceBalance) {
@@ -131,28 +159,32 @@ export default function MooveScreen() {
     try {
       if (direction === 'toPrivacy') {
         // Cash → Wealth: sign with Turnkey
-        await sendTransaction(fromAddress, toAddress, amountSOL);
+        await sendTransaction(fromAddress, destinationAddress, amountSOL);
       } else {
         // Wealth → Cash: sign locally with privacy keypair
         setLocalLoading(true);
-        const keypair = await getPrivacyKeypair();
-        const fromPubkey = new PublicKey(fromAddress);
-        const toPubkey = new PublicKey(toAddress);
+        const privateKeyB58 = await walletKeyCache.getPrivateKey();
+        if (!privateKeyB58) throw new Error('Privacy wallet key not available');
 
-        const { blockhash } = await connection.getLatestBlockhash('finalized');
-        const transaction = new Transaction();
-        transaction.recentBlockhash = blockhash;
-        transaction.feePayer = fromPubkey;
+        const signer = await createSignerFromBase58(privateKeyB58);
+        const rpc = getRpc();
+        const { value: latestBlockhash } = await rpc.getLatestBlockhash().send();
 
-        transaction.add(
-          SystemProgram.transfer({
-            fromPubkey,
-            toPubkey,
-            lamports: Math.floor(amountSOL * LAMPORTS_PER_SOL),
-          })
+        const lamportsAmount = BigInt(Math.floor(amountSOL * LAMPORTS_PER_SOL));
+        const instruction = createTransferInstruction(fromAddress, destinationAddress, lamportsAmount);
+
+        const message = pipe(
+          createTransactionMessage({ version: 0 }),
+          tx => setTransactionMessageFeePayer(signer.address, tx),
+          tx => setTransactionMessageLifetimeUsingBlockhash(latestBlockhash, tx),
+          tx => appendTransactionMessageInstruction(instruction, tx),
         );
+        const compiled = compileTransaction(message);
+        const signed = await signTransaction([signer.keyPair], compiled);
 
-        await sendAndConfirmTransaction(connection, transaction, [keypair]);
+        const sendAndConfirm = sendAndConfirmTransactionFactory({ rpc, rpcSubscriptions: getRpcSubscriptions() } as any);
+        await sendAndConfirm(signed as any, { commitment: 'confirmed' });
+
         walletKeyCache.touch();
       }
 

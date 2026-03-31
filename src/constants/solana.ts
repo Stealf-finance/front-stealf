@@ -1,3 +1,5 @@
+export { LAMPORTS_PER_SOL, solToLamports, lamportsToSol } from '../services/solana/kit';
+
 export const SOL_MINT = 'So11111111111111111111111111111111111111112';
 
 export const USDC_MINT = '4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU';

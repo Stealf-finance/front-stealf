@@ -5,16 +5,32 @@ import {
 import { randomBytes } from "crypto";
 import { sha256 } from "@noble/hashes/sha256";
 import { useState } from 'react';
-import { Connection, Transaction, SystemProgram, PublicKey, LAMPORTS_PER_SOL } from "@solana/web3.js";
-import { createMemoInstruction } from "@solana/spl-memo";
+import {
+  getRpc,
+  getRpcSubscriptions,
+  toAddress,
+  LAMPORTS_PER_SOL,
+  AccountRole,
+  pipe,
+  createTransactionMessage,
+  setTransactionMessageFeePayer,
+  setTransactionMessageLifetimeUsingBlockhash,
+  appendTransactionMessageInstructions,
+  compileTransaction,
+  signTransaction,
+  getSignatureFromTransaction,
+  sendAndConfirmTransactionFactory,
+  assertIsTransactionWithinSizeLimit,
+  createSignerFromBase58,
+} from '../solana/kit';
 import { useAuth } from '../../contexts/AuthContext';
 import { useAuthenticatedApi } from '../api/clientStealf';
-import { transactionSimple } from '../../hooks/transactions/useSendSimpleTransaction';
 import { STEALF_JITO_VAULT } from '../../constants/solana';
 import { validateBalance } from '../solana/transactionsGuard';
+import { walletKeyCache } from '../cache/walletKeyCache';
 
-const RPC_ENDPOINT = process.env.EXPO_PUBLIC_SOLANA_RPC_URL || "";
-const connection = new Connection(RPC_ENDPOINT, "confirmed");
+const SYSTEM_PROGRAM = toAddress('11111111111111111111111111111111');
+const MEMO_PROGRAM = toAddress('MemoSq4gqABAXKb96qnH8TysNcWxMyWCqXgDLGmfcHr');
 
 export interface DepositMemo {
   hashUserId: Buffer;
@@ -71,6 +87,14 @@ function serializeDepositMemo(memo: DepositMemo): string {
   });
 }
 
+function encodeTransferLamports(lamportsAmount: bigint): Uint8Array {
+  const data = new Uint8Array(12);
+  const view = new DataView(data.buffer);
+  view.setUint32(0, 2, true); // instruction index 2 = transfer
+  view.setBigUint64(4, lamportsAmount, true);
+  return data;
+}
+
 export function useYieldDeposit() {
   const { userData } = useAuth();
   const api = useAuthenticatedApi();
@@ -84,7 +108,7 @@ export function useYieldDeposit() {
     try {
       const subOrgId = userData?.subOrgId;
       const stealfWallet = userData?.stealf_wallet;
-      
+
       if (!subOrgId || !stealfWallet) throw new Error('User not authenticated');
       if (__DEV__) console.log('[useYieldDeposit] subOrgId:', subOrgId);
 
@@ -96,34 +120,63 @@ export function useYieldDeposit() {
       const { ephemeralPublicKey, nonce, ciphertext } = encryptDepositMemo(mxePublicKey, subOrgId);
       const memo: DepositMemo = { hashUserId, ephemeralPublicKey, nonce, ciphertext };
 
-      const fromPubkey = new PublicKey(stealfWallet);
-      const balanceLamports = await connection.getBalance(fromPubkey);
-      const balanceSOL = balanceLamports / LAMPORTS_PER_SOL;
+      // Check balance
+      const rpc = getRpc();
+      const { value: balanceLamports } = await rpc.getBalance(toAddress(stealfWallet)).send();
+      const balanceSOL = Number(balanceLamports) / LAMPORTS_PER_SOL;
       const balanceCheck = validateBalance(amount, balanceSOL);
       if (!balanceCheck.valid) throw new Error(balanceCheck.error);
 
-      const toPubkey = new PublicKey(STEALF_JITO_VAULT);
-      const { blockhash } = await connection.getLatestBlockhash('finalized');
+      // Build transaction
+      const { value: latestBlockhash } = await rpc.getLatestBlockhash().send();
+      const amountLamports = BigInt(Math.floor(amount * LAMPORTS_PER_SOL));
 
-      const transaction = new Transaction();
-      transaction.recentBlockhash = blockhash;
-      transaction.feePayer = fromPubkey;
+      const transferInstruction = {
+        programAddress: SYSTEM_PROGRAM,
+        accounts: [
+          { address: toAddress(stealfWallet), role: AccountRole.WRITABLE_SIGNER as const },
+          { address: toAddress(STEALF_JITO_VAULT), role: AccountRole.WRITABLE as const },
+        ],
+        data: encodeTransferLamports(amountLamports),
+      };
 
-      transaction.add(
-        SystemProgram.transfer({
-          fromPubkey,
-          toPubkey,
-          lamports: Math.floor(amount * LAMPORTS_PER_SOL),
-        })
+      const memoString = serializeDepositMemo(memo);
+      const memoInstruction = {
+        programAddress: MEMO_PROGRAM,
+        accounts: [
+          { address: toAddress(stealfWallet), role: AccountRole.WRITABLE_SIGNER as const },
+        ],
+        data: new TextEncoder().encode(memoString),
+      };
+
+      const message = pipe(
+        createTransactionMessage({ version: 0 }),
+        tx => setTransactionMessageFeePayer(toAddress(stealfWallet), tx),
+        tx => setTransactionMessageLifetimeUsingBlockhash(latestBlockhash, tx),
+        tx => appendTransactionMessageInstructions([transferInstruction, memoInstruction], tx),
       );
 
-      transaction.add(
-        createMemoInstruction(serializeDepositMemo(memo), [fromPubkey])
-      );
+      // Sign and send with stealf_wallet
+      const privateKeyB58 = await walletKeyCache.getPrivateKey();
+      if (!privateKeyB58) throw new Error('No stealf_wallet key — wallet setup required');
 
-      const txId = await transactionSimple(transaction);
+      const signer = await createSignerFromBase58(privateKeyB58);
+      const rpcSubscriptions = getRpcSubscriptions();
 
-      return txId;
+      const compiled = compileTransaction(message);
+      const signed = await signTransaction([signer.keyPair], compiled);
+      assertIsTransactionWithinSizeLimit(signed);
+
+      const sendAndConfirm = sendAndConfirmTransactionFactory({
+        rpc: rpc as Parameters<typeof sendAndConfirmTransactionFactory>[0]['rpc'],
+        rpcSubscriptions: rpcSubscriptions as Parameters<typeof sendAndConfirmTransactionFactory>[0]['rpcSubscriptions'],
+      });
+      const signature = getSignatureFromTransaction(signed);
+      await sendAndConfirm(signed, { commitment: 'confirmed' });
+
+      walletKeyCache.touch();
+
+      return signature;
     } catch (err: any) {
       if (__DEV__) console.error('[useYieldDeposit] Error:', err.message);
       setError(err.message);

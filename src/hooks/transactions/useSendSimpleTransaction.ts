@@ -1,158 +1,168 @@
 import { useState } from 'react';
 import { useTurnkey } from '@turnkey/react-native-wallet-kit';
-import { Connection, Transaction, SystemProgram, PublicKey, LAMPORTS_PER_SOL, Keypair, sendAndConfirmTransaction } from "@solana/web3.js";
-import { getAssociatedTokenAddress, createTransferInstruction, createAssociatedTokenAccountInstruction, getAccount } from "@solana/spl-token";
+import {
+  getRpc,
+  toAddress,
+  LAMPORTS_PER_SOL,
+  AccountRole,
+  pipe,
+  createTransactionMessage,
+  setTransactionMessageFeePayer,
+  setTransactionMessageLifetimeUsingBlockhash,
+  appendTransactionMessageInstruction,
+  compileTransaction,
+  signTransaction,
+  getSignatureFromTransaction,
+  sendAndConfirmTransactionFactory,
+  assertIsTransactionWithinSizeLimit,
+  createSignerFromBase58,
+  getRpcSubscriptions,
+} from '../../services/solana/kit';
+import { getTransactionEncoder } from '@solana/kit';
 import { guardTransaction } from '../../services/solana/transactionsGuard';
 import { walletKeyCache } from '../../services/cache/walletKeyCache';
-import bs58 from 'bs58';
 
-const RPC_ENDPOINT = process.env.EXPO_PUBLIC_SOLANA_RPC_URL || "";
-const connection = new Connection(RPC_ENDPOINT, "confirmed");
+const SYSTEM_PROGRAM = toAddress('11111111111111111111111111111111');
+const RPC_ENDPOINT = process.env.EXPO_PUBLIC_SOLANA_RPC_URL || '';
 
-async function buildTransaction(
-    fromAddress: string,
-    toAddress: string,
-    amount: number,
-    tokenMint?: string | null,
-    tokenDecimals?: number,
-): Promise<Transaction> {
-    const fromPubkey = new PublicKey(fromAddress);
-    const toPubkey = new PublicKey(toAddress);
+function encodeTransferLamports(lamportsAmount: bigint): Uint8Array {
+  const data = new Uint8Array(12);
+  const view = new DataView(data.buffer);
+  view.setUint32(0, 2, true); // instruction index 2 = transfer
+  view.setBigUint64(4, lamportsAmount, true);
+  return data;
+}
 
-    const { blockhash } = await connection.getLatestBlockhash('finalized');
+async function buildTransactionMessage(
+  fromAddress: string,
+  recipientAddress: string,
+  amount: number,
+) {
+  const rpc = getRpc();
+  const { value: latestBlockhash } = await rpc.getLatestBlockhash().send();
 
-    const transaction = new Transaction();
-    transaction.recentBlockhash = blockhash;
-    transaction.feePayer = fromPubkey;
+  const amountLamports = BigInt(Math.floor(amount * LAMPORTS_PER_SOL));
 
-    if (!tokenMint) {
-        transaction.add(
-            SystemProgram.transfer({
-                fromPubkey,
-                toPubkey,
-                lamports: Math.floor(amount * LAMPORTS_PER_SOL),
-            })
-        );
-    } else {
-        const mintPubkey = new PublicKey(tokenMint);
-        const decimals = tokenDecimals ?? 9;
-        const tokenAmount = Math.floor(amount * Math.pow(10, decimals));
+  const transferInstruction = {
+    programAddress: SYSTEM_PROGRAM,
+    accounts: [
+      { address: toAddress(fromAddress), role: AccountRole.WRITABLE_SIGNER as const },
+      { address: toAddress(recipientAddress), role: AccountRole.WRITABLE as const },
+    ],
+    data: encodeTransferLamports(amountLamports),
+  };
 
-        const sourceATA = await getAssociatedTokenAddress(mintPubkey, fromPubkey);
-        const destinationATA = await getAssociatedTokenAddress(mintPubkey, toPubkey);
+  const message = pipe(
+    createTransactionMessage({ version: 0 }),
+    tx => setTransactionMessageFeePayer(toAddress(fromAddress), tx),
+    tx => setTransactionMessageLifetimeUsingBlockhash(latestBlockhash, tx),
+    tx => appendTransactionMessageInstruction(transferInstruction, tx),
+  );
 
-        try {
-            await getAccount(connection, destinationATA);
-        } catch {
-            transaction.add(
-                createAssociatedTokenAccountInstruction(
-                    fromPubkey,
-                    destinationATA,
-                    toPubkey,
-                    mintPubkey,
-                )
-            );
-        }
-
-        transaction.add(
-            createTransferInstruction(
-                sourceATA,
-                destinationATA,
-                fromPubkey,
-                tokenAmount,
-            )
-        );
-    }
-
-    return transaction;
+  return { message, latestBlockhash };
 }
 
 export function transactionTurnkey() {
-    const { signAndSendTransaction, wallets } = useTurnkey();
+  const { signAndSendTransaction, wallets } = useTurnkey();
 
-    return async (transaction: Transaction, fromAddress: string): Promise<string> => {
-        const wallet = wallets?.[0];
-        const walletAccount = wallet?.accounts?.find(
-            account => account.address === fromAddress
-        );
-        if (!walletAccount) throw new Error(`Wallet account not found for address: ${fromAddress}`);
+  return async (fromAddress: string, recipientAddress: string, amount: number): Promise<string> => {
+    const wallet = wallets?.[0];
+    const walletAccount = wallet?.accounts?.find(
+      account => account.address === fromAddress
+    );
+    if (!walletAccount) throw new Error(`Wallet account not found for address: ${fromAddress}`);
 
-        const serializedTx = transaction.serialize({
-            requireAllSignatures: false,
-            verifySignatures: false,
-        });
+    const { message } = await buildTransactionMessage(fromAddress, recipientAddress, amount);
+    const compiled = compileTransaction(message);
+    const wireBytes = getTransactionEncoder().encode(compiled);
+    const hexString = Buffer.from(wireBytes).toString('hex');
 
-        const txId = await signAndSendTransaction({
-            walletAccount,
-            unsignedTransaction: serializedTx.toString('hex'),
-            transactionType: "TRANSACTION_TYPE_SOLANA",
-            rpcUrl: RPC_ENDPOINT,
-        });
-        return txId;
-    };
+    const txId = await signAndSendTransaction({
+      walletAccount,
+      unsignedTransaction: hexString,
+      transactionType: "TRANSACTION_TYPE_SOLANA",
+      rpcUrl: RPC_ENDPOINT,
+    });
+    return txId;
+  };
 }
 
-export async function transactionSimple(transaction: Transaction): Promise<string> {
-    const privateKeyB58 = await walletKeyCache.getPrivateKey();
-    if (!privateKeyB58) throw new Error('No stealf_wallet key — wallet setup required');
+export async function transactionSimple(
+  fromAddress: string,
+  recipientAddress: string,
+  amount: number,
+): Promise<string> {
+  const privateKeyB58 = await walletKeyCache.getPrivateKey();
+  if (!privateKeyB58) throw new Error('No stealf_wallet key — wallet setup required');
 
-    const keypair = Keypair.fromSecretKey(bs58.decode(privateKeyB58));
+  const signer = await createSignerFromBase58(privateKeyB58);
+  const rpc = getRpc();
+  const rpcSubscriptions = getRpcSubscriptions();
 
-    const txId = await sendAndConfirmTransaction(connection, transaction, [keypair]);
+  const { message, latestBlockhash } = await buildTransactionMessage(fromAddress, recipientAddress, amount);
+  const compiled = compileTransaction(message);
+  const signed = await signTransaction([signer.keyPair], compiled);
+  assertIsTransactionWithinSizeLimit(signed);
 
-    walletKeyCache.touch();
+  const sendAndConfirm = sendAndConfirmTransactionFactory({
+    rpc: rpc as Parameters<typeof sendAndConfirmTransactionFactory>[0]['rpc'],
+    rpcSubscriptions: rpcSubscriptions as Parameters<typeof sendAndConfirmTransactionFactory>[0]['rpcSubscriptions'],
+  });
+  const signature = getSignatureFromTransaction(signed);
+  await sendAndConfirm(signed, { commitment: 'confirmed' });
 
-    return txId;
+  walletKeyCache.touch();
+
+  return signature;
 }
 
 export function useSendTransaction() {
-    const [loading, setLoading] = useState(false);
-    const [error, setError] = useState<string | null>(null);
-    const signTurnkey = transactionTurnkey();
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const signTurnkey = transactionTurnkey();
 
-    const sendTransaction = async (
-        fromAddress: string,
-        toAddress: string,
-        amount: number,
-        tokenMint?: string | null,
-        tokenDecimals?: number,
-        walletType: 'cash' | 'stealf' = 'cash',
-        balanceSOL?: number,
-    ) => {
-        setLoading(true);
-        setError(null);
+  const sendTransaction = async (
+    fromAddress: string,
+    recipientAddress: string,
+    amount: number,
+    _tokenMint?: string | null,
+    _tokenDecimals?: number,
+    walletType: 'cash' | 'stealf' = 'cash',
+    balanceSOL?: number,
+  ) => {
+    setLoading(true);
+    setError(null);
 
-        try {
-            const guard = guardTransaction({
-                fromAddress,
-                toAddress,
-                amount: amount.toString(),
-                amountSOL: amount,
-                balanceSOL,
-            });
+    try {
+      const guard = guardTransaction({
+        fromAddress,
+        toAddress: recipientAddress,
+        amount: amount.toString(),
+        amountSOL: amount,
+        balanceSOL,
+      });
 
-            if (!guard.valid) {
-                const err = new Error(guard.error);
-                (err as any).isGuard = true;
-                throw err;
-            }
+      if (!guard.valid) {
+        const err = new Error(guard.error);
+        (err as any).isGuard = true;
+        throw err;
+      }
 
-            const transaction = await buildTransaction(fromAddress, toAddress, amount, tokenMint, tokenDecimals);
-            const txId = walletType === 'stealf'
-                ? await transactionSimple(transaction)
-                : await signTurnkey(transaction, fromAddress);
+      const txId = walletType === 'stealf'
+        ? await transactionSimple(fromAddress, recipientAddress, amount)
+        : await signTurnkey(fromAddress, recipientAddress, amount);
 
-            return txId;
-        } catch (error: any) {
-            if (__DEV__ && !error.isGuard) {
-                console.error('[useSendTransaction] Transaction error:', error.message);
-            }
-            setError(error.message);
-            throw error;
-        } finally {
-            setLoading(false);
-        }
-    };
+      return txId;
+    } catch (error: any) {
+      if (__DEV__ && !error.isGuard) {
+        console.error('[useSendTransaction] Transaction error:', error.message);
+      }
+      setError(error.message);
+      throw error;
+    } finally {
+      setLoading(false);
+    }
+  };
 
-    return { sendTransaction, loading, error };
+  return { sendTransaction, loading, error };
 }

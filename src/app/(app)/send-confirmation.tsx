@@ -18,7 +18,7 @@ import { useSendTransaction } from '../../hooks/transactions/useSendSimpleTransa
 import { useAuth } from '../../contexts/AuthContext';
 import { useWalletInfos } from '../../hooks/wallet/useWalletInfos';
 import { USDC_MINT, USDC_DECIMALS } from '../../constants/solana';
-import { LAMPORTS_PER_SOL } from '@solana/web3.js';
+import { LAMPORTS_PER_SOL } from '../../services/solana/kit';
 import SlideToConfirm from '../../components/SlideToConfirm';
 
 interface SendConfirmationProps {

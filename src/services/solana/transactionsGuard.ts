@@ -1,4 +1,4 @@
-import { PublicKey } from '@solana/web3.js';
+import { isAddress } from './kit';
 import * as bip39 from 'bip39';
 
 const ESTIMATED_FEE_SOL = 0.000005;
@@ -27,9 +27,7 @@ export function validateAddress(address: string): GuardResult {
     return { valid: false, error: 'Invalid Solana address' };
   }
 
-  try {
-    new PublicKey(trimmed);
-  } catch {
+  if (!isAddress(trimmed)) {
     return { valid: false, error: 'Invalid Solana address' };
   }
 
@@ -125,7 +123,6 @@ export function validateMnemonic(mnemonic: string): GuardResult {
     return { valid: false, error: 'Seed phrase must be 12 or 24 words' };
   }
 
-  // Use BIP39 validation (checks wordlist + checksum)
   if (!bip39.validateMnemonic(normalizedMnemonic)) {
     return { valid: false, error: 'Invalid seed phrase. Please check for typos.' };
   }

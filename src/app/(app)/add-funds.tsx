@@ -8,7 +8,8 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { Image } from 'expo-image';
-import { Connection, LAMPORTS_PER_SOL } from '@solana/web3.js';
+import { airdropFactory, lamports } from '@solana/kit';
+import { getRpc, getRpcSubscriptions, toAddress } from '../../services/solana/kit';
 import { useRouter } from 'expo-router';
 import ComebackIcon from '../../assets/buttons/comeback.svg';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -27,10 +28,14 @@ export default function AddFundsScreen() {
     if (!walletAddress) return;
     setAirdropping(true);
     try {
-      const connection = new Connection('https://api.devnet.solana.com', 'confirmed');
-      const { PublicKey } = await import('@solana/web3.js');
-      const sig = await connection.requestAirdrop(new PublicKey(walletAddress), 2 * LAMPORTS_PER_SOL);
-      await connection.confirmTransaction(sig, 'confirmed');
+      const rpc = getRpc();
+      const rpcSubscriptions = getRpcSubscriptions();
+      const airdrop = airdropFactory({ rpc, rpcSubscriptions } as any);
+      await airdrop({
+        commitment: 'confirmed',
+        recipientAddress: toAddress(walletAddress),
+        lamports: lamports(2_000_000_000n), // 2 SOL
+      });
       Alert.alert('Airdrop', '2 SOL received!');
     } catch (err: any) {
       Alert.alert('Airdrop Failed, try again later');

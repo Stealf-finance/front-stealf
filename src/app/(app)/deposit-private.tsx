@@ -14,7 +14,7 @@ import * as Clipboard from 'expo-clipboard';
 import { StatusBar } from 'expo-status-bar';
 import { useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
-import { LAMPORTS_PER_SOL } from '@solana/web3.js';
+import { LAMPORTS_PER_SOL } from '../../services/solana/kit';
 import { useUmbra } from '../../hooks/transactions/useUmbra';
 import { SOL_MINT } from '../../constants/solana';
 import ComebackIcon from '../../assets/buttons/comeback.svg';
