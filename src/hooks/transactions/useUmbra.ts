@@ -22,6 +22,7 @@ import type { Address } from "@solana/kit";
 import bs58 from "bs58";
 import { walletKeyCache } from "../../services/cache/walletKeyCache";
 import { masterSeedStorage, umbraClearSeed } from "../../services/solana/umbraSeed";
+import { getPrivacyKeypair } from "../../utils/solanaKeyDerivation";
 
 type UmbraClient = Awaited<ReturnType<typeof getUmbraClient>>;
 
@@ -39,10 +40,9 @@ export function clearUmbraState(): void {
 const RPC_URL = process.env.EXPO_PUBLIC_SOLANA_RPC_URL || "";
 const WSS_URL = process.env.EXPO_PUBLIC_SOLANA_WSS_URL || "";
 const NETWORK = "devnet" as const;
-const RELAYER_API = process.env.EXPO_PUBLIC_UMBRA_RELAYER_URL || "https://relayer.umbra.finance";
-const INDEXER_API = process.env.EXPO_PUBLIC_UMBRA_INDEXER_URL || "https://indexer.umbra.finance";
+const RELAYER_API = "https://relayer.umbra.finance";
+const INDEXER_API = "https://indexer.api.umbraprivacy.com ";
 
-// --- Client singleton ---
 
 let cachedClient: UmbraClient | null = null;
 let cachedSignerKey: string | null = null;
@@ -58,7 +58,19 @@ async function getClient(): Promise<UmbraClient> {
   }
   if (cachedClient) return cachedClient;
 
-  const signer = await createSignerFromPrivateKeyBytes(bs58.decode(privateKeyB58));
+  // Umbra expects 64-byte keypair (32 private + 32 public)
+  const keyBytes = bs58.decode(privateKeyB58);
+  if (keyBytes.length === 64) {
+    var signer = await createSignerFromPrivateKeyBytes(keyBytes);
+  } else {
+    const { createKeyPairFromPrivateKeyBytes, getAddressFromPublicKey } = await import('@solana/kit');
+    const cryptoKeyPair = await createKeyPairFromPrivateKeyBytes(keyBytes);
+    const pubKeyRaw = new Uint8Array(await crypto.subtle.exportKey('raw', cryptoKeyPair.publicKey));
+    const fullKeyBytes = new Uint8Array(64);
+    fullKeyBytes.set(keyBytes, 0);
+    fullKeyBytes.set(pubKeyRaw, 32);
+    var signer = await createSignerFromPrivateKeyBytes(fullKeyBytes);
+  }
 
   cachedClient = await getUmbraClient(
     {
@@ -69,7 +81,6 @@ async function getClient(): Promise<UmbraClient> {
       indexerApiEndpoint: INDEXER_API,
     },
     {
-      // as any: our storage returns Uint8Array, SDK expects branded MasterSeed type
       masterSeedStorage: {
         load: masterSeedStorage.load as any,
         store: masterSeedStorage.store as any,

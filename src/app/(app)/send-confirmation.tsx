@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import { useState, useRef } from 'react';
 import {
   View,
   Text,
@@ -12,15 +12,16 @@ import {
   Alert,
 } from 'react-native';
 import { useRouter } from 'expo-router';
-import ChevronLeft from '../../assets/buttons/chevron-left.svg';
-
+import { Image } from 'expo-image';
+import * as Clipboard from 'expo-clipboard';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useSendTransaction } from '../../hooks/transactions/useSendSimpleTransaction';
 import { useAuth } from '../../contexts/AuthContext';
 import { useWalletInfos } from '../../hooks/wallet/useWalletInfos';
-import { USDC_MINT, USDC_DECIMALS } from '../../constants/solana';
 import { LAMPORTS_PER_SOL } from '../../services/solana/kit';
 import SlideToConfirm from '../../components/SlideToConfirm';
+import ChevronLeft from '../../assets/buttons/chevron-left.svg';
+import ChevronDown from '../../assets/buttons/chevron-down.svg';
 
 interface SendConfirmationProps {
   amount: string;
@@ -54,29 +55,22 @@ export default function SendConfirmation({ amount, walletType = 'cash', onBack, 
   const checkScale = useRef(new Animated.Value(0)).current;
   const contentFade = useRef(new Animated.Value(0)).current;
 
+  const handlePaste = async () => {
+    const text = await Clipboard.getStringAsync();
+    if (text) setExternalAddress(text.trim());
+  };
+
   const handleConfirm = async () => {
     if (!externalAddress) {
       Alert.alert('Error', 'Please enter a destination address');
       return;
     }
-
     if (!senderWallet) {
       Alert.alert('Error', 'No wallet found');
       return;
     }
 
     try {
-      // --- MAINNET: USDC transfer ---
-      // const amountUSDC = parseFloat(amount);
-      // const signature = await sendTransaction(
-      //   senderWallet,
-      //   externalAddress,
-      //   amountUSDC,
-      //   USDC_MINT,
-      //   USDC_DECIMALS,
-      // );
-
-      // --- DEVNET: Native SOL transfer (USD → SOL conversion) ---
       const amountUSD = parseFloat(amount);
       const solPrice = getSolPrice();
       if (solPrice <= 0) {
@@ -85,354 +79,191 @@ export default function SendConfirmation({ amount, walletType = 'cash', onBack, 
       }
       const amountSOL = Math.floor((amountUSD / solPrice) * LAMPORTS_PER_SOL) / LAMPORTS_PER_SOL;
 
-      await sendTransaction(
-        senderWallet,
-        externalAddress,
-        amountSOL,
-        null,
-        undefined,
-        walletType,
-        solBalance,
-      );
+      await sendTransaction(senderWallet, externalAddress, amountSOL, null, undefined, walletType, solBalance);
 
-      // Show success
       setShowSuccess(true);
       Animated.sequence([
-        Animated.timing(fadeAnim, {
-          toValue: 1,
-          duration: 400,
-          useNativeDriver: true,
-        }),
+        Animated.timing(fadeAnim, { toValue: 1, duration: 400, useNativeDriver: true }),
         Animated.parallel([
-          Animated.spring(checkScale, {
-            toValue: 1,
-            friction: 5,
-            tension: 60,
-            useNativeDriver: true,
-          }),
-          Animated.timing(contentFade, {
-            toValue: 1,
-            duration: 500,
-            useNativeDriver: true,
-          }),
+          Animated.spring(checkScale, { toValue: 1, friction: 5, tension: 60, useNativeDriver: true }),
+          Animated.timing(contentFade, { toValue: 1, duration: 500, useNativeDriver: true }),
         ]),
       ]).start();
-
     } catch (err: any) {
       if (__DEV__ && !err.isGuard) console.error('Transaction error:', err);
       Alert.alert(
         err.isGuard ? 'Validation Error' : 'Transaction Failed',
-        err.message || 'An error occurred while sending the transaction'
+        err.message || 'An error occurred'
       );
     }
   };
 
-  const handleNewTransfer = () => {
-    onSuccess();
-  };
-
-  const handleBackToHome = () => {
-    onSuccess();
-    if (onClose) onClose();
-    else router.back();
-  };
-
-  const isLoading = loading;
-
-  if (showSuccess) {
-    return (
-      <View style={styles.container}>
-        <Animated.View style={[styles.successScreen, { opacity: fadeAnim }]}>
-          {/* Checkmark */}
-          <Animated.View style={[styles.checkCircle, { transform: [{ scale: checkScale }] }]}>
-            <Text style={styles.checkText}>{'✓'}</Text>
-          </Animated.View>
-
-          {/* Info */}
-          <Animated.View style={[styles.successInfo, { opacity: contentFade }]}>
-            <Text style={styles.successTitle}>Sent</Text>
-            <Text style={styles.successAmount}>{amount} SOL</Text>
-            <Text style={styles.successAddress}>
-              {externalAddress.substring(0, 6)}...{externalAddress.substring(externalAddress.length - 4)}
-            </Text>
-          </Animated.View>
-
-          {/* Actions */}
-          <Animated.View style={[styles.successActions, { opacity: contentFade }]}>
-            <TouchableOpacity
-              style={styles.primaryAction}
-              onPress={handleNewTransfer}
-              activeOpacity={0.8}
-            >
-              <Text style={styles.primaryActionText}>Make new transfer</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={styles.secondaryAction}
-              onPress={handleBackToHome}
-              activeOpacity={0.8}
-            >
-              <Text style={styles.secondaryActionText}>Back to home</Text>
-            </TouchableOpacity>
-          </Animated.View>
-        </Animated.View>
-      </View>
-    );
-  }
-
   return (
     <View style={styles.container}>
-        <LinearGradient
-              colors={['#000000', '#000000', '#000000']}
-              locations={[0, 0.5, 1]}
-              start={{ x: 0, y: 1 }}
-              end={{ x: 0, y: 0 }}
-              style={styles.background}
-            >
-
-        {/* Grabber */}
-        <TouchableOpacity
-          onPress={() => router.back()}
-          activeOpacity={0.8}
-          accessibilityRole="button"
-          accessibilityLabel="Close"
-          style={{ alignItems: 'center', paddingTop: 12, paddingBottom: 16 }}
-        >
-          <View style={{ width: 36, height: 5, borderRadius: 3, backgroundColor: 'rgba(255,255,255,0.8)' }} />
-        </TouchableOpacity>
-
-        {/* Header */}
-        <View style={styles.header}>
-          <Text style={styles.headerTitle}>Confirm</Text>
-        </View>
-
-        {/* Content with KeyboardAvoidingView */}
+      <LinearGradient colors={['#000', '#000', '#000']} style={{ flex: 1 }}>
         <KeyboardAvoidingView
           behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
           style={{ flex: 1 }}
-          keyboardVerticalOffset={0}
         >
           <ScrollView
-            style={styles.content}
-            contentContainerStyle={styles.scrollContent}
+            contentContainerStyle={{ paddingHorizontal: 20, paddingTop: 16, paddingBottom: 80, flexGrow: 1 }}
             keyboardShouldPersistTaps="handled"
             showsVerticalScrollIndicator={false}
           >
-          {/* Amount */}
-          <View style={styles.section}>
-            <Text style={styles.label}>Amount</Text>
-            {/* MAINNET: {amount} USDC */}
-            <Text style={styles.value}>${amount}</Text>
-          </View>
+            {/* Grabber — matches send.tsx: paddingTop 12 on grabber + paddingTop 40 on header */}
+            <TouchableOpacity
+              onPress={() => router.back()}
+              activeOpacity={0.8}
+              accessibilityRole="button"
+              accessibilityLabel="Close"
+              style={{ alignItems: 'center', paddingBottom: 40 }}
+            >
+              <View style={{ width: 36, height: 5, borderRadius: 3, backgroundColor: 'rgba(255,255,255,0.8)' }} />
+            </TouchableOpacity>
 
+            {/* Title */}
+            <Text style={{ color: '#fff', fontSize: 20, fontFamily: 'Sansation-Bold', marginBottom: 24, textAlign: 'center' }}>
+              Confirm
+            </Text>
 
-          {/* Network */}
-          <View style={styles.section}>
-            <Text style={styles.label}>Network</Text>
-            <Text style={styles.value}>Solana Devnet</Text>
-          </View>
+            {/* ASSET */}
+            <Text style={styles.sectionLabel}>ASSET</Text>
+            <View style={styles.selectorRow}>
+              <Image source={require('../../assets/solana.png')} style={{ width: 32, height: 32 }} />
+              <Text style={{ color: '#fff', fontSize: 16, fontFamily: 'Sansation-Bold', flex: 1, marginLeft: 12 }}>SOL</Text>
+              <ChevronDown width={16} height={16} style={{ opacity: 0.3 }} />
+            </View>
 
-          {/* To */}
-          <View style={styles.section}>
-            <Text style={styles.label}>To</Text>
+            {/* NETWORK */}
+            <Text style={styles.sectionLabel}>NETWORK</Text>
+            <View style={styles.selectorRow}>
+              <Image source={require('../../assets/solana.png')} style={{ width: 32, height: 32 }} />
+              <Text style={{ color: '#fff', fontSize: 16, fontFamily: 'Sansation-Bold', flex: 1, marginLeft: 12 }}>Solana Devnet</Text>
+            </View>
 
-            {/* Address Input */}
-            <View style={styles.addressInputContainer}>
+            {/* SEND TO */}
+            <Text style={styles.sectionLabel}>SEND TO</Text>
+            <View style={{
+              backgroundColor: 'rgba(255,255,255,0.06)',
+              borderRadius: 16,
+              borderCurve: 'continuous',
+              padding: 16,
+              minHeight: 80,
+              marginBottom: 12,
+            }}>
               <TextInput
-                style={styles.addressInput}
-                placeholder="Paste wallet address..."
-                placeholderTextColor="rgba(255, 255, 255, 0.3)"
+                style={{ color: '#fff', fontSize: 14, fontFamily: 'Sansation-Regular', flex: 1 }}
+                placeholder="Wallet address"
+                placeholderTextColor="rgba(255,255,255,0.25)"
                 value={externalAddress}
                 onChangeText={setExternalAddress}
                 autoCapitalize="none"
                 autoCorrect={false}
+                multiline
               />
             </View>
-          </View>
 
-          {/* Slide to Confirm */}
-          <View style={styles.buttonContainer}>
-            <SlideToConfirm onConfirm={handleConfirm} loading={isLoading} />
-          </View>
-        </ScrollView>
+
+            <View style={{ flex: 1 }} />
+
+            {/* Fee recap */}
+            <View style={{ marginBottom: 20 }}>
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 6 }}>
+                <Text style={{ color: 'rgba(255,255,255,0.4)', fontSize: 13, fontFamily: 'Sansation-Regular' }}>AMOUNT</Text>
+                <Text style={{ color: 'rgba(255,255,255,0.6)', fontSize: 13, fontFamily: 'Sansation-Regular' }}>${amount}</Text>
+              </View>
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 6 }}>
+                <Text style={{ color: 'rgba(255,255,255,0.4)', fontSize: 13, fontFamily: 'Sansation-Regular' }}>NETWORK FEE</Text>
+                <Text style={{ color: 'rgba(255,255,255,0.6)', fontSize: 13, fontFamily: 'Sansation-Regular' }}>~$0.01</Text>
+              </View>
+              <View style={{ height: 1, backgroundColor: 'rgba(255,255,255,0.06)', marginVertical: 8 }} />
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+                <Text style={{ color: 'rgba(255,255,255,0.5)', fontSize: 14, fontFamily: 'Sansation-Bold' }}>TOTAL</Text>
+                <Text style={{ color: '#fff', fontSize: 14, fontFamily: 'Sansation-Bold' }}>${amount}</Text>
+              </View>
+            </View>
+
+            {/* Slide to confirm */}
+            <SlideToConfirm onConfirm={handleConfirm} loading={loading} />
+
+            {/* Back button — below slide */}
+            <TouchableOpacity
+              onPress={onBack}
+              activeOpacity={0.8}
+              accessibilityRole="button"
+              accessibilityLabel="Go back"
+              style={{
+                alignSelf: 'flex-start',
+                backgroundColor: 'rgba(255,255,255,0.08)',
+                borderRadius: 14,
+                borderCurve: 'continuous',
+                paddingVertical: 14,
+                paddingHorizontal: 20,
+                alignItems: 'center',
+                marginTop: 60,
+              }}
+            >
+              <ChevronLeft width={28} height={28} />
+            </TouchableOpacity>
+          </ScrollView>
         </KeyboardAvoidingView>
       </LinearGradient>
 
-      {/* Back button — fixed bottom left */}
-      <TouchableOpacity
-        onPress={onBack}
-        activeOpacity={0.7}
-        accessibilityRole="button"
-        accessibilityLabel="Go back"
-        style={{
-          position: 'absolute',
-          bottom: -80,
-          left: 24,
-          backgroundColor: 'rgba(255,255,255,0.08)',
-          borderRadius: 14,
-          borderCurve: 'continuous',
-          paddingVertical: 16,
-          paddingHorizontal: 24,
-          alignItems: 'center',
-        }}
-      >
-        <ChevronLeft width={18} height={18} />
-      </TouchableOpacity>
+      {/* Success overlay */}
+      {showSuccess && (
+        <Animated.View style={[styles.successScreen, { opacity: fadeAnim, ...StyleSheet.absoluteFillObject, zIndex: 100 }]}>
+          <Animated.View style={[styles.checkCircle, { transform: [{ scale: checkScale }] }]}>
+            <Text style={styles.checkText}>{'✓'}</Text>
+          </Animated.View>
+          <Animated.View style={[styles.successInfo, { opacity: contentFade }]}>
+            <Text style={styles.successTitle}>Sent</Text>
+            <Text style={styles.successAmount}>${amount}</Text>
+            <Text style={styles.successAddress}>
+              {externalAddress.substring(0, 6)}...{externalAddress.substring(externalAddress.length - 4)}
+            </Text>
+          </Animated.View>
+          <Animated.View style={[styles.successActions, { opacity: contentFade }]}>
+            <TouchableOpacity style={styles.primaryAction} onPress={onSuccess} activeOpacity={0.8}>
+              <Text style={styles.primaryActionText}>Make new transfer</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.secondaryAction} onPress={() => { onSuccess(); onClose ? onClose() : router.back(); }} activeOpacity={0.8}>
+              <Text style={styles.secondaryActionText}>Back to home</Text>
+            </TouchableOpacity>
+          </Animated.View>
+        </Animated.View>
+      )}
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#000',
-  },
-  background: {
-    flex: 1,
-  },
-  header: {
-    alignItems: 'center',
-    paddingHorizontal: 24,
-    paddingTop: 16,
-    paddingBottom: 20,
-  },
-  backButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: 'rgba(60, 60, 60, 0.9)',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  headerTitle: {
-    fontSize: 20,
-    fontWeight: '600',
-    color: 'white',
-    fontFamily: 'Sansation-Bold',
-  },
-  closeButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: 'rgba(60, 60, 60, 0.9)',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  closeIcon: {
-    fontSize: 18,
-    color: 'white',
-    fontWeight: 'bold',
-  },
-  content: {
-    flex: 1,
-  },
-  scrollContent: {
-    paddingHorizontal: 32,
-    paddingTop: 60,
-    paddingBottom: 20,
-  },
-  section: {
-    marginBottom: 48,
-  },
-  label: {
-    fontSize: 16,
-    color: 'rgba(255, 255, 255, 0.5)',
-    marginBottom: 12,
+  container: { flex: 1, backgroundColor: '#000' },
+  sectionLabel: {
+    fontSize: 12,
     fontFamily: 'Sansation-Regular',
+    color: 'rgba(255,255,255,0.35)',
+    letterSpacing: 1,
+    marginBottom: 10,
+    marginTop: 20,
   },
-  value: {
-    fontSize: 32,
-    color: 'white',
-    fontWeight: '400',
-    fontFamily: 'Sansation-Light',
-  },
-  addressInputContainer: {
-    marginTop: 16,
-    backgroundColor: 'rgba(255, 255, 255, 0.05)',
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.1)',
-  },
-  addressInput: {
-    paddingVertical: 16,
-    paddingHorizontal: 16,
-    color: 'white',
-    fontSize: 14,
-    fontFamily: 'Sansation-Regular',
-  },
-  buttonContainer: {
-    paddingHorizontal: 32,
-    paddingBottom: 40,
-  },
-  // Success screen
-  successScreen: {
-    flex: 1,
-    backgroundColor: '#000',
+  selectorRow: {
+    flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: 40,
-  },
-  checkCircle: {
-    width: 72,
-    height: 72,
-    borderRadius: 36,
-    borderWidth: 2,
-    borderColor: 'rgba(255, 255, 255, 0.15)',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 40,
-  },
-  checkText: {
-    fontSize: 32,
-    color: 'white',
-    fontWeight: '300',
-  },
-  successInfo: {
-    alignItems: 'center',
-    marginBottom: 60,
-  },
-  successTitle: {
-    fontSize: 16,
-    color: 'rgba(255, 255, 255, 0.4)',
-    fontFamily: 'Sansation-Regular',
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(255,255,255,0.06)',
     marginBottom: 8,
   },
-  successAmount: {
-    fontSize: 36,
-    color: 'white',
-    fontFamily: 'Sansation-Light',
-    fontWeight: '300',
-    marginBottom: 12,
-  },
-  successAddress: {
-    fontSize: 14,
-    color: 'rgba(255, 255, 255, 0.3)',
-    fontFamily: 'Sansation-Regular',
-  },
-  successActions: {
-    width: '100%',
-    gap: 12,
-  },
-  primaryAction: {
-    backgroundColor: 'rgba(240, 235, 220, 0.95)',
-    paddingVertical: 16,
-    borderRadius: 30,
-    alignItems: 'center',
-  },
-  primaryActionText: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#000',
-    fontFamily: 'Sansation-Bold',
-  },
-  secondaryAction: {
-    paddingVertical: 16,
-    borderRadius: 30,
-    alignItems: 'center',
-  },
-  secondaryActionText: {
-    fontSize: 16,
-    color: 'rgba(255, 255, 255, 0.4)',
-    fontFamily: 'Sansation-Regular',
-  },
+  successScreen: { flex: 1, backgroundColor: '#000', alignItems: 'center', justifyContent: 'center', paddingHorizontal: 40 },
+  checkCircle: { width: 72, height: 72, borderRadius: 36, borderWidth: 2, borderColor: 'rgba(255,255,255,0.15)', alignItems: 'center', justifyContent: 'center', marginBottom: 40 },
+  checkText: { fontSize: 32, color: 'white', fontWeight: '300' },
+  successInfo: { alignItems: 'center', marginBottom: 60 },
+  successTitle: { fontSize: 16, color: 'rgba(255,255,255,0.4)', fontFamily: 'Sansation-Regular', marginBottom: 8 },
+  successAmount: { fontSize: 36, color: 'white', fontFamily: 'Sansation-Light', marginBottom: 12 },
+  successAddress: { fontSize: 14, color: 'rgba(255,255,255,0.3)', fontFamily: 'Sansation-Regular' },
+  successActions: { width: '100%', gap: 12 },
+  primaryAction: { backgroundColor: 'rgba(240,235,220,0.95)', paddingVertical: 16, borderRadius: 30, alignItems: 'center' },
+  primaryActionText: { fontSize: 16, fontWeight: '600', color: '#000', fontFamily: 'Sansation-Bold' },
+  secondaryAction: { paddingVertical: 16, borderRadius: 30, alignItems: 'center' },
+  secondaryActionText: { fontSize: 16, color: 'rgba(255,255,255,0.4)', fontFamily: 'Sansation-Regular' },
 });

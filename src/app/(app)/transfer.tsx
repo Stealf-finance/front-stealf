@@ -74,6 +74,38 @@ export default function TransferScreen() {
             </View>
           </TouchableOpacity>
 
+
+
+          {/* Send from Cash Wallet */}
+          <TouchableOpacity
+            onPress={() => router.replace('/(app)/send?walletType=cash')}
+            activeOpacity={0.7}
+            accessibilityRole="button"
+            accessibilityLabel="Send from bank wallet"
+            style={{
+              flex: 1,
+              minWidth: '45%',
+              backgroundColor: 'rgba(255,255,255,0.06)',
+              borderRadius: 16,
+              borderCurve: 'continuous',
+              borderWidth: 1,
+              borderColor: 'rgba(255,255,255,0.08)',
+              padding: 18,
+              minHeight: 140,
+              justifyContent: 'space-between',
+            }}
+          >
+            <View>
+              <Text style={{ color: '#fff', fontSize: 16, fontFamily: 'Sansation-Bold', marginBottom: 4 }}>Bank Wallet</Text>
+              <Text style={{ color: 'rgba(255,255,255,0.4)', fontSize: 13, fontFamily: 'Sansation-Regular' }}>Public transfer</Text>
+            </View>
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+              <View style={{ width: 32, height: 32, borderRadius: 16, backgroundColor: 'rgba(255,255,255,0.1)', justifyContent: 'center', alignItems: 'center' }}>
+                <SendIcon width={14} height={14} />
+              </View>
+            </View>
+          </TouchableOpacity>
+
           {/* Private Transfer */}
           <TouchableOpacity
             onPress={() => router.replace('/(app)/send-private')}
@@ -95,7 +127,7 @@ export default function TransferScreen() {
           >
             <View>
               <Text style={{ color: '#fff', fontSize: 16, fontFamily: 'Sansation-Bold', marginBottom: 4 }}>Private Transfer</Text>
-              <Text style={{ color: 'rgba(255,255,255,0.4)', fontSize: 13, fontFamily: 'Sansation-Regular' }}>Anonymous on-chain</Text>
+              <Text style={{ color: 'rgba(255,255,255,0.4)', fontSize: 13, fontFamily: 'Sansation-Regular' }}>Via Umbra Privacy</Text>
             </View>
             <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
               <View style={{ width: 32, height: 32, borderRadius: 16, backgroundColor: 'rgba(255,255,255,0.1)', justifyContent: 'center', alignItems: 'center' }}>
@@ -103,37 +135,7 @@ export default function TransferScreen() {
               </View>
             </View>
           </TouchableOpacity>
-
-          {/* Send from Cash Wallet */}
-          <TouchableOpacity
-            onPress={() => router.replace('/(app)/send?walletType=cash')}
-            activeOpacity={0.7}
-            accessibilityRole="button"
-            accessibilityLabel="Send from cash wallet"
-            style={{
-              flex: 1,
-              minWidth: '45%',
-              backgroundColor: 'rgba(255,255,255,0.06)',
-              borderRadius: 16,
-              borderCurve: 'continuous',
-              borderWidth: 1,
-              borderColor: 'rgba(255,255,255,0.08)',
-              padding: 18,
-              minHeight: 140,
-              justifyContent: 'space-between',
-            }}
-          >
-            <View>
-              <Text style={{ color: '#fff', fontSize: 16, fontFamily: 'Sansation-Bold', marginBottom: 4 }}>Cash Wallet</Text>
-              <Text style={{ color: 'rgba(255,255,255,0.4)', fontSize: 13, fontFamily: 'Sansation-Regular' }}>Public transfer</Text>
-            </View>
-            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-              <View style={{ width: 32, height: 32, borderRadius: 16, backgroundColor: 'rgba(255,255,255,0.1)', justifyContent: 'center', alignItems: 'center' }}>
-                <SendIcon width={14} height={14} />
-              </View>
-            </View>
-          </TouchableOpacity>
-
+          
           {/* Send from Stealth Wallet */}
           <TouchableOpacity
             onPress={() => router.replace('/(app)/send?walletType=stealf')}
@@ -188,7 +190,7 @@ export default function TransferScreen() {
             </View>
             <View style={{ flex: 1 }}>
               <Text style={{ color: '#fff', fontSize: 16, fontFamily: 'Sansation-Bold', marginBottom: 2 }}>Move</Text>
-              <Text style={{ color: 'rgba(255,255,255,0.4)', fontSize: 13, fontFamily: 'Sansation-Regular' }}>Cash ↔ Stealth</Text>
+              <Text style={{ color: 'rgba(255,255,255,0.4)', fontSize: 13, fontFamily: 'Sansation-Regular' }}>Move your funds both wallets privately</Text>
             </View>
           </TouchableOpacity>
 

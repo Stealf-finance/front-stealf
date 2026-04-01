@@ -128,7 +128,7 @@ export function useYieldDeposit() {
       if (!balanceCheck.valid) throw new Error(balanceCheck.error);
 
       // Build transaction
-      const { value: latestBlockhash } = await rpc.getLatestBlockhash().send();
+      const { value: latestBlockhash } = await rpc.getLatestBlockhash({ commitment: 'finalized' }).send();
       const amountLamports = BigInt(Math.floor(amount * LAMPORTS_PER_SOL));
 
       const transferInstruction = {

@@ -16,12 +16,24 @@ import { useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import { LAMPORTS_PER_SOL, toAddress } from '../../services/solana/kit';
 import { useUmbra } from '../../hooks/transactions/useUmbra';
+import { Image } from 'expo-image';
+import ChevronDown from '../../assets/buttons/chevron-down.svg';
+import { useAuth } from '../../contexts/AuthContext';
+import { useWalletInfos } from '../../hooks/wallet/useWalletInfos';
 import { SOL_MINT } from '../../constants/solana';
 
 
-export default function DepositPrivateCash() {
+const ASSETS = [
+  { symbol: 'SOL', name: 'Solana', mint: SOL_MINT },
+];
+
+export default function ShieldScreen() {
   const router = useRouter();
+  const { userData } = useAuth();
+  const { tokens } = useWalletInfos(userData?.stealf_wallet || '');
   const [amount, setAmount] = useState('');
+  const [selectedAsset, setSelectedAsset] = useState(ASSETS[0]);
+  const [showAssetPicker, setShowAssetPicker] = useState(false);
   const [showSuccessModal, setShowSuccessModal] = useState(false);
   const [transactionSignature, setTransactionSignature] = useState<string | null>(null);
 
@@ -32,6 +44,9 @@ export default function DepositPrivateCash() {
 
   const handleNumberPress = (num: string) => {
     if (num === '.' && amount.includes('.')) return;
+    const digits = amount.replace('.', '');
+    if (num !== '.' && digits.length >= 10) return;
+    if (amount.includes('.') && num !== '.' && amount.split('.')[1].length >= 9) return;
     setAmount(prev => prev + num);
   };
 
@@ -48,7 +63,7 @@ export default function DepositPrivateCash() {
     try {
       const amountSOL = parseFloat(amount);
       const amountLamports = BigInt(Math.floor(amountSOL * LAMPORTS_PER_SOL));
-      const signature = await deposit(toAddress(SOL_MINT), amountLamports);
+      const signature = await deposit(toAddress(selectedAsset.mint), amountLamports);
 
       if (!signature) {
         throw new Error(error || 'Shield failed');
@@ -115,12 +130,65 @@ export default function DepositPrivateCash() {
           <Text style={styles.headerTitle}>Shield</Text>
         </View>
 
-        {/* Amount Display */}
-        <View style={styles.amountContainer}>
-          <View style={styles.amountRow}>
-            <Text style={styles.amountText}>{amount || '0'}</Text>
-            <Text style={styles.currencyText}>SOL</Text>
+        {/* Amount Card */}
+        <View style={{
+          marginHorizontal: 20,
+          marginTop: 20,
+          backgroundColor: 'rgba(255,255,255,0.06)',
+          borderRadius: 20,
+          borderCurve: 'continuous',
+          padding: 20,
+        }}>
+          <Text style={{ color: 'rgba(255,255,255,0.5)', fontSize: 14, fontFamily: 'Sansation-Regular', marginBottom: 12 }}>
+            You shield
+          </Text>
+
+          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+            {/* Amount */}
+            <Text
+              numberOfLines={1}
+              adjustsFontSizeToFit
+              minimumFontScale={0.5}
+              style={{
+                color: amount ? '#fff' : 'rgba(255,255,255,0.25)',
+                fontSize: 42,
+                fontFamily: 'Sansation-Light',
+                fontVariant: ['tabular-nums'],
+                flex: 1,
+                marginRight: 12,
+              }}
+            >
+              {amount || '0'}
+            </Text>
+
+            {/* Asset Selector */}
+            <TouchableOpacity
+              onPress={() => { if (ASSETS.length > 1) setShowAssetPicker(!showAssetPicker); }}
+              activeOpacity={ASSETS.length > 1 ? 0.7 : 1}
+              style={{
+                flexDirection: 'row',
+                alignItems: 'center',
+                backgroundColor: 'rgba(255,255,255,0.1)',
+                borderRadius: 20,
+                paddingVertical: 6,
+                paddingRight: 12,
+                paddingLeft: 6,
+                gap: 6,
+              }}
+            >
+              <Image
+                source={require('../../assets/solana.png')}
+                style={{ width: 28, height: 28 }}
+              />
+              <Text style={{ color: '#fff', fontSize: 16, fontFamily: 'Sansation-Bold' }}>{selectedAsset.symbol}</Text>
+              <ChevronDown width={14} height={14} style={{ opacity: 0.4 }} />
+            </TouchableOpacity>
           </View>
+
+          {/* Balance info */}
+          <Text style={{ color: 'rgba(255,255,255,0.35)', fontSize: 13, fontFamily: 'Sansation-Regular', textAlign: 'right' }}>
+            {(tokens.find(t => t.tokenSymbol === selectedAsset.symbol)?.balance ?? 0).toFixed(4)} {selectedAsset.symbol}
+          </Text>
         </View>
 
         {/* Shield Button */}
@@ -133,9 +201,11 @@ export default function DepositPrivateCash() {
           {loading ? (
             <ActivityIndicator color="#000" />
           ) : (
-            <Text style={styles.shieldButtonText}>Shield</Text>
+            <Text style={styles.shieldButtonText}>Confirm</Text>
           )}
         </TouchableOpacity>
+
+        <View style={{ flex: 1 }} />
 
         {/* Custom Keyboard */}
         <View style={styles.keyboard}>
@@ -333,6 +403,7 @@ const styles = StyleSheet.create({
   shieldButton: {
     backgroundColor: 'rgba(240, 235, 220, 0.95)',
     marginHorizontal: 40,
+    marginTop: 24,
     paddingVertical: 18,
     borderRadius: 30,
     alignItems: 'center',

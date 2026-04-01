@@ -11,47 +11,13 @@ import { StatusBar } from 'expo-status-bar';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
-import {
-  getRpc,
-  getRpcSubscriptions,
-  toAddress,
-  LAMPORTS_PER_SOL,
-  createSignerFromBase58,
-  AccountRole,
-  pipe,
-  createTransactionMessage,
-  setTransactionMessageFeePayer,
-  setTransactionMessageLifetimeUsingBlockhash,
-  appendTransactionMessageInstruction,
-  compileTransaction,
-  signTransaction,
-  sendAndConfirmTransactionFactory,
-} from '../../services/solana/kit';
+import { LAMPORTS_PER_SOL } from '../../services/solana/kit';
 import { useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '../../contexts/AuthContext';
 import { useWalletInfos } from '../../hooks/wallet/useWalletInfos';
 import { useSendTransaction } from '../../hooks/transactions/useSendSimpleTransaction';
-import { walletKeyCache } from '../../services/cache/walletKeyCache';
 import SlideToConfirm from '../../components/SlideToConfirm';
 import ArrowIcon from '../../assets/buttons/arrow.svg';
-
-const SYSTEM_PROGRAM = toAddress('11111111111111111111111111111111');
-
-function createTransferInstruction(from: string, to: string, lamportsAmount: bigint) {
-  const data = new Uint8Array(12);
-  const view = new DataView(data.buffer);
-  view.setUint32(0, 2, true);
-  view.setBigUint64(4, lamportsAmount, true);
-  return {
-    programAddress: SYSTEM_PROGRAM,
-    accounts: [
-      { address: toAddress(from), role: AccountRole.WRITABLE_SIGNER },
-      { address: toAddress(to), role: AccountRole.WRITABLE },
-    ],
-    data,
-  };
-}
-
 
 export default function MooveScreen() {
   const router = useRouter();
@@ -70,7 +36,6 @@ export default function MooveScreen() {
   const { balance: privacyBalance, tokens: privacyTokens } = useWalletInfos(userData?.stealf_wallet || '');
   const { sendTransaction, loading: turnkeyLoading } = useSendTransaction();
 
-  // Derive SOL price from whichever wallet has SOL tokens
   const getSolPrice = (): number => {
     const allTokens = [...cashTokens, ...privacyTokens];
     const solToken = allTokens.find(t => t.tokenMint === null && t.balance > 0);
@@ -96,7 +61,7 @@ export default function MooveScreen() {
     if (num === '.' && amount.includes('.')) return;
     if (amount.includes('.') && num !== '.' && amount.split('.')[1].length >= 2) return;
     const digits = amount.replace('.', '');
-    if (num !== '.' && digits.length >= 8) return;
+    if (num !== '.' && digits.length >= 10) return;
     setAmount(prev => prev + num);
   };
 
@@ -159,34 +124,11 @@ export default function MooveScreen() {
 
     try {
       if (direction === 'toPrivacy') {
-        // Cash → Wealth: sign with Turnkey
-        await sendTransaction(fromAddress, destinationAddress, amountSOL);
+        // Cash → Stealth: sign with Turnkey
+        await sendTransaction(fromAddress, destinationAddress, amountSOL, null, undefined, 'cash', cashBalance ?? 0);
       } else {
-        // Wealth → Cash: sign locally with privacy keypair
-        setLocalLoading(true);
-        const privateKeyB58 = await walletKeyCache.getPrivateKey();
-        if (!privateKeyB58) throw new Error('Privacy wallet key not available');
-
-        const signer = await createSignerFromBase58(privateKeyB58);
-        const rpc = getRpc();
-        const { value: latestBlockhash } = await rpc.getLatestBlockhash().send();
-
-        const lamportsAmount = BigInt(Math.floor(amountSOL * LAMPORTS_PER_SOL));
-        const instruction = createTransferInstruction(fromAddress, destinationAddress, lamportsAmount);
-
-        const message = pipe(
-          createTransactionMessage({ version: 0 }),
-          tx => setTransactionMessageFeePayer(signer.address, tx),
-          tx => setTransactionMessageLifetimeUsingBlockhash(latestBlockhash, tx),
-          tx => appendTransactionMessageInstruction(instruction, tx),
-        );
-        const compiled = compileTransaction(message);
-        const signed = await signTransaction([signer.keyPair], compiled);
-
-        const sendAndConfirm = sendAndConfirmTransactionFactory({ rpc, rpcSubscriptions: getRpcSubscriptions() } as any);
-        await sendAndConfirm(signed as any, { commitment: 'confirmed' });
-
-        walletKeyCache.touch();
+        // Stealth → Cash: sign with local keypair
+        await sendTransaction(fromAddress, destinationAddress, amountSOL, null, undefined, 'stealf', privacyBalance ?? 0);
       }
 
       queryClient.invalidateQueries({ queryKey: ['wallet-balance', userData?.cash_wallet] });
@@ -194,7 +136,7 @@ export default function MooveScreen() {
 
       showSuccessAnimation();
     } catch (err: any) {
-      if (__DEV__) console.error('[Moove] Transfer error:', err?.message);
+      if (__DEV__) console.error('[Moove] Transfer error:', err?.message, err);
       Alert.alert('Transfer Failed', err?.message || 'An error occurred');
     } finally {
       setLocalLoading(false);
@@ -213,35 +155,6 @@ export default function MooveScreen() {
     if (bal === undefined) return '—';
     return `$${bal.toFixed(2)}`;
   };
-
-  if (showSuccess) {
-    return (
-      <View style={styles.container}>
-        <Animated.View style={[styles.successScreen, { opacity: fadeAnim }]}>
-          <Animated.View style={[styles.checkCircle, { transform: [{ scale: checkScale }] }]}>
-            <Text style={styles.checkText}>{'✓'}</Text>
-          </Animated.View>
-
-          <Animated.View style={[styles.successInfo, { opacity: contentFade }]}>
-            <Text style={styles.successLabel}>Moved</Text>
-            <Text style={styles.successAmount}>${amount}</Text>
-            <Text style={styles.successRoute}>
-              {direction === 'toCash' ? 'Stealth → Cash' : 'Cash → Stealth'}
-            </Text>
-          </Animated.View>
-
-          <Animated.View style={[styles.successActions, { opacity: contentFade }]}>
-            <TouchableOpacity style={styles.primaryAction} onPress={handleNewMove} activeOpacity={0.8} accessibilityRole="button" accessibilityLabel="Move again">
-              <Text style={styles.primaryActionText}>Move again</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.secondaryAction} onPress={() => router.back()} activeOpacity={0.8} accessibilityRole="button" accessibilityLabel="Back to home">
-              <Text style={styles.secondaryActionText}>Back to home</Text>
-            </TouchableOpacity>
-          </Animated.View>
-        </Animated.View>
-      </View>
-    );
-  }
 
   return (
     <View style={styles.container}>
@@ -280,7 +193,7 @@ export default function MooveScreen() {
                 <Text style={styles.cardLabel}>Stealth</Text>
                 <Text style={styles.cardBalance} accessibilityRole="text">{formatBalance(privacyBalance)}</Text>
               </View>
-              <Text style={[styles.cardAmount, amount ? styles.cardAmountActive : null]}>
+              <Text numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.5} style={[styles.cardAmount, amount ? styles.cardAmountActive : null, { flex: 1, textAlign: 'right' }]}>
                 {wealthDelta}${amount || '0'}
               </Text>
             </View>
@@ -307,7 +220,7 @@ export default function MooveScreen() {
                 <Text style={styles.cardLabel}>Cash</Text>
                 <Text style={styles.cardBalance} accessibilityRole="text">{formatBalance(cashBalance)}</Text>
               </View>
-              <Text style={[styles.cardAmount, amount ? styles.cardAmountActive : null]}>
+              <Text numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.5} style={[styles.cardAmount, amount ? styles.cardAmountActive : null, { flex: 1, textAlign: 'right' }]}>
                 {cashDelta}${amount || '0'}
               </Text>
             </View>
@@ -338,6 +251,32 @@ export default function MooveScreen() {
           ))}
         </View>
       </LinearGradient>
+
+      {/* Success overlay */}
+      {showSuccess && (
+        <Animated.View style={[styles.successScreen, { opacity: fadeAnim, ...StyleSheet.absoluteFillObject, zIndex: 100 }]}>
+          <Animated.View style={[styles.checkCircle, { transform: [{ scale: checkScale }] }]}>
+            <Text style={styles.checkText}>{'✓'}</Text>
+          </Animated.View>
+
+          <Animated.View style={[styles.successInfo, { opacity: contentFade }]}>
+            <Text style={styles.successLabel}>Moved</Text>
+            <Text style={styles.successAmount}>${amount}</Text>
+            <Text style={styles.successRoute}>
+              {direction === 'toCash' ? 'Stealth → Cash' : 'Cash → Stealth'}
+            </Text>
+          </Animated.View>
+
+          <Animated.View style={[styles.successActions, { opacity: contentFade }]}>
+            <TouchableOpacity style={styles.primaryAction} onPress={handleNewMove} activeOpacity={0.8}>
+              <Text style={styles.primaryActionText}>Move again</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.secondaryAction} onPress={() => router.back()} activeOpacity={0.8}>
+              <Text style={styles.secondaryActionText}>Back to home</Text>
+            </TouchableOpacity>
+          </Animated.View>
+        </Animated.View>
+      )}
     </View>
   );
 }

@@ -85,7 +85,7 @@ export default function HomeScreen() {
         visible={showAddFundsModal}
         onClose={() => setShowAddFundsModal(false)}
         onSelectStablecoin={() => { setShowAddFundsModal(false); router.push('/(app)/add-funds'); }}
-        onSelectPrivateCash={() => { setShowAddFundsModal(false); router.push('/(app)/deposit-private'); }}
+        onSelectPrivateCash={() => { setShowAddFundsModal(false); router.push('/(app)/shield'); }}
       />
 
       <SendModal

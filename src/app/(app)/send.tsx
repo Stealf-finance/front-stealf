@@ -10,6 +10,7 @@ import { Image } from 'expo-image';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 
 import { LinearGradient } from 'expo-linear-gradient';
+import ChevronDown from '../../assets/buttons/chevron-down.svg';
 import SendConfirmation from './send-confirmation';
 import { useAuth } from '../../contexts/AuthContext';
 import { useWalletInfos } from '../../hooks/wallet/useWalletInfos';
@@ -45,10 +46,11 @@ export default function SendScreen() {
       Alert.alert('Error', check.error || 'Invalid amount');
       return;
     }
-    if (parseFloat(amount) > totalUSD) {
-      Alert.alert('Error', `Insufficient balance. Your balance is $${totalUSD.toFixed(2)}`);
-      return;
-    }
+    // DEV: balance check disabled
+    // if (parseFloat(amount) > totalUSD) {
+    //   Alert.alert('Error', `Insufficient balance. Your balance is $${totalUSD.toFixed(2)}`);
+    //   return;
+    // }
     setShowConfirmation(true);
   };
 
@@ -94,15 +96,60 @@ export default function SendScreen() {
         {/* Header */}
         <View style={styles.header}>
           <Text style={styles.headerTitle}>Transfer</Text>
+          <Text style={{ color: 'rgba(255,255,255,0.4)', fontSize: 14, fontFamily: 'Sansation-Regular', marginTop: 6 }}>
+            From {walletType === 'stealf' ? 'Stealth Wallet' : 'Bank Wallet'}
+          </Text>
         </View>
 
-        {/* Amount Display */}
-        <View style={styles.amountContainer}>
-          <View style={styles.amountRow}>
-            <Text style={styles.currencyText}>$</Text>
-            <Text style={styles.amountText}>{amount || '0'}</Text>
+        {/* Amount Card */}
+        <View style={{
+          marginHorizontal: 20,
+          marginTop: 20,
+          backgroundColor: 'rgba(255,255,255,0.06)',
+          borderRadius: 20,
+          borderCurve: 'continuous',
+          padding: 20,
+        }}>
+          <Text style={{ color: 'rgba(255,255,255,0.5)', fontSize: 14, fontFamily: 'Sansation-Regular', marginBottom: 12 }}>
+            You send
+          </Text>
+
+          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+            <Text
+              numberOfLines={1}
+              adjustsFontSizeToFit
+              minimumFontScale={0.5}
+              style={{
+                color: amount ? '#fff' : 'rgba(255,255,255,0.25)',
+                fontSize: 42,
+                fontFamily: 'Sansation-Light',
+                fontVariant: ['tabular-nums'],
+                flex: 1,
+                marginRight: 12,
+              }}
+            >
+              {amount || '0'}
+            </Text>
+
+            <View style={{
+              flexDirection: 'row',
+              alignItems: 'center',
+              backgroundColor: 'rgba(255,255,255,0.1)',
+              borderRadius: 20,
+              paddingVertical: 6,
+              paddingRight: 12,
+              paddingLeft: 6,
+              gap: 6,
+            }}>
+              <Image source={require('../../assets/solana.png')} style={{ width: 28, height: 28 }} />
+              <Text style={{ color: '#fff', fontSize: 16, fontFamily: 'Sansation-Bold' }}>SOL</Text>
+              <ChevronDown width={14} height={14} style={{ opacity: 0.4 }} />
+            </View>
           </View>
-          <Text style={styles.balanceText} accessibilityRole="text">Your balance ${totalUSD.toFixed(2)}</Text>
+
+          <Text style={{ color: 'rgba(255,255,255,0.35)', fontSize: 13, fontFamily: 'Sansation-Regular', textAlign: 'right' }}>
+            {totalUSD.toFixed(4)} SOL
+          </Text>
         </View>
 
         {/* Continue Button */}
@@ -214,7 +261,9 @@ const styles = StyleSheet.create({
   amountRow: {
     flexDirection: 'row',
     alignItems: 'baseline',
+    justifyContent: 'center',
     marginBottom: 12,
+    maxWidth: '90%',
   },
   amountText: {
     fontSize: 72,
@@ -235,6 +284,7 @@ const styles = StyleSheet.create({
     color: 'rgba(255, 255, 255, 0.5)',
     fontWeight: '400',
     fontFamily: 'Sansation-Regular',
+    textAlign: 'center',
   },
   accountSection: {
     flexDirection: 'row',
@@ -284,6 +334,7 @@ const styles = StyleSheet.create({
   continueButton: {
     backgroundColor: 'rgba(240, 235, 220, 0.95)',
     marginHorizontal: 40,
+    marginTop: 24,
     paddingVertical: 18,
     borderRadius: 30,
     alignItems: 'center',

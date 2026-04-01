@@ -15,7 +15,6 @@ import { useYieldWithdraw } from "../../services/yield/withdraw";
 import { useYieldBalance } from '../../services/yield/balance';
 
 import SlideToConfirm from "../../components/SlideToConfirm";
-import ComebackIcon from "../../assets/buttons/comeback.svg";
 
 type ModalMode = "deposit" | "withdraw";
 
@@ -134,7 +133,7 @@ export default function DepositWithdrawModal({
     <Modal
       visible={visible}
       animationType="slide"
-      presentationStyle="fullScreen"
+      presentationStyle="formSheet"
       onRequestClose={handleClose}
     >
       <View style={styles.container}>
@@ -175,15 +174,22 @@ export default function DepositWithdrawModal({
             </Animated.View>
           ) : (
             <>
+              {/* Grabber */}
+              <TouchableOpacity
+                onPress={handleClose}
+                activeOpacity={0.8}
+                accessibilityRole="button"
+                accessibilityLabel="Close"
+                style={{ alignItems: 'center', paddingTop: 16, paddingBottom: 16 }}
+              >
+                <View style={{ width: 36, height: 5, borderRadius: 3, backgroundColor: 'rgba(255,255,255,0.8)' }} />
+              </TouchableOpacity>
+
               {/* Header */}
               <View style={styles.header}>
-                <TouchableOpacity style={styles.backButton} onPress={handleClose} activeOpacity={0.8}>
-                  <ComebackIcon width={18} height={18} />
-                </TouchableOpacity>
                 <Text style={styles.headerTitle}>
                   {mode === "deposit" ? "Deposit" : "Withdraw"}
                 </Text>
-                <View style={styles.placeholder} />
               </View>
 
               {/* Amount Display */}
@@ -255,11 +261,9 @@ const styles = StyleSheet.create({
 
   // Header
   header: {
-    flexDirection: "row",
     alignItems: "center",
-    justifyContent: "space-between",
     paddingHorizontal: 24,
-    paddingTop: 80,
+    paddingTop: 40,
     paddingBottom: 20,
   },
   backButton: {

@@ -26,6 +26,7 @@ function BottomBar({ onShield, onTransfer }: BottomBarProps) {
       <TouchableOpacity
         onPress={onShield}
         activeOpacity={0.85}
+        delayPressIn={100}
         accessibilityRole="button"
         accessibilityLabel="Shield assets"
         style={{
@@ -48,6 +49,7 @@ function BottomBar({ onShield, onTransfer }: BottomBarProps) {
       <TouchableOpacity
         onPress={onTransfer}
         activeOpacity={0.85}
+        delayPressIn={100}
         accessibilityRole="button"
         accessibilityLabel="Transfer"
         style={{

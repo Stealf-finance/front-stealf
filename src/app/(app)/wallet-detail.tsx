@@ -4,13 +4,15 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '../../contexts/AuthContext';
 import { useWalletInfos } from '../../hooks/wallet/useWalletInfos';
 import TransactionHistory from '../../components/TransactionHistory';
+import { Image } from 'expo-image';
 import SendIcon from '../../assets/buttons/send.svg';
 import ReceivedIcon from '../../assets/buttons/received.svg';
 import MoreIcon from '../../assets/buttons/more.svg';
 import ChevronDown from '../../assets/buttons/chevron-down.svg';
 
-export default function WalletDetailScreen() {
+export default function WalletDetailScreen({ onClose }: { onClose?: () => void } = {}) {
   const router = useRouter();
+  const handleClose = onClose || (() => router.back());
   const insets = useSafeAreaInsets();
   const { userData } = useAuth();
   const { balance, tokens } = useWalletInfos(userData?.stealf_wallet || '');
@@ -31,7 +33,7 @@ export default function WalletDetailScreen() {
               Wallet
             </Text>
             <TouchableOpacity
-              onPress={() => router.back()}
+              onPress={handleClose}
               activeOpacity={0.7}
               accessibilityRole="button"
               accessibilityLabel="Close"
@@ -131,19 +133,10 @@ export default function WalletDetailScreen() {
                     borderBottomColor: 'rgba(255,255,255,0.06)',
                   }}
                 >
-                  <View style={{
-                    width: 38,
-                    height: 38,
-                    borderRadius: 19,
-                    backgroundColor: 'rgba(255,255,255,0.1)',
-                    justifyContent: 'center',
-                    alignItems: 'center',
-                    marginRight: 14,
-                  }}>
-                    <Text style={{ color: '#fff', fontSize: 14, fontFamily: 'Sansation-Bold' }}>
-                      {token.tokenSymbol.slice(0, 3)}
-                    </Text>
-                  </View>
+                  <Image
+                    source={token.tokenSymbol === 'SOL' ? require('../../assets/solana.png') : undefined}
+                    style={{ width: 38, height: 38, borderRadius: 19, marginRight: 14 }}
+                  />
                   <View style={{ flex: 1 }}>
                     <Text style={{ color: '#fff', fontSize: 16, fontFamily: 'Sansation-Bold', marginBottom: 2 }}>
                       {token.tokenSymbol}

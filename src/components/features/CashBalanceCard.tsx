@@ -53,6 +53,7 @@ function CashBalanceCard({
         <TouchableOpacity
           onPress={onDeposit}
           activeOpacity={0.7}
+          delayPressIn={100}
           style={{
             flex: 1,
             backgroundColor: 'rgba(255,255,255,0.08)',
@@ -67,40 +68,9 @@ function CashBalanceCard({
         </TouchableOpacity>
 
         <TouchableOpacity
-          onPress={onMoove}
-          activeOpacity={0.7}
-          style={{
-            flex: 1,
-            backgroundColor: 'rgba(255,255,255,0.08)',
-            borderRadius: 14,
-            borderCurve: 'continuous',
-            paddingVertical: 16,
-            alignItems: 'center',
-          }}
-        >
-          <MooveIcon width={16} height={16} />
-          <Text style={{ color: '#fff', fontSize: 13, fontFamily: 'Sansation-Bold', marginTop: 6 }}>Moove</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          onPress={onSend}
-          activeOpacity={0.7}
-          style={{
-            flex: 1,
-            backgroundColor: 'rgba(255,255,255,0.08)',
-            borderRadius: 14,
-            borderCurve: 'continuous',
-            paddingVertical: 16,
-            alignItems: 'center',
-          }}
-        >
-          <SendIcon width={16} height={16} />
-          <Text style={{ color: '#fff', fontSize: 13, fontFamily: 'Sansation-Bold', marginTop: 6 }}>Send</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity
           onPress={onBank}
           activeOpacity={0.7}
+          delayPressIn={100}
           style={{
             flex: 1,
             backgroundColor: 'rgba(255,255,255,0.08)',

@@ -5,10 +5,12 @@ import MooveIcon from '../../assets/buttons/moove.svg';
 import SendIcon from '../../assets/buttons/send.svg';
 import DepositIcon from '../../assets/buttons/deposit.svg';
 import ArrowIcon from '../../assets/buttons/arrow.svg';
+import UnshieldIcon from '../../assets/buttons/unshield.svg';
 import ChevronDown from '../../assets/buttons/chevron-down.svg';
 
-export default function ShieldedDetailScreen() {
+export default function ShieldedDetailScreen({ onClose }: { onClose?: () => void } = {}) {
   const router = useRouter();
+  const handleClose = onClose || (() => router.back());
   const insets = useSafeAreaInsets();
 
   // TODO: hook into Umbra SDK for real balances
@@ -33,7 +35,7 @@ export default function ShieldedDetailScreen() {
               Shielded
             </Text>
             <TouchableOpacity
-              onPress={() => router.back()}
+              onPress={handleClose}
               activeOpacity={0.7}
               accessibilityRole="button"
               accessibilityLabel="Close"
@@ -58,10 +60,10 @@ export default function ShieldedDetailScreen() {
           {/* Actions */}
           <View style={{ flexDirection: 'row', gap: 10, marginBottom: 32, flexWrap: 'wrap' }}>
             <TouchableOpacity
-              onPress={() => router.push('/(app)/moove?direction=toCash')}
+              onPress={() => router.push('/(app)/add-funds?wallet=stealf')}
               activeOpacity={0.7}
               accessibilityRole="button"
-              accessibilityLabel="Move to cash wallet"
+              accessibilityLabel="Receive crypto"
               style={{
                 flex: 1,
                 minWidth: '22%',
@@ -72,27 +74,8 @@ export default function ShieldedDetailScreen() {
                 alignItems: 'center',
               }}
             >
-              <MooveIcon width={16} height={16} />
-              <Text style={{ color: '#fff', fontSize: 13, fontFamily: 'Sansation-Bold', marginTop: 6 }}>Moove</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              onPress={() => router.push('/(app)/send-private')}
-              activeOpacity={0.7}
-              accessibilityRole="button"
-              accessibilityLabel="Send privately"
-              style={{
-                flex: 1,
-                minWidth: '22%',
-                backgroundColor: 'rgba(255,255,255,0.08)',
-                borderRadius: 14,
-                borderCurve: 'continuous',
-                paddingVertical: 16,
-                alignItems: 'center',
-              }}
-            >
-              <SendIcon width={16} height={16} />
-              <Text style={{ color: '#fff', fontSize: 13, fontFamily: 'Sansation-Bold', marginTop: 6 }}>Send</Text>
+              <DepositIcon width={16} height={16} />
+              <Text style={{ color: '#fff', fontSize: 13, fontFamily: 'Sansation-Bold', marginTop: 6 }}>Receive</Text>
             </TouchableOpacity>
 
             <TouchableOpacity
@@ -115,10 +98,10 @@ export default function ShieldedDetailScreen() {
             </TouchableOpacity>
 
             <TouchableOpacity
-              onPress={() => router.push('/(app)/deposit-private')}
+              onPress={() => Alert.alert('Coming Soon', 'Unshield will be available soon.')}
               activeOpacity={0.7}
               accessibilityRole="button"
-              accessibilityLabel="Shield assets"
+              accessibilityLabel="Unshield assets"
               style={{
                 flex: 1,
                 minWidth: '22%',
@@ -129,9 +112,10 @@ export default function ShieldedDetailScreen() {
                 alignItems: 'center',
               }}
             >
-              <DepositIcon width={16} height={16} />
-              <Text style={{ color: '#fff', fontSize: 13, fontFamily: 'Sansation-Bold', marginTop: 6 }}>Shield</Text>
+              <UnshieldIcon width={16} height={16} />
+              <Text style={{ color: '#fff', fontSize: 13, fontFamily: 'Sansation-Bold', marginTop: 6 }}>Unshield</Text>
             </TouchableOpacity>
+
           </View>
 
           {/* Shielded Assets */}

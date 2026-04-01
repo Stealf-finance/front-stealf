@@ -112,8 +112,9 @@ export default function PrivacyScreen() {
 
           {/* Wallet (public) */}
           <TouchableOpacity
-            onPress={() => router.push('/(app)/wallet-detail')}
+            onPress={() => router.replace('/(app)/wallet-detail')}
             activeOpacity={0.7}
+            delayPressIn={100}
             accessibilityRole="button"
             accessibilityLabel="View wallet details"
             style={{
@@ -140,6 +141,7 @@ export default function PrivacyScreen() {
           <TouchableOpacity
             onPress={() => router.push('/(app)/shielded-detail')}
             activeOpacity={0.7}
+            delayPressIn={100}
             accessibilityRole="button"
             accessibilityLabel="View shielded assets and investments"
             style={{

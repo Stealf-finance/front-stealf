@@ -22,7 +22,6 @@ const SHEET_OPTIONS = {
 export default function AppLayout() {
   const { isAuthenticated, userData, loading } = useAuth();
   const { isLoadingBalance } = useWalletInfos(userData?.cash_wallet || '');
-
   // Auth still loading → keep splash, render nothing
   if (loading) {
     return null;
@@ -49,10 +48,10 @@ export default function AppLayout() {
         <Stack.Screen name="moove" options={SHEET_OPTIONS} />
         <Stack.Screen name="add-funds" options={{ ...SHEET_OPTIONS, sheetAllowedDetents: [1.0] }} />
         <Stack.Screen name="add-funds-privacy" options={SHEET_OPTIONS} />
-        <Stack.Screen name="deposit-private" options={SHEET_OPTIONS} />
+        <Stack.Screen name="shield" options={SHEET_OPTIONS} />
         <Stack.Screen name="info" options={SHEET_OPTIONS} />
         <Stack.Screen name="transaction-history" options={MODAL_OPTIONS} />
-        <Stack.Screen name="saving-dashboard" options={MODAL_OPTIONS} />
+        <Stack.Screen name="saving-dashboard" options={SHEET_OPTIONS} />
         <Stack.Screen name="deposit-withdraw" options={MODAL_OPTIONS} />
         <Stack.Screen name="transfer" options={SHEET_OPTIONS} />
         <Stack.Screen name="shielded-detail" options={{

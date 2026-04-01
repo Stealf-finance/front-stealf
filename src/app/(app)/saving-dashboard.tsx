@@ -8,7 +8,7 @@ import {
   ActivityIndicator,
 } from "react-native";
 import { useRouter } from 'expo-router';
-import ComebackIcon from '../../assets/buttons/comeback.svg';
+import { LinearGradient } from 'expo-linear-gradient';
 import { useWalletInfos } from "../../hooks/wallet/useWalletInfos";
 import { useAuth } from "../../contexts/AuthContext";
 import { useYieldBalance, useYieldStats, useInvalidateYieldBalance } from "../../services/yield/balance";
@@ -51,15 +51,26 @@ export default function SavingsScreen() {
 
   return (
     <View style={styles.container}>
+      <LinearGradient
+        colors={['#000000', '#000000', '#000000']}
+        style={{ flex: 1 }}
+      >
       <ScrollView
         style={styles.scrollView}
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
-        {/* Header */}
-        <TouchableOpacity style={styles.backButton} onPress={() => router.back()} activeOpacity={0.8}>
-          <ComebackIcon width={18} height={18} />
+        {/* Grabber */}
+        <TouchableOpacity
+          onPress={() => router.back()}
+          activeOpacity={0.8}
+          accessibilityRole="button"
+          accessibilityLabel="Close"
+          style={{ alignItems: 'center', paddingTop: 16, paddingBottom: 16 }}
+        >
+          <View style={{ width: 36, height: 5, borderRadius: 3, backgroundColor: 'rgba(255,255,255,0.8)' }} />
         </TouchableOpacity>
+
         <View style={styles.header}>
           <Text style={styles.headerTitle}>Jito SOL</Text>
           <Text style={styles.headerSubtitle}>Earn yield, stay private</Text>
@@ -126,6 +137,7 @@ export default function SavingsScreen() {
           The network can be slow — a deposit may take up to 2 min.
         </Text>
       </ScrollView>
+      </LinearGradient>
 
       <DepositWithdrawModal
         visible={modalVisible}
@@ -150,7 +162,7 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     paddingHorizontal: 24,
-    paddingTop: 80,
+    paddingTop: 8,
     paddingBottom: 40,
   },
   header: {

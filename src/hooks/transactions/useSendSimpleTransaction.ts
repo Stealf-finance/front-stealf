@@ -13,10 +13,9 @@ import {
   compileTransaction,
   signTransaction,
   getSignatureFromTransaction,
-  sendAndConfirmTransactionFactory,
+  getBase64EncodedWireTransaction,
   assertIsTransactionWithinSizeLimit,
   createSignerFromBase58,
-  getRpcSubscriptions,
 } from '../../services/solana/kit';
 import { getTransactionEncoder } from '@solana/kit';
 import { guardTransaction } from '../../services/solana/transactionsGuard';
@@ -39,7 +38,7 @@ async function buildTransactionMessage(
   amount: number,
 ) {
   const rpc = getRpc();
-  const { value: latestBlockhash } = await rpc.getLatestBlockhash().send();
+  const { value: latestBlockhash } = await rpc.getLatestBlockhash({ commitment: 'finalized' }).send();
 
   const amountLamports = BigInt(Math.floor(amount * LAMPORTS_PER_SOL));
 
@@ -97,19 +96,26 @@ export async function transactionSimple(
 
   const signer = await createSignerFromBase58(privateKeyB58);
   const rpc = getRpc();
-  const rpcSubscriptions = getRpcSubscriptions();
 
   const { message, latestBlockhash } = await buildTransactionMessage(fromAddress, recipientAddress, amount);
   const compiled = compileTransaction(message);
   const signed = await signTransaction([signer.keyPair], compiled);
   assertIsTransactionWithinSizeLimit(signed);
 
-  const sendAndConfirm = sendAndConfirmTransactionFactory({
-    rpc: rpc as Parameters<typeof sendAndConfirmTransactionFactory>[0]['rpc'],
-    rpcSubscriptions: rpcSubscriptions as Parameters<typeof sendAndConfirmTransactionFactory>[0]['rpcSubscriptions'],
-  });
   const signature = getSignatureFromTransaction(signed);
-  await sendAndConfirm(signed, { commitment: 'confirmed' });
+
+  // Send transaction via RPC
+  const encodedTx = getBase64EncodedWireTransaction(signed);
+  await rpc.sendTransaction(encodedTx, { encoding: 'base64' }).send();
+
+  // Wait for confirmation via polling (WebSocket not supported on React Native)
+  for (let i = 0; i < 30; i++) {
+    const { value } = await rpc.getSignatureStatuses([signature]).send();
+    const status = value[0];
+    if (status?.confirmationStatus === 'confirmed' || status?.confirmationStatus === 'finalized') break;
+    if (status?.err) throw new Error(`Transaction failed: ${JSON.stringify(status.err)}`);
+    await new Promise(r => setTimeout(r, 1500));
+  }
 
   walletKeyCache.touch();
 
