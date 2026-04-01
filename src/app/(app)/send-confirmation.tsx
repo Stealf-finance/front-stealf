@@ -12,7 +12,8 @@ import {
   Alert,
 } from 'react-native';
 import { useRouter } from 'expo-router';
-import ComebackIcon from '../../assets/buttons/comeback.svg';
+import ChevronLeft from '../../assets/buttons/chevron-left.svg';
+
 import { LinearGradient } from 'expo-linear-gradient';
 import { useSendTransaction } from '../../hooks/transactions/useSendSimpleTransaction';
 import { useAuth } from '../../contexts/AuthContext';
@@ -189,15 +190,20 @@ export default function SendConfirmation({ amount, walletType = 'cash', onBack, 
               style={styles.background}
             >
 
+        {/* Grabber */}
+        <TouchableOpacity
+          onPress={() => router.back()}
+          activeOpacity={0.8}
+          accessibilityRole="button"
+          accessibilityLabel="Close"
+          style={{ alignItems: 'center', paddingTop: 12, paddingBottom: 16 }}
+        >
+          <View style={{ width: 36, height: 5, borderRadius: 3, backgroundColor: 'rgba(255,255,255,0.8)' }} />
+        </TouchableOpacity>
+
         {/* Header */}
         <View style={styles.header}>
-          <TouchableOpacity style={styles.backButton} onPress={onBack} activeOpacity={0.8}>
-            <ComebackIcon width={18} height={18} />
-          </TouchableOpacity>
           <Text style={styles.headerTitle}>Confirm</Text>
-          <TouchableOpacity style={styles.closeButton} onPress={onClose || (() => router.back())} activeOpacity={0.8}>
-            <Text style={styles.closeIcon}>✕</Text>
-          </TouchableOpacity>
         </View>
 
         {/* Content with KeyboardAvoidingView */}
@@ -218,6 +224,7 @@ export default function SendConfirmation({ amount, walletType = 'cash', onBack, 
             {/* MAINNET: {amount} USDC */}
             <Text style={styles.value}>${amount}</Text>
           </View>
+
 
           {/* Network */}
           <View style={styles.section}>
@@ -250,6 +257,27 @@ export default function SendConfirmation({ amount, walletType = 'cash', onBack, 
         </ScrollView>
         </KeyboardAvoidingView>
       </LinearGradient>
+
+      {/* Back button — fixed bottom left */}
+      <TouchableOpacity
+        onPress={onBack}
+        activeOpacity={0.7}
+        accessibilityRole="button"
+        accessibilityLabel="Go back"
+        style={{
+          position: 'absolute',
+          bottom: -80,
+          left: 24,
+          backgroundColor: 'rgba(255,255,255,0.08)',
+          borderRadius: 14,
+          borderCurve: 'continuous',
+          paddingVertical: 16,
+          paddingHorizontal: 24,
+          alignItems: 'center',
+        }}
+      >
+        <ChevronLeft width={18} height={18} />
+      </TouchableOpacity>
     </View>
   );
 }
@@ -263,11 +291,9 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   header: {
-    flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
     paddingHorizontal: 24,
-    paddingTop: 80,
+    paddingTop: 16,
     paddingBottom: 20,
   },
   backButton: {

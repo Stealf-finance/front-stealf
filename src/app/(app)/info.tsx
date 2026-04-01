@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Alert, ActivityIndicator } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter, useLocalSearchParams } from 'expo-router';
-import ComebackIcon from '../../assets/buttons/comeback.svg';
+
 import * as Clipboard from 'expo-clipboard';
 import * as LocalAuthentication from 'expo-local-authentication';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -41,13 +41,20 @@ export default function InfoScreen() {
             end={{ x: 0, y: 0 }}
             style={styles.background}
           >
+      {/* Grabber */}
+      <TouchableOpacity
+        onPress={() => router.back()}
+        activeOpacity={0.8}
+        accessibilityRole="button"
+        accessibilityLabel="Close"
+        style={{ alignItems: 'center', paddingTop: 12, paddingBottom: 16 }}
+      >
+        <View style={{ width: 36, height: 5, borderRadius: 3, backgroundColor: 'rgba(255,255,255,0.8)' }} />
+      </TouchableOpacity>
+
       {/* Header */}
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
-          <ComebackIcon width={18} height={18} />
-        </TouchableOpacity>
         <Text style={styles.headerTitle}>{getTitle()}</Text>
-        <View style={styles.placeholder} />
       </View>
 
       <ScrollView
@@ -164,11 +171,9 @@ export default function InfoScreen() {
 
 const styles = StyleSheet.create({
   header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
     paddingHorizontal: 20,
-    paddingTop: 60,
+    paddingTop: 16,
     paddingBottom: 20,
     borderBottomWidth: 1,
     borderBottomColor: 'rgba(255, 255, 255, 0.1)',

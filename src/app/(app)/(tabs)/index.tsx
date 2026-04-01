@@ -1,6 +1,5 @@
-import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Alert } from 'react-native';
-import Animated, { useSharedValue, useAnimatedStyle, withTiming, Easing } from 'react-native-reanimated';
+import { useState } from 'react';
+import { View, Text, ScrollView, StyleSheet, TouchableOpacity, Alert } from 'react-native';
 import { Image } from 'expo-image';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -14,54 +13,23 @@ import { useAuth } from '../../../contexts/AuthContext';
 
 export default function HomeScreen() {
   const router = useRouter();
-  const { currentPage, navigateToPage } = usePager();
+  const { currentPage } = usePager();
   const { userData } = useAuth();
   const insets = useSafeAreaInsets();
-  const slideUpAnim = useSharedValue(100);
 
   const [showAddFundsModal, setShowAddFundsModal] = useState(false);
   const [showSendModal, setShowSendModal] = useState(false);
 
-  const handleAddFundsPress = () => {
-    setShowAddFundsModal(true);
-  };
-
-  const handleCloseAddFundsModal = () => {
-    setShowAddFundsModal(false);
-  };
-
-  const handleSelectStablecoin = () => {
-    setShowAddFundsModal(false);
-    router.push('/(app)/add-funds');
-  };
-
-  const handleSelectPrivateCash = () => {
-    setShowAddFundsModal(false);
-    router.push('/(app)/deposit-private');
-  };
-
-  useEffect(() => {
-    if (currentPage === 'home') {
-      slideUpAnim.value = withTiming(0, {
-        duration: 250,
-        easing: Easing.out(Easing.cubic),
-      });
-    } else {
-      slideUpAnim.value = 100;
-    }
-  }, [currentPage]);
-
-  const activityAnimatedStyle = useAnimatedStyle(() => ({
-    transform: [{ translateY: slideUpAnim.value }],
-    opacity: 1 - slideUpAnim.value / 100,
-  }));
-
   return (
-    <View style={styles.container}>
+    <View style={{ flex: 1, backgroundColor: '#000' }}>
+      <ScrollView
+        contentContainerStyle={{ paddingBottom: 120 }}
+        showsVerticalScrollIndicator={false}
+      >
         <View style={{ height: insets.top + 60 }} />
 
         <CashBalanceCard
-          onDeposit={handleAddFundsPress}
+          onDeposit={() => setShowAddFundsModal(true)}
           onMoove={() => router.push('/(app)/moove?direction=toPrivacy')}
           onSend={() => setShowSendModal(true)}
           onBank={() => router.push('/(app)/info?source=home')}
@@ -70,7 +38,6 @@ export default function HomeScreen() {
         <View style={styles.bankCardWrapper}>
           <View style={styles.bankCard}>
             <Text style={styles.bankCardTitle}>Bank without limits</Text>
-
             <View style={styles.bankCardRow}>
               <Image
                 source={require('../../../assets/stealf-card.png')}
@@ -78,7 +45,6 @@ export default function HomeScreen() {
                 contentFit="contain"
                 transition={200}
               />
-
               <View style={styles.bankCardRight}>
                 <TouchableOpacity
                   style={styles.bankCardAction}
@@ -95,60 +61,43 @@ export default function HomeScreen() {
           </View>
         </View>
 
-        {/* Recent Activity */}
-        <Animated.View
-          style={[
-            styles.activityContainer,
-            activityAnimatedStyle,
-          ]}
-        >
-          <View style={styles.activityHeader}>
-            <Text style={styles.activityTitle}>Transactions</Text>
+        {/* Transactions */}
+        <View style={{ paddingHorizontal: 20 }}>
+          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+            <Text style={{ color: '#fff', fontSize: 18, fontFamily: 'Sansation-Bold' }}>
+              Transactions
+            </Text>
+            <TouchableOpacity
+              onPress={() => router.push('/(app)/transaction-history?walletType=cash')}
+              accessibilityRole="button"
+              accessibilityLabel="See all transactions"
+            >
+              <Text style={{ color: 'rgba(255,255,255,0.45)', fontSize: 14, fontFamily: 'Sansation-Regular' }}>
+                See all
+              </Text>
+            </TouchableOpacity>
           </View>
-          <TransactionHistory limit={50} />
-        </Animated.View>
+          <TransactionHistory limit={3} />
+        </View>
+      </ScrollView>
 
-        {/* Add Funds Modal */}
-        <AddFundsModal
-          visible={showAddFundsModal}
-          onClose={handleCloseAddFundsModal}
-          onSelectStablecoin={handleSelectStablecoin}
-          onSelectPrivateCash={handleSelectPrivateCash}
-        />
+      <AddFundsModal
+        visible={showAddFundsModal}
+        onClose={() => setShowAddFundsModal(false)}
+        onSelectStablecoin={() => { setShowAddFundsModal(false); router.push('/(app)/add-funds'); }}
+        onSelectPrivateCash={() => { setShowAddFundsModal(false); router.push('/(app)/deposit-private'); }}
+      />
 
-        <SendModal
-          visible={showSendModal}
-          onClose={() => setShowSendModal(false)}
-          onSelectSimpleTransaction={() => {
-            setShowSendModal(false);
-            router.push('/(app)/send?walletType=cash');
-          }}
-        />
+      <SendModal
+        visible={showSendModal}
+        onClose={() => setShowSendModal(false)}
+        onSelectSimpleTransaction={() => { setShowSendModal(false); router.push('/(app)/send?walletType=cash'); }}
+      />
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    paddingBottom: 10,
-    backgroundColor: '#000000',
-  },
-  activityContainer: {
-    flex: 1,
-    paddingHorizontal: 20,
-  },
-  activityHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 12,
-  },
-  activityTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: 'white',
-  },
   bankCardWrapper: {
     paddingHorizontal: 20,
     marginTop: 20,
@@ -181,11 +130,6 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     gap: 10,
-  },
-  bankCardSubtitle: {
-    fontSize: 14,
-    color: 'rgba(255, 255, 255, 0.45)',
-    fontFamily: 'Sansation-Regular',
   },
   bankCardAction: {
     flexDirection: 'row',

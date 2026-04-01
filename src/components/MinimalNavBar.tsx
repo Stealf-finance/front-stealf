@@ -29,7 +29,7 @@ function MinimalNavBar({
           styles.navText,
           currentPage === 'home' && styles.navTextActive
         ]}>
-          Cash
+          Bank
         </Text>
       </TouchableOpacity>
 
@@ -71,6 +71,7 @@ const styles = StyleSheet.create({
     paddingTop: 60,
     paddingBottom: 16,
     gap: 20,
+    backgroundColor: '#000',
   },
   navText: {
     fontSize: 20,

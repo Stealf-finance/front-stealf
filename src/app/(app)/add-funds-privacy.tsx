@@ -8,7 +8,7 @@ import {
 import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
-import ComebackIcon from '../../assets/buttons/comeback.svg';
+
 import QRCode from 'react-native-qrcode-svg';
 import * as Clipboard from 'expo-clipboard';
 import { useAuth } from '../../contexts/AuthContext';
@@ -49,13 +49,20 @@ export default function AddFundsScreen() {
         end={{ x: 0, y: 0 }}
         style={styles.background}
       >
+        {/* Grabber */}
+        <TouchableOpacity
+          onPress={() => router.back()}
+          activeOpacity={0.8}
+          accessibilityRole="button"
+          accessibilityLabel="Close"
+          style={{ alignItems: 'center', paddingTop: 12, paddingBottom: 16 }}
+        >
+          <View style={{ width: 36, height: 5, borderRadius: 3, backgroundColor: 'rgba(255,255,255,0.8)' }} />
+        </TouchableOpacity>
+
         {/* Header */}
         <View style={styles.header}>
-          <TouchableOpacity style={styles.backButton} onPress={() => router.back()} activeOpacity={0.8} accessibilityRole="button" accessibilityLabel="Go back">
-            <ComebackIcon width={18} height={18} />
-          </TouchableOpacity>
           <Text style={styles.headerTitle}>Add Funds</Text>
-          <View style={styles.placeholder} />
         </View>
 
         <View style={styles.content}>
@@ -108,11 +115,9 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   header: {
-    flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
     paddingHorizontal: 24,
-    paddingTop: 80,
+    paddingTop: 16,
     paddingBottom: 20,
   },
   backButton: {

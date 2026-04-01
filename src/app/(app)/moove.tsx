@@ -9,6 +9,7 @@ import {
 } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { useRouter, useLocalSearchParams } from 'expo-router';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import {
   getRpc,
@@ -33,7 +34,6 @@ import { useSendTransaction } from '../../hooks/transactions/useSendSimpleTransa
 import { walletKeyCache } from '../../services/cache/walletKeyCache';
 import SlideToConfirm from '../../components/SlideToConfirm';
 import ArrowIcon from '../../assets/buttons/arrow.svg';
-import ComebackIcon from '../../assets/buttons/comeback.svg';
 
 const SYSTEM_PROGRAM = toAddress('11111111111111111111111111111111');
 
@@ -55,6 +55,7 @@ function createTransferInstruction(from: string, to: string, lamportsAmount: big
 
 export default function MooveScreen() {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const { direction: directionParam = 'toCash' } = useLocalSearchParams<{ direction?: string }>();
   const [amount, setAmount] = useState('');
   const [direction, setDirection] = useState(directionParam as 'toPrivacy' | 'toCash');
@@ -244,6 +245,19 @@ export default function MooveScreen() {
 
   return (
     <View style={styles.container}>
+      <StatusBar style="light" />
+
+      {/* Grabber — tap to close */}
+      <TouchableOpacity
+        onPress={() => router.back()}
+        activeOpacity={0.8}
+        accessibilityRole="button"
+        accessibilityLabel="Close"
+        style={{ alignItems: 'center', paddingTop: 12, paddingBottom: 16 }}
+      >
+        <View style={{ width: 36, height: 5, borderRadius: 3, backgroundColor: 'rgba(255,255,255,0.8)' }} />
+      </TouchableOpacity>
+
       <LinearGradient
         colors={['#000000', '#000000', '#000000']}
         locations={[0, 0.5, 1]}
@@ -251,13 +265,8 @@ export default function MooveScreen() {
         end={{ x: 0, y: 0 }}
         style={styles.background}
       >
-        <StatusBar style="light" />
-
         {/* Header */}
         <View style={styles.header}>
-          <TouchableOpacity style={styles.backButton} onPress={() => router.back()} activeOpacity={0.8} accessibilityRole="button" accessibilityLabel="Go back">
-            <ComebackIcon width={18} height={18} />
-          </TouchableOpacity>
           <Text style={styles.headerTitle}>Move money</Text>
           <View style={styles.placeholder} />
         </View>
@@ -287,7 +296,7 @@ export default function MooveScreen() {
                 }),
               }],
             }}>
-              <ArrowIcon width={22} height={22} />
+              <ArrowIcon width={14} height={14} />
             </Animated.View>
           </TouchableOpacity>
 
@@ -346,7 +355,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: 24,
-    paddingTop: 80,
+    paddingTop: 16,
     paddingBottom: 20,
   },
   backButton: {
@@ -371,6 +380,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 24,
     marginTop: 8,
     marginBottom: 20,
+    gap: 8,
   },
   walletCard: {
     backgroundColor: 'rgba(255, 255, 255, 0.06)',
@@ -407,14 +417,14 @@ const styles = StyleSheet.create({
   },
   // Flip
   flipButton: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
+    width: 34,
+    height: 34,
+    borderRadius: 17,
     backgroundColor: '#ffffff',
     alignItems: 'center',
     justifyContent: 'center',
     alignSelf: 'center',
-    marginVertical: -22,
+    marginVertical: -21,
     zIndex: 10,
   },
   // Slide

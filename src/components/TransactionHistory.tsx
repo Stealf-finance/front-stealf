@@ -42,11 +42,8 @@ function getLabel(tx: Transaction) {
 
 const TransactionRow = React.memo(function TransactionRow({ tx }: { tx: Transaction }) {
   return (
-    <TouchableOpacity
+    <View
       style={styles.row}
-      onPress={() => Linking.openURL(tx.signatureURL)}
-      activeOpacity={0.7}
-      accessibilityRole="button"
       accessibilityLabel={`${getLabel(tx)} ${tx.amountUSD.toFixed(2)} dollars ${tx.tokenSymbol}`}
     >
       <View style={styles.avatar}>
@@ -67,7 +64,7 @@ const TransactionRow = React.memo(function TransactionRow({ tx }: { tx: Transact
       <Text style={styles.amount}>
         {tx.type === 'received' ? '+' : '-'}${tx.amountUSD.toFixed(2)}
       </Text>
-    </TouchableOpacity>
+    </View>
   );
 });
 
@@ -160,6 +157,7 @@ export default function TransactionHistory({
         renderItem={renderItem}
         keyExtractor={keyExtractor}
         showsVerticalScrollIndicator={false}
+        contentContainerStyle={{ paddingBottom: 120 }}
         refreshControl={
           <RefreshControl
             refreshing={refreshing}

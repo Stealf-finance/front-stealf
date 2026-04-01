@@ -10,6 +10,7 @@ import { RevolutPager } from '../../../navigation/swipePager';
 import { usePager } from '../../../navigation/PagerContext';
 import { useAuth } from '../../../contexts/AuthContext';
 import type { PageType } from '../../../navigation/types';
+import BottomBar from '../../../components/BottomBar';
 
 export default function TabsLayout() {
   const router = useRouter();
@@ -50,6 +51,11 @@ export default function TabsLayout() {
           onIndexChange={onIndexChange}
         />
       </View>
+
+      <BottomBar
+        onShield={() => router.push('/(app)/deposit-private')}
+        onTransfer={() => router.push('/(app)/transfer')}
+      />
     </View>
   );
 }

@@ -7,20 +7,21 @@ import {
   Alert,
   ActivityIndicator,
 } from 'react-native';
-import { Image } from 'expo-image';
 import { airdropFactory, lamports } from '@solana/kit';
 import { getRpc, getRpcSubscriptions, toAddress } from '../../services/solana/kit';
-import { useRouter } from 'expo-router';
-import ComebackIcon from '../../assets/buttons/comeback.svg';
+import { useRouter, useLocalSearchParams } from 'expo-router';
+
 import { LinearGradient } from 'expo-linear-gradient';
 import QRCode from 'react-native-qrcode-svg';
 import * as Clipboard from 'expo-clipboard';
 import { useAuth } from '../../contexts/AuthContext';
+import CopyIcon from '../../assets/buttons/copier-coller.svg';
 
 export default function AddFundsScreen() {
   const router = useRouter();
+  const { wallet = 'cash' } = useLocalSearchParams<{ wallet?: string }>();
   const { userData } = useAuth();
-  const walletAddress = userData?.cash_wallet;
+  const walletAddress = wallet === 'stealf' ? userData?.stealf_wallet : userData?.cash_wallet;
   const [copied, setCopied] = useState(false);
   const [airdropping, setAirdropping] = useState(false);
 
@@ -75,13 +76,20 @@ export default function AddFundsScreen() {
         style={styles.background}
       >
         
+        {/* Grabber */}
+        <TouchableOpacity
+          onPress={() => router.back()}
+          activeOpacity={0.8}
+          accessibilityRole="button"
+          accessibilityLabel="Close"
+          style={{ alignItems: 'center', paddingTop: 12, paddingBottom: 16 }}
+        >
+          <View style={{ width: 36, height: 5, borderRadius: 3, backgroundColor: 'rgba(255,255,255,0.8)' }} />
+        </TouchableOpacity>
+
         {/* Header */}
         <View style={styles.header}>
-          <TouchableOpacity style={styles.backButton} onPress={() => router.back()} activeOpacity={0.8} accessibilityRole="button" accessibilityLabel="Go back">
-            <ComebackIcon width={18} height={18} />
-          </TouchableOpacity>
           <Text style={styles.headerTitle}>Add Funds</Text>
-          <View style={styles.placeholder} />
         </View>
 
         <View style={styles.content}>
@@ -100,7 +108,7 @@ export default function AddFundsScreen() {
           {/* Wallet Address Section */}
           <View style={styles.addressSection}>
             <Text style={styles.infoText}>
-              USDC only - Solana Network
+              Solana Devnet Network
             </Text>
             <TouchableOpacity
               style={styles.addressButton}
@@ -112,12 +120,7 @@ export default function AddFundsScreen() {
               <Text style={styles.addressButtonText} numberOfLines={1} ellipsizeMode="middle">
                 {copied ? 'Copied!' : (walletAddress || 'Loading...')}
               </Text>
-              <Image
-                source={require('../../assets/buttons/copier-coller.svg')}
-                style={styles.copyIcon}
-                contentFit="contain"
-                transition={200}
-              />
+              <CopyIcon width={18} height={18} />
             </TouchableOpacity>
           </View>
 
@@ -151,11 +154,9 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   header: {
-    flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
     paddingHorizontal: 24,
-    paddingTop: 80,
+    paddingTop: 16,
     paddingBottom: 20,
   },
   backButton: {

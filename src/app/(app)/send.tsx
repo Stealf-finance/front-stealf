@@ -8,7 +8,7 @@ import {
 } from 'react-native';
 import { Image } from 'expo-image';
 import { useRouter, useLocalSearchParams } from 'expo-router';
-import ComebackIcon from '../../assets/buttons/comeback.svg';
+
 import { LinearGradient } from 'expo-linear-gradient';
 import SendConfirmation from './send-confirmation';
 import { useAuth } from '../../contexts/AuthContext';
@@ -80,13 +80,20 @@ export default function SendScreen() {
               style={styles.background}
             >
 
+        {/* Grabber */}
+        <TouchableOpacity
+          onPress={() => router.back()}
+          activeOpacity={0.8}
+          accessibilityRole="button"
+          accessibilityLabel="Close"
+          style={{ alignItems: 'center', paddingTop: 12, paddingBottom: 16 }}
+        >
+          <View style={{ width: 36, height: 5, borderRadius: 3, backgroundColor: 'rgba(255,255,255,0.8)' }} />
+        </TouchableOpacity>
+
         {/* Header */}
         <View style={styles.header}>
-          <TouchableOpacity style={styles.backButton} onPress={() => router.back()} activeOpacity={0.8} accessibilityRole="button" accessibilityLabel="Go back">
-            <ComebackIcon width={18} height={18} />
-          </TouchableOpacity>
           <Text style={styles.headerTitle}>Transfer</Text>
-          <View style={styles.placeholder} />
         </View>
 
         {/* Amount Display */}
@@ -172,11 +179,9 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   header: {
-    flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
     paddingHorizontal: 24,
-    paddingTop: 80,
+    paddingTop: 40,
     paddingBottom: 10,
   },
   backButton: {

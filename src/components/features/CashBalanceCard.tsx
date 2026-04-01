@@ -49,49 +49,69 @@ function CashBalanceCard({
 
 
       {/* Action Buttons */}
-      <View style={styles.actionsRow}>
+      <View style={{ flexDirection: 'row', gap: 10, marginBottom: 20 }}>
         <TouchableOpacity
-          style={styles.actionButton}
           onPress={onDeposit}
           activeOpacity={0.7}
+          style={{
+            flex: 1,
+            backgroundColor: 'rgba(255,255,255,0.08)',
+            borderRadius: 14,
+            borderCurve: 'continuous',
+            paddingVertical: 16,
+            alignItems: 'center',
+          }}
         >
-          <View style={styles.iconContainer}>
-            <DepositIcon />
-          </View>
-          <Text style={styles.actionText}>Receive</Text>
+          <DepositIcon width={16} height={16} />
+          <Text style={{ color: '#fff', fontSize: 13, fontFamily: 'Sansation-Bold', marginTop: 6 }}>Receive</Text>
         </TouchableOpacity>
 
         <TouchableOpacity
-          style={styles.actionButton}
           onPress={onMoove}
           activeOpacity={0.7}
+          style={{
+            flex: 1,
+            backgroundColor: 'rgba(255,255,255,0.08)',
+            borderRadius: 14,
+            borderCurve: 'continuous',
+            paddingVertical: 16,
+            alignItems: 'center',
+          }}
         >
-          <View style={styles.iconContainer}>
-            <MooveIcon />
-          </View>
-          <Text style={styles.actionText}>Moove</Text>
+          <MooveIcon width={16} height={16} />
+          <Text style={{ color: '#fff', fontSize: 13, fontFamily: 'Sansation-Bold', marginTop: 6 }}>Moove</Text>
         </TouchableOpacity>
 
         <TouchableOpacity
-          style={styles.actionButton}
           onPress={onSend}
           activeOpacity={0.7}
+          style={{
+            flex: 1,
+            backgroundColor: 'rgba(255,255,255,0.08)',
+            borderRadius: 14,
+            borderCurve: 'continuous',
+            paddingVertical: 16,
+            alignItems: 'center',
+          }}
         >
-          <View style={styles.iconContainer}>
-            <SendIcon />
-          </View>
-          <Text style={styles.actionText}>Send</Text>
+          <SendIcon width={16} height={16} />
+          <Text style={{ color: '#fff', fontSize: 13, fontFamily: 'Sansation-Bold', marginTop: 6 }}>Send</Text>
         </TouchableOpacity>
 
         <TouchableOpacity
-          style={styles.actionButton}
           onPress={onBank}
           activeOpacity={0.7}
+          style={{
+            flex: 1,
+            backgroundColor: 'rgba(255,255,255,0.08)',
+            borderRadius: 14,
+            borderCurve: 'continuous',
+            paddingVertical: 16,
+            alignItems: 'center',
+          }}
         >
-          <View style={styles.iconContainer}>
-            <BankIcon />
-          </View>
-          <Text style={styles.actionText}>Infos</Text>
+          <BankIcon width={16} height={16} />
+          <Text style={{ color: '#fff', fontSize: 13, fontFamily: 'Sansation-Bold', marginTop: 6 }}>Infos</Text>
         </TouchableOpacity>
       </View>
 
