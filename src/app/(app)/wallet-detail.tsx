@@ -5,14 +5,16 @@ import { useAuth } from '../../contexts/AuthContext';
 import { useWalletInfos } from '../../hooks/wallet/useWalletInfos';
 import TransactionHistory from '../../components/TransactionHistory';
 import { Image } from 'expo-image';
-import SendIcon from '../../assets/buttons/send.svg';
 import ReceivedIcon from '../../assets/buttons/received.svg';
+import SendIcon from '../../assets/buttons/send.svg';
 import MoreIcon from '../../assets/buttons/more.svg';
 import ChevronDown from '../../assets/buttons/chevron-down.svg';
 
 export default function WalletDetailScreen({ onClose }: { onClose?: () => void } = {}) {
   const router = useRouter();
-  const handleClose = onClose || (() => router.back());
+  const handleClose = onClose || (() => {
+    if (router.canGoBack()) router.back();
+  });
   const insets = useSafeAreaInsets();
   const { userData } = useAuth();
   const { balance, tokens } = useWalletInfos(userData?.stealf_wallet || '');
@@ -21,7 +23,10 @@ export default function WalletDetailScreen({ onClose }: { onClose?: () => void }
 
   return (
     <View style={{ flex: 1 }}>
+      {/* Transparent top — navbar visible behind */}
       <View style={{ height: insets.top + 70 }} />
+
+      {/* Sheet */}
       <View style={{ flex: 1, backgroundColor: '#000', borderTopLeftRadius: 16, borderTopRightRadius: 16 }}>
         <ScrollView
           contentContainerStyle={{ paddingHorizontal: 20, paddingTop: 20, paddingBottom: insets.bottom + 20 }}
@@ -56,7 +61,7 @@ export default function WalletDetailScreen({ onClose }: { onClose?: () => void }
           </Text>
 
           {/* Actions */}
-          <View style={{ flexDirection: 'row', gap: 12, marginBottom: 32 }}>
+          <View style={{ flexDirection: 'row', gap: 10, marginBottom: 32, flexWrap: 'wrap' }}>
             <TouchableOpacity
               onPress={() => router.push('/(app)/add-funds?wallet=stealf')}
               activeOpacity={0.7}
@@ -64,6 +69,7 @@ export default function WalletDetailScreen({ onClose }: { onClose?: () => void }
               accessibilityLabel="Receive crypto"
               style={{
                 flex: 1,
+                minWidth: '22%',
                 backgroundColor: 'rgba(255,255,255,0.08)',
                 borderRadius: 14,
                 borderCurve: 'continuous',
@@ -82,6 +88,7 @@ export default function WalletDetailScreen({ onClose }: { onClose?: () => void }
               accessibilityLabel="Send crypto"
               style={{
                 flex: 1,
+                minWidth: '22%',
                 backgroundColor: 'rgba(255,255,255,0.08)',
                 borderRadius: 14,
                 borderCurve: 'continuous',
@@ -100,6 +107,7 @@ export default function WalletDetailScreen({ onClose }: { onClose?: () => void }
               accessibilityLabel="Wallet info"
               style={{
                 flex: 1,
+                minWidth: '22%',
                 backgroundColor: 'rgba(255,255,255,0.08)',
                 borderRadius: 14,
                 borderCurve: 'continuous',

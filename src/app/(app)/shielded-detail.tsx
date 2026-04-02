@@ -10,7 +10,9 @@ import ChevronDown from '../../assets/buttons/chevron-down.svg';
 
 export default function ShieldedDetailScreen({ onClose }: { onClose?: () => void } = {}) {
   const router = useRouter();
-  const handleClose = onClose || (() => router.back());
+  const handleClose = onClose || (() => {
+    if (router.canGoBack()) router.back();
+  });
   const insets = useSafeAreaInsets();
 
   // TODO: hook into Umbra SDK for real balances
