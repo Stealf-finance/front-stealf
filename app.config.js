@@ -53,7 +53,7 @@ export default {
     plugins: [
       "expo-secure-store",
       ["expo-router", { root: "src/app" }],
-      "@sentry/react-native"
+      ["@sentry/react-native", { disableAutoUpload: true }]
     ],
     extra: {
       eas: {
