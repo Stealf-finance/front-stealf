@@ -4,6 +4,7 @@ import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import WalletSetupScreen, { WalletSetupChoice } from '../../../components/WalletSetup';
 import ChevronRight from '../../../assets/buttons/chevron-right.svg';
+import ChevronRightBlack from '../../../assets/buttons/chevron-right-black-24px.svg';
 import TransactionHistory from '../../../components/TransactionHistory';
 import { useAuth } from '../../../contexts/AuthContext';
 import { useSetupWallet } from '../../../hooks/wallet/useInitPrivateWallet';
@@ -100,7 +101,7 @@ export default function PrivacyScreen() {
         {/* Total Balance — matches home CashBalanceCard layout */}
         <View style={{ paddingHorizontal: 20, paddingVertical: 20, marginBottom: 4 }}>
           <Text style={{ color: 'rgba(255,255,255,0.5)', fontSize: 14, fontFamily: 'Sansation-Regular', marginBottom: 4 }}>
-            Total Balance
+            Available
           </Text>
           <Text style={{ color: '#fff', fontSize: 48, fontFamily: 'Sansation-Light', fontVariant: ['tabular-nums'] }}>
             ${totalBalance.toFixed(2)}
@@ -134,7 +135,7 @@ export default function PrivacyScreen() {
               </Text>
               <Text style={{ color: 'rgba(255,255,255,0.4)', fontSize: 13, fontFamily: 'Sansation-Regular' }}>Send, receive & manage your assets</Text>
             </View>
-            <ChevronRight width={24} height={24} style={{ marginLeft: 12, opacity: 0.6 }} />
+            <ChevronRight width={24} height={24} style={{ marginLeft: 12, opacity: 0.8 }} />
           </TouchableOpacity>
 
           {/* Shielded (protected assets + investments) */}
@@ -145,7 +146,7 @@ export default function PrivacyScreen() {
             accessibilityRole="button"
             accessibilityLabel="View shielded assets and investments"
             style={{
-              backgroundColor: 'rgba(255,255,255,0.06)',
+              backgroundColor: '#6941f5',
               borderRadius: 16,
               borderCurve: 'continuous',
               paddingVertical: 28,
@@ -155,13 +156,13 @@ export default function PrivacyScreen() {
             }}
           >
             <View style={{ flex: 1 }}>
-              <Text style={{ color: '#fff', fontSize: 18, fontFamily: 'Sansation-Bold', marginBottom: 10 }}>Private</Text>
-              <Text style={{ color: '#fff', fontSize: 28, fontFamily: 'Sansation-Light', fontVariant: ['tabular-nums'], marginBottom: 6 }}>
+              <Text style={{ color: '#000100', fontSize: 18, fontFamily: 'Sansation-Bold', marginBottom: 10 }}>Private</Text>
+              <Text style={{ color: '#000100', fontSize: 28, fontFamily: 'Sansation-Light', fontVariant: ['tabular-nums'], marginBottom: 6 }}>
                 ${shieldedBalance.toFixed(2)}
               </Text>
-              <Text style={{ color: 'rgba(255,255,255,0.4)', fontSize: 13, fontFamily: 'Sansation-Regular' }}>Protected assets & private investments</Text>
+              <Text style={{ color: 'rgba(0,1,0,0.8)', fontSize: 13, fontFamily: 'Sansation-Regular' }}>Protected assets & private investments</Text>
             </View>
-            <ChevronRight width={24} height={24} style={{ marginLeft: 12, opacity: 0.6 }} />
+            <ChevronRightBlack width={24} height={24} style={{ marginLeft: 12, opacity: 0.8 }} />
           </TouchableOpacity>
 
         </View>

@@ -1,13 +1,14 @@
-import { View, Text, ScrollView, TouchableOpacity } from 'react-native';
+import { View, Text, ScrollView, TouchableOpacity, Alert } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '../../contexts/AuthContext';
 import { useWalletInfos } from '../../hooks/wallet/useWalletInfos';
 import TransactionHistory from '../../components/TransactionHistory';
 import { Image } from 'expo-image';
-import ReceivedIcon from '../../assets/buttons/received.svg';
-import SendIcon from '../../assets/buttons/send.svg';
-import MoreIcon from '../../assets/buttons/more.svg';
+import TabBottomIcon from '../../assets/buttons/tab-bottom-24px.svg';
+import ArrowUpRightIcon from '../../assets/buttons/arrow-up-right-24px.svg';
+import ArrowIcon from '../../assets/buttons/arrow.svg';
+import BankIcon from '../../assets/buttons/ellipses-horizontal-white-24px.svg';
 import ChevronDown from '../../assets/buttons/chevron-down.svg';
 
 export default function WalletDetailScreen({ onClose }: { onClose?: () => void } = {}) {
@@ -29,7 +30,7 @@ export default function WalletDetailScreen({ onClose }: { onClose?: () => void }
       {/* Sheet */}
       <View style={{ flex: 1, backgroundColor: '#000', borderTopLeftRadius: 16, borderTopRightRadius: 16 }}>
         <ScrollView
-          contentContainerStyle={{ paddingHorizontal: 20, paddingTop: 20, paddingBottom: insets.bottom + 20 }}
+          contentContainerStyle={{ paddingHorizontal: 20, paddingTop: 20, paddingBottom: insets.bottom + 80 }}
           showsVerticalScrollIndicator={false}
         >
           {/* Header */}
@@ -61,43 +62,23 @@ export default function WalletDetailScreen({ onClose }: { onClose?: () => void }
           </Text>
 
           {/* Actions */}
-          <View style={{ flexDirection: 'row', gap: 10, marginBottom: 32, flexWrap: 'wrap' }}>
+          <View style={{ flexDirection: 'row', gap: 10, marginBottom: 32 }}>
             <TouchableOpacity
-              onPress={() => router.push('/(app)/add-funds?wallet=stealf')}
+              onPress={() => Alert.alert('Coming Soon', 'Swap will be available soon.')}
               activeOpacity={0.7}
               accessibilityRole="button"
-              accessibilityLabel="Receive crypto"
+              accessibilityLabel="Swap crypto"
               style={{
                 flex: 1,
-                minWidth: '22%',
-                backgroundColor: 'rgba(255,255,255,0.08)',
+                backgroundColor: 'rgba(255,255,255,0.04)',
                 borderRadius: 14,
                 borderCurve: 'continuous',
                 paddingVertical: 16,
                 alignItems: 'center',
               }}
             >
-              <ReceivedIcon width={16} height={16} />
-              <Text style={{ color: '#fff', fontSize: 13, fontFamily: 'Sansation-Bold', marginTop: 6 }}>Receive</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              onPress={() => router.push('/(app)/send?walletType=stealf')}
-              activeOpacity={0.7}
-              accessibilityRole="button"
-              accessibilityLabel="Send crypto"
-              style={{
-                flex: 1,
-                minWidth: '22%',
-                backgroundColor: 'rgba(255,255,255,0.08)',
-                borderRadius: 14,
-                borderCurve: 'continuous',
-                paddingVertical: 16,
-                alignItems: 'center',
-              }}
-            >
-              <SendIcon width={16} height={16} />
-              <Text style={{ color: '#fff', fontSize: 13, fontFamily: 'Sansation-Bold', marginTop: 6 }}>Send</Text>
+              <ArrowIcon width={16} height={16} style={{ opacity: 0.35 }} />
+              <Text style={{ color: 'rgba(255,255,255,0.35)', fontSize: 13, fontFamily: 'Sansation-Bold', marginTop: 6 }}>Swap</Text>
             </TouchableOpacity>
 
             <TouchableOpacity
@@ -107,7 +88,6 @@ export default function WalletDetailScreen({ onClose }: { onClose?: () => void }
               accessibilityLabel="Wallet info"
               style={{
                 flex: 1,
-                minWidth: '22%',
                 backgroundColor: 'rgba(255,255,255,0.08)',
                 borderRadius: 14,
                 borderCurve: 'continuous',
@@ -115,8 +95,8 @@ export default function WalletDetailScreen({ onClose }: { onClose?: () => void }
                 alignItems: 'center',
               }}
             >
-              <MoreIcon width={16} height={16} />
-              <Text style={{ color: '#fff', fontSize: 13, fontFamily: 'Sansation-Bold', marginTop: 6 }}>Info</Text>
+              <BankIcon width={16} height={16} />
+              <Text style={{ color: '#fff', fontSize: 13, fontFamily: 'Sansation-Bold', marginTop: 6 }}>Infos</Text>
             </TouchableOpacity>
           </View>
 
@@ -178,6 +158,63 @@ export default function WalletDetailScreen({ onClose }: { onClose?: () => void }
           </View>
           <TransactionHistory limit={3} walletType="privacy" />
         </ScrollView>
+      </View>
+
+      {/* Bottom Bar */}
+      <View style={{
+        position: 'absolute',
+        bottom: 0,
+        left: 0,
+        right: 0,
+        paddingHorizontal: 40,
+        paddingBottom: insets.bottom + 20,
+        paddingTop: 12,
+        flexDirection: 'row',
+        gap: 10,
+      }}>
+        <TouchableOpacity
+          onPress={() => router.push('/(app)/add-funds?wallet=stealf')}
+          activeOpacity={0.85}
+          accessibilityRole="button"
+          accessibilityLabel="Receive"
+          style={{
+            flex: 1,
+            backgroundColor: '#ffffff',
+            borderRadius: 20,
+            borderCurve: 'continuous',
+            paddingVertical: 18,
+            paddingHorizontal: 20,
+            flexDirection: 'row',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: 40,
+          }}
+        >
+          <Text style={{ color: '#000', fontSize: 17, fontFamily: 'Sansation-Bold' }}>Receive</Text>
+          <TabBottomIcon width={18} height={18} color="#000" />
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          onPress={() => router.push('/(app)/send?walletType=stealf')}
+          activeOpacity={0.85}
+          accessibilityRole="button"
+          accessibilityLabel="Send"
+          style={{
+            flex: 1,
+            backgroundColor: '#ffffff',
+            borderRadius: 20,
+            borderCurve: 'continuous',
+            paddingVertical: 18,
+            paddingHorizontal: 20,
+            flexDirection: 'row',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: 50,
+          }}
+        >
+          <Text style={{ color: '#000', fontSize: 17, fontFamily: 'Sansation-Bold' }}>Send</Text>
+          <ArrowUpRightIcon width={18} height={18} color="#000" />
+        </TouchableOpacity>
       </View>
     </View>
   );

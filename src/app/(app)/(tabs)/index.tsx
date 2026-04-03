@@ -5,8 +5,6 @@ import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import TransactionHistory from '../../../components/TransactionHistory';
 import CashBalanceCard from '../../../components/features/CashBalanceCard';
-import AddFundsModal from '../../../components/AddFundsModal';
-import SendModal from '../../../components/SendModal';
 import SendIcon from '../../../assets/buttons/send.svg';
 import { usePager } from '../../../navigation/PagerContext';
 import { useAuth } from '../../../contexts/AuthContext';
@@ -17,7 +15,6 @@ export default function HomeScreen() {
   const { userData } = useAuth();
   const insets = useSafeAreaInsets();
 
-  const [showAddFundsModal, setShowAddFundsModal] = useState(false);
   const [showSendModal, setShowSendModal] = useState(false);
 
   return (
@@ -29,7 +26,7 @@ export default function HomeScreen() {
         <View style={{ height: insets.top + 60 }} />
 
         <CashBalanceCard
-          onDeposit={() => setShowAddFundsModal(true)}
+          onDeposit={() => router.push('/(app)/receive-select')}
           onMoove={() => router.push('/(app)/moove?direction=toPrivacy')}
           onSend={() => setShowSendModal(true)}
           onBank={() => router.push('/(app)/info?source=home')}
@@ -81,18 +78,6 @@ export default function HomeScreen() {
         </View>
       </ScrollView>
 
-      <AddFundsModal
-        visible={showAddFundsModal}
-        onClose={() => setShowAddFundsModal(false)}
-        onSelectStablecoin={() => { setShowAddFundsModal(false); router.push('/(app)/add-funds'); }}
-        onSelectPrivateCash={() => { setShowAddFundsModal(false); router.push('/(app)/shield'); }}
-      />
-
-      <SendModal
-        visible={showSendModal}
-        onClose={() => setShowSendModal(false)}
-        onSelectSimpleTransaction={() => { setShowSendModal(false); router.push('/(app)/send?walletType=cash'); }}
-      />
     </View>
   );
 }
@@ -100,8 +85,8 @@ export default function HomeScreen() {
 const styles = StyleSheet.create({
   bankCardWrapper: {
     paddingHorizontal: 20,
-    marginTop: 20,
-    marginBottom: 35,
+    marginTop: 0,
+    marginBottom: 28,
   },
   bankCard: {
     backgroundColor: 'rgba(255, 255, 255, 0.06)',
@@ -113,7 +98,7 @@ const styles = StyleSheet.create({
   },
   bankCardTitle: {
     fontSize: 22,
-    color: 'white',
+    color: '#fff',
     fontFamily: 'Sansation-Bold',
     marginBottom: 18,
   },
@@ -143,7 +128,7 @@ const styles = StyleSheet.create({
   },
   bankCardActionText: {
     fontSize: 13,
-    color: 'white',
+    color: '#fff',
     fontFamily: 'Sansation-Bold',
   },
 });

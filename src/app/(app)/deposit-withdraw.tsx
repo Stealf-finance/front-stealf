@@ -47,7 +47,6 @@ export default function DepositWithdrawModal({
   const parsedAmount = parseFloat(amount) || 0;
   const isValidAmount = parsedAmount > 0;
 
-  // Animations
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const checkScale = useRef(new Animated.Value(0)).current;
   const contentFade = useRef(new Animated.Value(0)).current;

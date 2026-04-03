@@ -35,7 +35,7 @@ export default function AddFundsScreen() {
       await airdrop({
         commitment: 'confirmed',
         recipientAddress: toAddress(walletAddress),
-        lamports: lamports(2_000_000_000n), // 2 SOL
+        lamports: lamports(2_000_000_000n),
       });
       Alert.alert('Airdrop', '2 SOL received!');
     } catch (err: any) {

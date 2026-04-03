@@ -53,7 +53,6 @@ export default function TabsLayout() {
       </View>
 
       <BottomBar
-        onShield={() => router.push('/(app)/shield')}
         onTransfer={() => router.push('/(app)/transfer')}
       />
     </View>

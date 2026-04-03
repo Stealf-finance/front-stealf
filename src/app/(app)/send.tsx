@@ -59,7 +59,6 @@ export default function SendScreen() {
     setShowConfirmation(false);
   };
 
-  // Show confirmation screen
   if (showConfirmation) {
     return (
       <SendConfirmation

@@ -74,11 +74,11 @@ export function useSetupWallet() {
       await walletKeyCache.store(privateKey, mnemonic);
 
       // Register on Umbra protocol (confidential balances)
-      try {
-        await ensureRegistered();
-      } catch (err) {
-        if (__DEV__) console.warn("[Wallet] Umbra registration failed (will retry on first operation):", err);
-      }
+      // try {
+      //   await ensureRegistered();
+      // } catch (err) {
+      //   if (__DEV__) console.warn("[Wallet] Umbra registration failed (will retry on first operation):", err);
+      // }
 
       return { success: true, walletAddress };
     } catch (error: any) {

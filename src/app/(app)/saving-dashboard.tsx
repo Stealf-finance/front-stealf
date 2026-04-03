@@ -28,10 +28,8 @@ export default function SavingsScreen() {
 
   const walletSolBalance = walletTokens.find(t => t.tokenMint === null)?.balance ?? 0;
 
-  // Yield stats (APY, rate) — cached, updated via socket
   const { data: yieldStats } = useYieldStats();
 
-  // Yield balance (cached via React Query, staleTime: Infinity)
   const { data: yieldBalance, isLoading: balanceLoading, isFetching: balanceFetching } = useYieldBalance();
   const invalidateYieldBalance = useInvalidateYieldBalance();
   const [balanceRefreshing, setBalanceRefreshing] = useState(false);

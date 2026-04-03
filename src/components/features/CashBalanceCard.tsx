@@ -6,8 +6,6 @@ import { useWalletInfos } from '../../hooks/wallet/useWalletInfos';
 
 // Import SVG icons
 import DepositIcon from '../../assets/buttons/deposit.svg';
-import MooveIcon from '../../assets/buttons/moove.svg';
-import SendIcon from '../../assets/buttons/send.svg';
 import BankIcon from '../../assets/buttons/bank.svg';
 
 interface CashBalanceCardProps {
@@ -36,7 +34,7 @@ function CashBalanceCard({
     <View style={styles.container}>
       {/* Total */}
       <View style={styles.totalSection}>
-        <Text style={styles.totalLabel}>Total Balance</Text>
+        <Text style={styles.totalLabel}>Available</Text>
         {isLoadingBalance ? (
           <ActivityIndicator size="small" color="#ffffff" />
         ) : balanceError ? (
@@ -49,7 +47,7 @@ function CashBalanceCard({
 
 
       {/* Action Buttons */}
-      <View style={{ flexDirection: 'row', gap: 10, marginBottom: 20 }}>
+      <View style={{ flexDirection: 'row', gap: 10, marginBottom: 8 }}>
         <TouchableOpacity
           onPress={onDeposit}
           activeOpacity={0.7}
@@ -63,7 +61,7 @@ function CashBalanceCard({
             alignItems: 'center',
           }}
         >
-          <DepositIcon width={16} height={16} />
+          <DepositIcon width={16} height={16} color="#fff" />
           <Text style={{ color: '#fff', fontSize: 13, fontFamily: 'Sansation-Bold', marginTop: 6 }}>Receive</Text>
         </TouchableOpacity>
 
@@ -80,7 +78,7 @@ function CashBalanceCard({
             alignItems: 'center',
           }}
         >
-          <BankIcon width={16} height={16} />
+          <BankIcon width={16} height={16} color="#fff" />
           <Text style={{ color: '#fff', fontSize: 13, fontFamily: 'Sansation-Bold', marginTop: 6 }}>Infos</Text>
         </TouchableOpacity>
       </View>

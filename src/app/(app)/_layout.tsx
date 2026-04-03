@@ -22,17 +22,14 @@ const SHEET_OPTIONS = {
 export default function AppLayout() {
   const { isAuthenticated, userData, loading } = useAuth();
   const { isLoadingBalance } = useWalletInfos(userData?.cash_wallet || '');
-  // Auth still loading → keep splash, render nothing
   if (loading) {
     return null;
   }
 
-  // Not authenticated → redirect to sign-in
   if (!isAuthenticated) {
     return <Redirect href="/sign-in" />;
   }
 
-  // Authenticated but balance still loading → render nothing (splash covers)
   if (isLoadingBalance) {
     return null;
   }
@@ -48,9 +45,11 @@ export default function AppLayout() {
         <Stack.Screen name="moove" options={SHEET_OPTIONS} />
         <Stack.Screen name="add-funds" options={{ ...SHEET_OPTIONS, sheetAllowedDetents: [1.0] }} />
         <Stack.Screen name="add-funds-privacy" options={SHEET_OPTIONS} />
+        <Stack.Screen name="receive-select" options={{ ...SHEET_OPTIONS, sheetAllowedDetents: [0.4] }} />
+        <Stack.Screen name="receive-private" options={SHEET_OPTIONS} />
         <Stack.Screen name="shield" options={SHEET_OPTIONS} />
         <Stack.Screen name="info" options={SHEET_OPTIONS} />
-        <Stack.Screen name="transaction-history" options={MODAL_OPTIONS} />
+        <Stack.Screen name="transaction-history" options={SHEET_OPTIONS} />
         <Stack.Screen name="saving-dashboard" options={SHEET_OPTIONS} />
         <Stack.Screen name="deposit-withdraw" options={MODAL_OPTIONS} />
         <Stack.Screen name="transfer" options={SHEET_OPTIONS} />

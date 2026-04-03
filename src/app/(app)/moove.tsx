@@ -31,6 +31,7 @@ export default function MooveScreen() {
   const [localLoading, setLocalLoading] = useState(false);
 
   const { userData } = useAuth();
+  const hasStealthWallet = !!userData?.stealf_wallet;
   const queryClient = useQueryClient();
   const { balance: cashBalance, tokens: cashTokens } = useWalletInfos(userData?.cash_wallet || '');
   const { balance: privacyBalance, tokens: privacyTokens } = useWalletInfos(userData?.stealf_wallet || '');
@@ -155,6 +156,52 @@ export default function MooveScreen() {
     if (bal === undefined) return '—';
     return `$${bal.toFixed(2)}`;
   };
+
+  if (!hasStealthWallet) {
+    return (
+      <View style={styles.container}>
+        <LinearGradient
+          colors={['#000000', '#000000', '#000000']}
+          locations={[0, 0.5, 1]}
+          start={{ x: 0, y: 1 }}
+          end={{ x: 0, y: 0 }}
+          style={{ flex: 1 }}
+        >
+          {/* Grabber */}
+          <TouchableOpacity
+            onPress={() => router.back()}
+            activeOpacity={0.8}
+            accessibilityRole="button"
+            accessibilityLabel="Close"
+            style={{ alignItems: 'center', paddingTop: 12, paddingBottom: 16 }}
+          >
+            <View style={{ width: 36, height: 5, borderRadius: 3, backgroundColor: 'rgba(255,255,255,0.8)' }} />
+          </TouchableOpacity>
+
+          <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', paddingHorizontal: 40, minHeight: 500 }}>
+            <Text style={{ color: '#fff', fontSize: 22, fontFamily: 'Sansation-Bold', textAlign: 'center', marginBottom: 12 }}>
+              No Stealth Wallet
+            </Text>
+            <Text style={{ color: 'rgba(255,255,255,0.4)', fontSize: 15, fontFamily: 'Sansation-Regular', textAlign: 'center', marginBottom: 32 }}>
+              Please import or create a stealth wallet to move funds.
+            </Text>
+            <TouchableOpacity
+              onPress={() => router.back()}
+              activeOpacity={0.8}
+              style={{
+                backgroundColor: '#7C3AED',
+                borderRadius: 20,
+                paddingVertical: 16,
+                paddingHorizontal: 40,
+              }}
+            >
+              <Text style={{ color: '#000100', fontSize: 16, fontFamily: 'Sansation-Bold' }}>Go Back</Text>
+            </TouchableOpacity>
+          </View>
+        </LinearGradient>
+      </View>
+    );
+  }
 
   return (
     <View style={styles.container}>

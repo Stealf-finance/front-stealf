@@ -19,6 +19,7 @@ interface TransactionHistoryProps {
   limit?: number;
   style?: any;
   walletType?: 'cash' | 'privacy';
+  flat?: boolean;
 }
 
 interface Transaction {
@@ -71,7 +72,8 @@ const TransactionRow = React.memo(function TransactionRow({ tx }: { tx: Transact
 export default function TransactionHistory({
   limit = 3,
   style,
-  walletType = 'cash'
+  walletType = 'cash',
+  flat = false,
 }: TransactionHistoryProps) {
 
   const { userData } = useAuth();
@@ -98,7 +100,7 @@ export default function TransactionHistory({
     setRefreshing(false);
   }, [queryClient, wallet]);
 
-  const isCompactMode = limit <= 3;
+  const isCompactMode = flat || limit <= 3;
 
   const renderItem = useCallback(({ item }: { item: Transaction }) => (
     <TransactionRow tx={item} />

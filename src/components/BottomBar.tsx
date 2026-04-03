@@ -1,16 +1,14 @@
-import { View, Text, TouchableOpacity } from 'react-native';
+import { View, Text, TouchableOpacity, Alert } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import ShieldIcon from '../assets/buttons/shield.svg';
+import CardIcon from '../assets/buttons/credit-card-24px.svg';
 import TransferIcon from '../assets/buttons/arrow-up-right-24px.svg';
 
 interface BottomBarProps {
-  onShield: () => void;
   onTransfer: () => void;
 }
 
-function BottomBar({ onShield, onTransfer }: BottomBarProps) {
+function BottomBar({ onTransfer }: BottomBarProps) {
   const insets = useSafeAreaInsets();
-
   return (
     <View style={{
       position: 'absolute',
@@ -24,26 +22,26 @@ function BottomBar({ onShield, onTransfer }: BottomBarProps) {
       gap: 10,
     }}>
       <TouchableOpacity
-        onPress={onShield}
+        onPress={() => Alert.alert('Coming Soon', 'Card will be available soon.')}
         activeOpacity={0.85}
         delayPressIn={100}
         accessibilityRole="button"
-        accessibilityLabel="Shield assets"
+        accessibilityLabel="Card"
         style={{
           flex: 1,
           backgroundColor: '#ffffff',
           borderRadius: 20,
           borderCurve: 'continuous',
-          paddingVertical: 22,
+          paddingVertical: 18,
           paddingHorizontal: 20,
           flexDirection: 'row',
           alignItems: 'center',
           justifyContent: 'center',
-          gap: 8,
+          gap: 60,
         }}
       >
-        <Text style={{ color: '#000', fontSize: 17, fontFamily: 'Sansation-Bold' }}>Shield</Text>
-        <ShieldIcon width={18} height={18} color="#000" />
+        <Text style={{ color: '#000', fontSize: 17, fontFamily: 'Sansation-Bold' }}>Card</Text>
+        <CardIcon width={18} height={18} color="#000" />
       </TouchableOpacity>
 
       <TouchableOpacity
@@ -57,12 +55,12 @@ function BottomBar({ onShield, onTransfer }: BottomBarProps) {
           backgroundColor: '#ffffff',
           borderRadius: 20,
           borderCurve: 'continuous',
-          paddingVertical: 22,
+          paddingVertical: 18,
           paddingHorizontal: 20,
           flexDirection: 'row',
           alignItems: 'center',
           justifyContent: 'center',
-          gap: 8,
+          gap: 40,
         }}
       >
         <Text style={{ color: '#000', fontSize: 17, fontFamily: 'Sansation-Bold' }}>Transfer</Text>

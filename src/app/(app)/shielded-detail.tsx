@@ -1,12 +1,14 @@
+import { useState, useCallback } from 'react';
 import { View, Text, ScrollView, TouchableOpacity, Alert } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import MooveIcon from '../../assets/buttons/moove.svg';
-import SendIcon from '../../assets/buttons/send.svg';
-import DepositIcon from '../../assets/buttons/deposit.svg';
+import Animated, { FadeIn, FadeOut } from 'react-native-reanimated';
+import TabBottomIcon from '../../assets/buttons/tab-bottom-24px.svg';
 import ArrowIcon from '../../assets/buttons/arrow.svg';
-import UnshieldIcon from '../../assets/buttons/unshield.svg';
 import ChevronDown from '../../assets/buttons/chevron-down.svg';
+import ShieldIcon from '../../assets/buttons/shield.svg';
+import HiddenIcon from '../../assets/buttons/hidden.svg';
+import CloseIcon from '../../assets/buttons/close.svg';
 
 export default function ShieldedDetailScreen({ onClose }: { onClose?: () => void } = {}) {
   const router = useRouter();
@@ -14,6 +16,17 @@ export default function ShieldedDetailScreen({ onClose }: { onClose?: () => void
     if (router.canGoBack()) router.back();
   });
   const insets = useSafeAreaInsets();
+
+  const [showManageOptions, setShowManageOptions] = useState(false);
+  const [showSendOptions, setShowSendOptions] = useState(false);
+
+  const animateAndSetManage = useCallback((val: boolean) => {
+    setShowManageOptions(val);
+  }, []);
+
+  const animateAndSetSend = useCallback((val: boolean) => {
+    setShowSendOptions(val);
+  }, []);
 
   // TODO: hook into Umbra SDK for real balances
   const shieldedBalance = 0;
@@ -28,7 +41,7 @@ export default function ShieldedDetailScreen({ onClose }: { onClose?: () => void
       {/* Sheet */}
       <View style={{ flex: 1, backgroundColor: '#000', borderTopLeftRadius: 16, borderTopRightRadius: 16 }}>
         <ScrollView
-          contentContainerStyle={{ paddingHorizontal: 20, paddingTop: 20, paddingBottom: insets.bottom + 20 }}
+          contentContainerStyle={{ paddingHorizontal: 20, paddingTop: 20, paddingBottom: insets.bottom + 80 }}
           showsVerticalScrollIndicator={false}
         >
           {/* Header */}
@@ -62,22 +75,22 @@ export default function ShieldedDetailScreen({ onClose }: { onClose?: () => void
           {/* Actions */}
           <View style={{ flexDirection: 'row', gap: 10, marginBottom: 32, flexWrap: 'wrap' }}>
             <TouchableOpacity
-              onPress={() => router.push('/(app)/add-funds?wallet=stealf')}
+              onPress={() => router.push('/(app)/receive-private')}
               activeOpacity={0.7}
               accessibilityRole="button"
               accessibilityLabel="Receive crypto"
               style={{
                 flex: 1,
                 minWidth: '22%',
-                backgroundColor: 'rgba(255,255,255,0.08)',
+                backgroundColor: '#7C3AED',
                 borderRadius: 14,
                 borderCurve: 'continuous',
                 paddingVertical: 16,
                 alignItems: 'center',
               }}
             >
-              <DepositIcon width={16} height={16} />
-              <Text style={{ color: '#fff', fontSize: 13, fontFamily: 'Sansation-Bold', marginTop: 6 }}>Receive</Text>
+              <TabBottomIcon width={16} height={16} color="#000100" />
+              <Text style={{ color: '#000100', fontSize: 13, fontFamily: 'Sansation-Bold', marginTop: 6 }}>Receive</Text>
             </TouchableOpacity>
 
             <TouchableOpacity
@@ -97,25 +110,6 @@ export default function ShieldedDetailScreen({ onClose }: { onClose?: () => void
             >
               <ArrowIcon width={16} height={16} style={{ opacity: 0.35 }} />
               <Text style={{ color: 'rgba(255,255,255,0.35)', fontSize: 13, fontFamily: 'Sansation-Bold', marginTop: 6 }}>Swap</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              onPress={() => Alert.alert('Coming Soon', 'Unshield will be available soon.')}
-              activeOpacity={0.7}
-              accessibilityRole="button"
-              accessibilityLabel="Unshield assets"
-              style={{
-                flex: 1,
-                minWidth: '22%',
-                backgroundColor: 'rgba(255,255,255,0.08)',
-                borderRadius: 14,
-                borderCurve: 'continuous',
-                paddingVertical: 16,
-                alignItems: 'center',
-              }}
-            >
-              <UnshieldIcon width={16} height={16} />
-              <Text style={{ color: '#fff', fontSize: 13, fontFamily: 'Sansation-Bold', marginTop: 6 }}>Unshield</Text>
             </TouchableOpacity>
 
           </View>
@@ -243,6 +237,166 @@ export default function ShieldedDetailScreen({ onClose }: { onClose?: () => void
             </View>
           </View>
         </ScrollView>
+      </View>
+
+      {/* Bottom Bar */}
+      <View style={{
+        position: 'absolute',
+        bottom: 0,
+        left: 0,
+        right: 0,
+        paddingHorizontal: 40,
+        paddingBottom: insets.bottom + 20,
+        paddingTop: 12,
+        gap: 10,
+      }}>
+        {/* Main buttons */}
+        <View style={{ flexDirection: 'row', gap: 10, alignItems: 'flex-end' }}>
+          {showManageOptions ? (
+            <Animated.View entering={FadeIn.duration(250)} exiting={FadeOut.duration(150)} style={{ width: '47%', gap: 10 }}>
+              <TouchableOpacity
+                onPress={() => animateAndSetManage(false)}
+                activeOpacity={0.7}
+                accessibilityRole="button"
+                accessibilityLabel="Close manage options"
+                style={{ alignSelf: 'flex-start', padding: 4, marginBottom: -4 }}
+              >
+                <CloseIcon width={16} height={16} color="rgba(255,255,255,0.5)" />
+              </TouchableOpacity>
+              <TouchableOpacity
+                onPress={() => { animateAndSetManage(false); router.push('/(app)/shield'); }}
+                activeOpacity={0.85}
+                accessibilityRole="button"
+                accessibilityLabel="Shield assets"
+                style={{
+                  backgroundColor: '#7C3AED',
+                  borderRadius: 20,
+                  borderCurve: 'continuous',
+                  paddingVertical: 18,
+                  paddingHorizontal: 20,
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}
+              >
+                <Text style={{ color: '#000100', fontSize: 17, fontFamily: 'Sansation-Bold' }}>Shield</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                onPress={() => { animateAndSetManage(false); Alert.alert('Coming Soon', 'Unshield will be available soon.'); }}
+                activeOpacity={0.85}
+                accessibilityRole="button"
+                accessibilityLabel="Unshield assets"
+                style={{
+                  backgroundColor: '#7C3AED',
+                  borderRadius: 20,
+                  borderCurve: 'continuous',
+                  paddingVertical: 18,
+                  paddingHorizontal: 20,
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}
+              >
+                <Text style={{ color: '#000100', fontSize: 17, fontFamily: 'Sansation-Bold' }}>Unshield</Text>
+              </TouchableOpacity>
+            </Animated.View>
+          ) : (
+            <Animated.View entering={FadeIn.duration(250)} exiting={FadeOut.duration(150)} style={{ width: '47%' }}>
+              <TouchableOpacity
+                onPress={() => { animateAndSetSend(false); animateAndSetManage(true); }}
+                activeOpacity={0.85}
+                accessibilityRole="button"
+                accessibilityLabel="Manage assets"
+                style={{
+                  backgroundColor: '#7C3AED',
+                  borderRadius: 20,
+                  borderCurve: 'continuous',
+                  paddingVertical: 18,
+                  paddingHorizontal: 20,
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: 40,
+                }}
+              >
+                <Text style={{ color: '#000100', fontSize: 17, fontFamily: 'Sansation-Bold' }}>Manage</Text>
+                <ShieldIcon width={18} height={18} color="#000100" />
+              </TouchableOpacity>
+            </Animated.View>
+          )}
+
+          {showSendOptions ? (
+            <Animated.View entering={FadeIn.duration(250)} exiting={FadeOut.duration(150)} style={{ width: '47%', gap: 10 }}>
+              <TouchableOpacity
+                onPress={() => animateAndSetSend(false)}
+                activeOpacity={0.7}
+                accessibilityRole="button"
+                accessibilityLabel="Close send options"
+                style={{ alignSelf: 'flex-start', padding: 4, marginBottom: -4 }}
+              >
+                <CloseIcon width={16} height={16} color="rgba(255,255,255,0.5)" />
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                onPress={() => { animateAndSetSend(false); router.push('/(app)/moove?direction=toPublic'); }}
+                activeOpacity={0.85}
+                accessibilityRole="button"
+                accessibilityLabel="Move to public wallet"
+                style={{
+                  backgroundColor: '#7C3AED',
+                  borderRadius: 20,
+                  borderCurve: 'continuous',
+                  paddingVertical: 18,
+                  paddingHorizontal: 20,
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}
+              >
+                <Text style={{ color: '#000100', fontSize: 17, fontFamily: 'Sansation-Bold' }}>Move</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                onPress={() => { animateAndSetSend(false); router.push('/(app)/send-private'); }}
+                activeOpacity={0.85}
+                accessibilityRole="button"
+                accessibilityLabel="Send to external wallet"
+                style={{
+                  backgroundColor: '#7C3AED',
+                  borderRadius: 20,
+                  borderCurve: 'continuous',
+                  paddingVertical: 18,
+                  paddingHorizontal: 20,
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}
+              >
+                <Text style={{ color: '#000100', fontSize: 17, fontFamily: 'Sansation-Bold' }}>External</Text>
+              </TouchableOpacity>
+            </Animated.View>
+          ) : (
+            <Animated.View entering={FadeIn.duration(250)} exiting={FadeOut.duration(150)} style={{ width: '47%' }}>
+              <TouchableOpacity
+                onPress={() => { animateAndSetManage(false); animateAndSetSend(true); }}
+                activeOpacity={0.85}
+                accessibilityRole="button"
+                accessibilityLabel="Private transfer"
+                style={{
+                  backgroundColor: '#7C3AED',
+                  borderRadius: 20,
+                  borderCurve: 'continuous',
+                  paddingVertical: 18,
+                  paddingHorizontal: 20,
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: 50,
+                }}
+              >
+                <Text style={{ color: '#000100', fontSize: 17, fontFamily: 'Sansation-Bold' }}>Send</Text>
+                <HiddenIcon width={18} height={18} color="#000100" />
+              </TouchableOpacity>
+            </Animated.View>
+          )}
+        </View>
       </View>
     </View>
   );

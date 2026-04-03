@@ -102,7 +102,7 @@ export default function SendPrivateScreen() {
           borderCurve: 'continuous',
           padding: 20,
         }}>
-          <Text style={{ color: 'rgba(255,255,255,0.5)', fontSize: 14, fontFamily: 'Sansation-Regular', marginBottom: 12 }}>
+          <Text style={{ color: '#7C3AED', fontSize: 14, fontFamily: 'Sansation-Regular', marginBottom: 12 }}>
             You send privately
           </Text>
 
@@ -263,7 +263,7 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   continueButton: {
-    backgroundColor: 'rgba(240, 235, 220, 0.95)',
+    backgroundColor: '#7C3AED',
     marginHorizontal: 40,
     marginTop: 24,
     paddingVertical: 18,
@@ -274,7 +274,7 @@ const styles = StyleSheet.create({
   continueText: {
     fontSize: 17,
     fontWeight: '600',
-    color: '#000',
+    color: '#fff',
     fontFamily: 'Sansation-Bold',
   },
   keyboard: {

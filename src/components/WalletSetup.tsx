@@ -16,7 +16,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { validateMnemonic } from '../services/solana/transactionsGuard';
-import ComebackIcon from '../assets/buttons/comeback.svg';
+import ChevronLeft from '../assets/buttons/chevron-left.svg';
 
 type SetupStep = 'choose' | 'importWallet' | 'showMnemonic';
 
@@ -74,8 +74,14 @@ export default function WalletSetupScreen({ onComplete, onCancel, loading, gener
       >
         {/* Back button — fixed at top */}
         {step !== 'choose' && (
-          <TouchableOpacity style={[styles.backButton, { top: insets.top + 60 }]} onPress={() => { setStep('choose'); onCancel?.(); }} activeOpacity={0.8} accessibilityRole="button" accessibilityLabel="Go back">
-            <ComebackIcon width={18} height={18} />
+          <TouchableOpacity
+            style={[styles.backButton, { top: insets.top + 60 }]}
+            onPress={() => { setStep('choose'); onCancel?.(); }}
+            activeOpacity={0.8}
+            accessibilityRole="button"
+            accessibilityLabel="Go back"
+          >
+            <ChevronLeft width={28} height={28} />
           </TouchableOpacity>
         )}
 
@@ -252,10 +258,11 @@ const styles = StyleSheet.create({
   backButton: {
     position: 'absolute',
     left: 24,
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: 'rgba(60, 60, 60, 0.9)',
+    backgroundColor: 'rgba(255,255,255,0.08)',
+    borderRadius: 14,
+    borderCurve: 'continuous',
+    paddingVertical: 14,
+    paddingHorizontal: 20,
     alignItems: 'center',
     justifyContent: 'center',
     zIndex: 10,

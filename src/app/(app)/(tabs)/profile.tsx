@@ -5,6 +5,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../../../contexts/AuthContext';
 import { useAuthenticatedApi } from '../../../hooks/api/useApi';
 import { usePager } from '../../../navigation/PagerContext';
+import { useWalletInfos } from '../../../hooks/wallet/useWalletInfos';
 
 export default function ProfileScreen() {
   const { userData, setUserData, logout } = useAuth();
@@ -16,16 +17,29 @@ export default function ProfileScreen() {
 
   const initial = username ? username.charAt(0).toUpperCase() : 'U';
 
-  const handleLogout = async () => {
-    try {
-      setUserData(null);
-      await logout();
-      navigateToPage('home');
-    } catch (error) {
-      if (__DEV__) console.error('Error logging out:', error);
-      await logout();
-      navigateToPage('home');
-    }
+  const { balance: cashBalance } = useWalletInfos(userData?.cash_wallet || '');
+  const { balance: privacyBalance } = useWalletInfos(userData?.stealf_wallet || '');
+  const netWorth = (cashBalance ?? 0) + (privacyBalance ?? 0);
+
+  const handleLogout = () => {
+    Alert.alert(
+      'Logout',
+      'Are you sure you want to logout?',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        { text: 'Logout', style: 'destructive', onPress: async () => {
+          try {
+            setUserData(null);
+            await logout();
+            navigateToPage('home');
+          } catch (error) {
+            if (__DEV__) console.error('Error logging out:', error);
+            await logout();
+            navigateToPage('home');
+          }
+        }},
+      ]
+    );
   };
 
   const handleDeleteAccount = () => {
@@ -75,11 +89,15 @@ export default function ProfileScreen() {
           <Text style={styles.userEmail}>{userEmail || 'No email provided'}</Text>
         </View>
 
-        {/* Points */}
-        <View style={styles.pointsCard}>
-          <View style={styles.pointsLeft}>
-            <Text style={styles.pointsLabel}>Stealf Points</Text>
-            <Text style={styles.pointsValue}>✦ {userData?.points ?? 0}</Text>
+        {/* Account & Net Worth */}
+        <View style={{ flexDirection: 'row', gap: 12, marginBottom: 28 }}>
+          <View style={styles.infoCard}>
+            <Text style={styles.infoCardLabel}>Stealf Points</Text>
+            <Text style={styles.infoCardValue}>✦ {userData?.points ?? 0}</Text>
+          </View>
+          <View style={styles.infoCard}>
+            <Text style={styles.infoCardLabel}>Net worth</Text>
+            <Text style={styles.infoCardValue}>${netWorth.toFixed(2)}</Text>
           </View>
         </View>
 
@@ -187,27 +205,24 @@ const styles = StyleSheet.create({
     color: 'rgba(255,255,255,0.4)',
   },
 
-  // Points
-  pointsCard: {
+  // Info Cards
+  infoCard: {
+    flex: 1,
     backgroundColor: 'rgba(255,255,255,0.04)',
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.08)',
-    padding: 16,
-    marginBottom: 28,
-  },
-  pointsLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    borderRadius: 16,
+    borderCurve: 'continuous',
+    padding: 18,
+    minHeight: 100,
     justifyContent: 'space-between',
   },
-  pointsLabel: {
-    fontSize: 14,
-    fontFamily: 'Sansation-Regular',
-    color: 'rgba(255,255,255,0.5)',
+  infoCardLabel: {
+    fontSize: 16,
+    fontFamily: 'Sansation-Bold',
+    color: 'rgba(255,255,255,0.4)',
+    marginBottom: 12,
   },
-  pointsValue: {
-    fontSize: 18,
+  infoCardValue: {
+    fontSize: 22,
     fontFamily: 'Sansation-Bold',
     color: '#ffffff',
   },

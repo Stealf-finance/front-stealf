@@ -73,7 +73,6 @@ export default function SignUpScreen(){
   const [state, dispatch] = useReducer(signUpReducer, initialState);
   const { step, email, pseudo, inviteCode, loading, error, preAuthToken } = state;
 
-  // Wrapper setters compatible with hooks that expect (value) => void
   const setStep = useCallback((s: SignUpState['step']) => dispatch({ type: 'SET_STEP', step: s }), []);
   const setLoading = useCallback((l: boolean) => dispatch({ type: 'SET_LOADING', loading: l }), []);
   const setEmail = useCallback((v: string) => dispatch({ type: 'SET_FIELD', field: 'email', value: v }), []);
