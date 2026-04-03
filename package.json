@@ -16,7 +16,7 @@
     "@coral-xyz/anchor": "^0.32.1",
     "@expo/vector-icons": "^15.0.3",
     "@radr/shadowwire": "^1.1.15",
-    "@react-native-async-storage/async-storage": "^2.2.0",
+    "@react-native-async-storage/async-storage": "^1.24.0",
     "@react-native-community/netinfo": "11.4.1",
     "@react-native-masked-view/masked-view": "^0.3.2",
     "@react-navigation/native": "^7.1.17",
@@ -70,6 +70,7 @@
     "scheduler": "^0.27.0",
     "socket.io-client": "^4.8.3",
     "text-encoding-polyfill": "^0.6.7",
+    "utf-8-validate": "^5.0.10",
     "viem": "2.33.1",
     "zod": "^3.25.76"
   },
