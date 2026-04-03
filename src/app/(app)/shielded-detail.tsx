@@ -36,7 +36,7 @@ export default function ShieldedDetailScreen({ onClose }: { onClose?: () => void
   return (
     <View style={{ flex: 1 }}>
       {/* Transparent top — navbar visible behind */}
-      <View style={{ height: insets.top + 70 }} />
+      <View style={{ height: insets.top + 40 }} />
 
       {/* Sheet */}
       <View style={{ flex: 1, backgroundColor: '#000', borderTopLeftRadius: 16, borderTopRightRadius: 16 }}>
@@ -176,7 +176,7 @@ export default function ShieldedDetailScreen({ onClose }: { onClose?: () => void
             accessibilityRole="button"
             accessibilityLabel="Jito SOL yield"
             style={{
-              backgroundColor: 'rgba(255,255,255,0.06)',
+              backgroundColor: '#7C3AED',
               borderRadius: 14,
               borderCurve: 'continuous',
               padding: 18,
@@ -186,13 +186,13 @@ export default function ShieldedDetailScreen({ onClose }: { onClose?: () => void
             }}
           >
             <View style={{ flex: 1 }}>
-              <Text style={{ color: '#fff', fontSize: 16, fontFamily: 'Sansation-Bold', marginBottom: 2 }}>Jito SOL</Text>
-              <Text style={{ color: 'rgba(255,255,255,0.4)', fontSize: 13, fontFamily: 'Sansation-Regular' }}>Up to 6% APY</Text>
+              <Text style={{ color: '#000100', fontSize: 16, fontFamily: 'Sansation-Bold', marginBottom: 2 }}>Jito SOL</Text>
+              <Text style={{ color: 'rgba(0,1,0,0.6)', fontSize: 13, fontFamily: 'Sansation-Regular' }}>Up to 6% APY</Text>
             </View>
-            <Text style={{ color: '#fff', fontSize: 16, fontFamily: 'Sansation-Bold', fontVariant: ['tabular-nums'], marginRight: 8 }}>
+            <Text style={{ color: '#000100', fontSize: 16, fontFamily: 'Sansation-Bold', fontVariant: ['tabular-nums'], marginRight: 8 }}>
               ${investmentBalance.toFixed(2)}
             </Text>
-            <Text style={{ color: 'rgba(255,255,255,0.3)', fontSize: 18 }}>›</Text>
+            <Text style={{ color: 'rgba(0,1,0,0.4)', fontSize: 18 }}>›</Text>
           </TouchableOpacity>
 
           {/* S&P 500 — coming soon */}
