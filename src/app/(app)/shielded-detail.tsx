@@ -264,7 +264,7 @@ export default function ShieldedDetailScreen({ onClose }: { onClose?: () => void
                 <CloseIcon width={16} height={16} color="rgba(255,255,255,0.5)" />
               </TouchableOpacity>
               <TouchableOpacity
-                onPress={() => { animateAndSetManage(false); router.push('/(app)/shield'); }}
+                onPress={() => { animateAndSetManage(false); Alert.alert('Coming Soon', 'Shield will be available soon.'); }}
                 activeOpacity={0.85}
                 accessibilityRole="button"
                 accessibilityLabel="Shield assets"
