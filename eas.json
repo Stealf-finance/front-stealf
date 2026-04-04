@@ -14,7 +14,12 @@
         "buildType": "apk"
       },
       "env": {
-        "SENTRY_DISABLE_AUTO_UPLOAD": "true"
+        "SENTRY_DISABLE_AUTO_UPLOAD": "true",
+        "EXPO_PUBLIC_ORGANIZATION_ID": "287a3940-612f-4472-b94f-faf8971748ee",
+        "EXPO_PUBLIC_AUTH_PROXY_CONFIG_ID": "276b73eb-f1e6-41ef-ab2b-5c0f783a194a",
+        "EXPO_PUBLIC_API_URL": "https://api.stealf.xyz",
+        "EXPO_PUBLIC_SOLANA_RPC_URL": "https://api.devnet.solana.com",
+        "EXPO_PUBLIC_SOLANA_WSS_URL": "wss://api.devnet.solana.com"
       }
     },
     "production": {
