@@ -1,5 +1,5 @@
 rust:
-  directory: /Users/thomasgaugain/Documents/STEALF/front-stealf/steal
+  directory: /Users/thomasgaugain/Documents/STEALF/front-stealf/modules/mopro-ffi
   manifestPath: Cargo.toml
 
 android:
