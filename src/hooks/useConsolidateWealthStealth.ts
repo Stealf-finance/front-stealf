@@ -14,7 +14,7 @@
 
 import { useState, useCallback } from 'react';
 import { Connection } from '@solana/web3.js';
-import { useAuthenticatedApi } from '../services/clientStealf';
+import { useAuthenticatedApi } from '../services/api/clientStealf';
 import { useAuth } from '../contexts/AuthContext';
 import { signSpendTransaction } from '../services/stealthCrypto';
 import { WealthStealthPayment } from './useWealthStealthBalance';

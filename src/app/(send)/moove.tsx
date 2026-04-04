@@ -75,6 +75,8 @@ export default function MooveScreen({ onBack, direction: initialDirection = 'toC
   const arrowRotation = useRef(new Animated.Value(initialDirection === 'toCash' ? 1 : 0)).current;
 
   const [localLoading, setLocalLoading] = useState(false);
+  const [fundSource, setFundSource] = useState<'visible' | 'hidden'>('visible');
+  const hiddenBalance = 0; // Umbra — wired later
 
   const { userData } = useAuth();
   const { balance: cashBalance } = useWalletInfos(userData?.cash_wallet || '');
@@ -242,10 +244,12 @@ export default function MooveScreen({ onBack, direction: initialDirection = 'toC
     );
   }
 
+  const bgColor = direction === 'toCash' ? '#252540' : '#000000';
+
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: bgColor }]}>
       <LinearGradient
-        colors={['#000000', '#000000', '#000000']}
+        colors={['transparent', 'transparent', 'transparent']}
         locations={[0, 0.5, 1]}
         start={{ x: 0, y: 1 }}
         end={{ x: 0, y: 0 }}
@@ -264,15 +268,15 @@ export default function MooveScreen({ onBack, direction: initialDirection = 'toC
 
         {/* Wallet Cards */}
         <View style={styles.cardsContainer}>
-          {/* Wealth — always on top */}
+          {/* Public — always on top */}
           <View style={styles.walletCard}>
             <View style={styles.cardRow}>
               <View>
-                <Text style={styles.cardLabel}>Wealth</Text>
-                <Text style={styles.cardBalance}>{formatBalance(privacyBalance)}</Text>
+                <Text style={styles.cardLabel}>Public</Text>
+                <Text style={styles.cardBalance}>{formatBalance(45.89)}</Text>
               </View>
               <Text style={[styles.cardAmount, amount ? styles.cardAmountActive : null]}>
-                {wealthDelta}{amount || '0'}
+                {cashDelta}{amount || '0'}
               </Text>
             </View>
           </View>
@@ -283,7 +287,7 @@ export default function MooveScreen({ onBack, direction: initialDirection = 'toC
               transform: [{
                 rotate: arrowRotation.interpolate({
                   inputRange: [0, 1],
-                  outputRange: ['0deg', '180deg'],
+                  outputRange: ['180deg', '0deg'],
                 }),
               }],
             }}>
@@ -291,15 +295,35 @@ export default function MooveScreen({ onBack, direction: initialDirection = 'toC
             </Animated.View>
           </TouchableOpacity>
 
-          {/* Cash — always on bottom */}
+          {/* Private — always on bottom */}
           <View style={styles.walletCard}>
+            {direction === 'toCash' && (
+              <View style={styles.sourceSelector}>
+                <TouchableOpacity
+                  style={[styles.sourceTab, fundSource === 'visible' && styles.sourceTabActive]}
+                  onPress={() => setFundSource('visible')}
+                  activeOpacity={0.7}
+                >
+                  <Text style={[styles.sourceTabText, fundSource === 'visible' && styles.sourceTabTextActive]}>Visible</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[styles.sourceTab, fundSource === 'hidden' && styles.sourceTabActive]}
+                  onPress={() => setFundSource('hidden')}
+                  activeOpacity={0.7}
+                >
+                  <Text style={[styles.sourceTabText, fundSource === 'hidden' && styles.sourceTabTextActive]}>Hidden</Text>
+                </TouchableOpacity>
+              </View>
+            )}
             <View style={styles.cardRow}>
               <View>
-                <Text style={styles.cardLabel}>Cash</Text>
-                <Text style={styles.cardBalance}>{formatBalance(cashBalance)}</Text>
+                <Text style={styles.cardLabel}>{direction === 'toCash' ? (fundSource === 'visible' ? 'Visible' : 'Hidden') : 'Private'}</Text>
+                <Text style={styles.cardBalance}>
+                  {formatBalance(fundSource === 'hidden' && direction === 'toCash' ? hiddenBalance : privacyBalance)}
+                </Text>
               </View>
               <Text style={[styles.cardAmount, amount ? styles.cardAmountActive : null]}>
-                {cashDelta}{amount || '0'}
+                {wealthDelta}{amount || '0'}
               </Text>
             </View>
           </View>
@@ -369,6 +393,32 @@ const styles = StyleSheet.create({
     paddingHorizontal: 24,
     marginTop: 8,
     marginBottom: 20,
+    gap: 12,
+  },
+  sourceSelector: {
+    flexDirection: 'row',
+    backgroundColor: 'rgba(255,255,255,0.05)',
+    borderRadius: 10,
+    padding: 3,
+    marginBottom: 14,
+  },
+  sourceTab: {
+    flex: 1,
+    paddingVertical: 8,
+    alignItems: 'center',
+    borderRadius: 8,
+  },
+  sourceTabActive: {
+    backgroundColor: 'rgba(255,255,255,0.12)',
+  },
+  sourceTabText: {
+    fontSize: 13,
+    fontFamily: 'Sansation-Regular',
+    color: 'rgba(255,255,255,0.4)',
+  },
+  sourceTabTextActive: {
+    color: '#ffffff',
+    fontFamily: 'Sansation-Bold',
   },
   walletCard: {
     backgroundColor: 'rgba(255, 255, 255, 0.06)',

@@ -19,7 +19,11 @@ import { USDC_MINT } from "../../constants/solana";
 import DepositWithdrawModal from "./DepositWithdrawModal";
 type AssetTab = "sol" | "usdc";
 
-export default function SavingsScreen() {
+interface SavingsScreenProps {
+  onBack?: () => void;
+}
+
+export default function SavingsScreen({ onBack }: SavingsScreenProps) {
   const { data: dashboard, isLoading } = useYieldDashboard();
   const { userData } = useAuth();
   const { tokens: walletTokens } = useWalletInfos(userData?.cash_wallet || "");
@@ -88,11 +92,18 @@ export default function SavingsScreen() {
 
   return (
     <View style={styles.container}>
+      {/* Back button — fixed at top */}
+      <TouchableOpacity onPress={onBack} style={styles.backButton} activeOpacity={0.7}>
+        <Ionicons name="arrow-back" size={22} color="#ffffff" />
+      </TouchableOpacity>
+
       {/* Section fixe — ne scroll pas */}
       <View style={styles.content}>
+
         {/* Header */}
         <View style={styles.header}>
-          <Text style={styles.headerSubtitle}>Earn yield on your assets</Text>
+          <Text style={styles.headerTitle}>Earn Yield</Text>
+          <Text style={styles.headerSubtitle}>Stake your SOL and earn rewards</Text>
         </View>
 
         {/* Asset Tabs */}
@@ -107,7 +118,7 @@ export default function SavingsScreen() {
           </TouchableOpacity>
           <TouchableOpacity
             style={[styles.tab, activeTab === "usdc" && styles.tabActive]}
-            onPress={() => setUsdcComingSoonVisible(true)}
+            onPress={() => { setActiveTab("usdc"); setUsdcComingSoonVisible(true); }}
           >
             <Text style={[styles.tabText, activeTab === "usdc" && styles.tabTextActive]}>
               USDC
@@ -123,7 +134,13 @@ export default function SavingsScreen() {
           <>
             {/* Balance Card */}
             <View style={styles.balanceCard}>
-              <Text style={styles.balanceLabel}>Total Value</Text>
+              <View style={styles.balanceHeader}>
+                <Text style={styles.balanceLabel}>Total Value</Text>
+                <View style={styles.jitoBadge}>
+                  <Ionicons name="trending-up" size={12} color="#4ADE80" />
+                  <Text style={styles.jitoBadgeText}>Jito • {apy?.jitoApy != null ? apy.jitoApy.toFixed(2) : "—"}% APY</Text>
+                </View>
+              </View>
               <Text style={styles.balanceAmount}>
                 {(currentBalance?.currentValue ?? 0).toFixed(decimals)} {unit}
               </Text>
@@ -160,65 +177,6 @@ export default function SavingsScreen() {
               </View>
             </View>
 
-            {/* APY Card / Protocol Selector */}
-            <View style={styles.apyCard}>
-              {activeTab === "sol" ? (
-                <>
-                  <Text style={styles.apyCardLabel}>Staking protocol</Text>
-                  <View style={styles.protocolRow}>
-                    <TouchableOpacity
-                      style={[styles.protocolItem, selectedSolVault === "sol_jito" && styles.protocolItemActive]}
-                      onPress={() => setSelectedSolVault("sol_jito")}
-                      activeOpacity={0.7}
-                    >
-                      <View style={styles.protocolHeader}>
-                        <Text style={[styles.protocolName, selectedSolVault === "sol_jito" && styles.protocolNameActive]}>
-                          Jito
-                        </Text>
-                        {selectedSolVault === "sol_jito" && (
-                          <View style={styles.protocolBadge}>
-                            <Text style={styles.protocolBadgeText}>active</Text>
-                          </View>
-                        )}
-                      </View>
-                      <Text style={[styles.protocolApy, selectedSolVault === "sol_jito" && styles.protocolApyActive]}>
-                        {apy?.jitoApy != null ? apy.jitoApy.toFixed(2) : "—"}%
-                      </Text>
-                      <Text style={styles.protocolSub}>JitoSOL</Text>
-                    </TouchableOpacity>
-
-                    <TouchableOpacity
-                      style={[styles.protocolItem, selectedSolVault === "sol_marinade" && styles.protocolItemActive]}
-                      onPress={() => setSelectedSolVault("sol_marinade")}
-                      activeOpacity={0.7}
-                    >
-                      <View style={styles.protocolHeader}>
-                        <Text style={[styles.protocolName, selectedSolVault === "sol_marinade" && styles.protocolNameActive]}>
-                          Marinade
-                        </Text>
-                        {selectedSolVault === "sol_marinade" && (
-                          <View style={styles.protocolBadge}>
-                            <Text style={styles.protocolBadgeText}>active</Text>
-                          </View>
-                        )}
-                      </View>
-                      <Text style={[styles.protocolApy, selectedSolVault === "sol_marinade" && styles.protocolApyActive]}>
-                        {apy?.marinadeApy != null ? apy.marinadeApy.toFixed(2) : "—"}%
-                      </Text>
-                      <Text style={styles.protocolSub}>mSOL</Text>
-                    </TouchableOpacity>
-                  </View>
-
-                </>
-              ) : (
-                <View style={styles.apyRow}>
-                  <View style={styles.apyItem}>
-                    <Text style={styles.apyProtocol}>Kamino Lending</Text>
-                    <Text style={styles.apyRate}>{apy?.usdcKaminoApy != null ? apy.usdcKaminoApy.toFixed(2) : "—"}%</Text>
-                  </View>
-                </View>
-              )}
-            </View>
 
             {/* Batch staking status banner */}
             {batchStatus && batchStatus.status === "pending" && (
@@ -269,27 +227,6 @@ export default function SavingsScreen() {
                 </Text>
               </TouchableOpacity>
             )}
-
-            {/* Privacy Toggle */}
-            <TouchableOpacity
-              style={[styles.privacyBar, privacyMode && styles.privacyBarActive]}
-              onPress={() => setPrivacyMode(!privacyMode)}
-              activeOpacity={0.7}
-            >
-              <View style={styles.privacyBarLeft}>
-                <Ionicons
-                  name={privacyMode ? "shield-checkmark" : "shield-outline"}
-                  size={20}
-                  color={privacyMode ? "#4ADE80" : "rgba(255,255,255,0.5)"}
-                />
-                <Text style={[styles.privacyBarTitle, privacyMode && styles.privacyBarTitleActive]}>
-                  {privacyMode ? "Private Mode" : "Standard Mode"}
-                </Text>
-              </View>
-              <View style={[styles.privacySwitch, privacyMode && styles.privacySwitchActive]}>
-                <View style={[styles.privacySwitchThumb, privacyMode && styles.privacySwitchThumbActive]} />
-              </View>
-            </TouchableOpacity>
 
             {/* Actions */}
             <View style={styles.actionsRow}>
@@ -379,18 +316,18 @@ export default function SavingsScreen() {
         visible={usdcComingSoonVisible}
         transparent
         animationType="slide"
-        onRequestClose={() => setUsdcComingSoonVisible(false)}
+        onRequestClose={() => { setUsdcComingSoonVisible(false); setActiveTab("sol"); }}
       >
         <View style={styles.csOverlay}>
           <TouchableOpacity
             style={StyleSheet.absoluteFillObject}
             activeOpacity={1}
-            onPress={() => setUsdcComingSoonVisible(false)}
+            onPress={() => { setUsdcComingSoonVisible(false); setActiveTab("sol"); }}
           />
           <View style={styles.csSheet}>
             <View style={styles.csHeader}>
               <Text style={styles.csTitle}>USDC Yield</Text>
-              <TouchableOpacity style={styles.csCloseBtn} onPress={() => setUsdcComingSoonVisible(false)} activeOpacity={0.8}>
+              <TouchableOpacity style={styles.csCloseBtn} onPress={() => { setUsdcComingSoonVisible(false); setActiveTab("sol"); }} activeOpacity={0.8}>
                 <Text style={styles.csCloseBtnText}>✕</Text>
               </TouchableOpacity>
             </View>
@@ -420,7 +357,7 @@ const styles = StyleSheet.create({
     justifyContent: 'flex-end',
   },
   csSheet: {
-    backgroundColor: '#000000',
+    backgroundColor: '#252540',
     borderTopLeftRadius: 28,
     borderTopRightRadius: 28,
     borderWidth: 1,
@@ -506,15 +443,32 @@ const styles = StyleSheet.create({
   // App styles
   container: {
     flex: 1,
-    backgroundColor: "#000000",
+    backgroundColor: "#252540",
   },
   content: {
     paddingHorizontal: 20,
-    paddingTop: 100,
+    paddingTop: 120,
     paddingBottom: 8,
   },
   header: {
     marginBottom: 20,
+  },
+  backButton: {
+    position: 'absolute',
+    top: 50,
+    left: 20,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: 'rgba(60,60,60,0.9)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: 10,
+  },
+  headerTitle: {
+    fontSize: 20,
+    fontFamily: 'Sansation-Bold',
+    color: '#ffffff',
   },
   privacyBar: {
     flexDirection: "row",
@@ -576,7 +530,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: "rgba(74,222,128,0.3)",
   },
-  headerTitle: {
+  _headerTitleOld: {
     fontSize: 28,
     fontFamily: "Sansation-Bold",
     color: "#ffffff",
@@ -586,6 +540,34 @@ const styles = StyleSheet.create({
     fontFamily: "Sansation-Regular",
     color: "rgba(255,255,255,0.5)",
     marginTop: 4,
+  },
+  sourceWallet: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    backgroundColor: "rgba(255,255,255,0.05)",
+    borderRadius: 12,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.08)",
+    flexWrap: "wrap",
+  },
+  sourceWalletText: {
+    fontSize: 13,
+    fontFamily: "Sansation-Regular",
+    color: "rgba(255,255,255,0.5)",
+    flex: 1,
+  },
+  sourceWalletBold: {
+    fontFamily: "Sansation-Bold",
+    color: "#ffffff",
+  },
+  sourceWalletBalance: {
+    fontSize: 13,
+    fontFamily: "Sansation-Bold",
+    color: "rgba(255,255,255,0.6)",
   },
   // Tabs
   tabRow: {
@@ -624,6 +606,25 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     padding: 20,
     marginBottom: 16,
+  },
+  balanceHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+  },
+  jitoBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    backgroundColor: "rgba(74,222,128,0.08)",
+    borderRadius: 8,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+  },
+  jitoBadgeText: {
+    fontSize: 11,
+    fontFamily: "Sansation-Bold",
+    color: "#4ADE80",
   },
   balanceLabel: {
     fontSize: 14,
@@ -683,6 +684,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     justifyContent: "center",
     gap: 40,
+    marginTop: 12,
     marginBottom: 12,
   },
   actionButton: {

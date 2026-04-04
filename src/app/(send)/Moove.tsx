@@ -21,7 +21,7 @@ import { useSendTransaction } from '../../hooks/useSendSimpleTransaction';
 import { useStealthAddress } from '../../hooks/useStealthAddress';
 import { useStealthTransfer } from '../../hooks/useStealthTransfer';
 import { useCashStealthAddress } from '../../hooks/useCashStealthAddress';
-import { useAuthenticatedApi } from '../../services/clientStealf';
+import { useAuthenticatedApi } from '../../services/api/clientStealf';
 import { Keypair, VersionedTransaction } from '@solana/web3.js';
 import { SOL_MINT } from '../../constants/solana';
 import * as SecureStore from 'expo-secure-store';
@@ -297,10 +297,12 @@ export default function MooveScreen({ onBack, direction = 'toCash' }: MooveScree
     }
   };
 
+  const bgColor = direction === 'toCash' ? '#252540' : '#000000';
+
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: bgColor }]}>
       <LinearGradient
-        colors={['#000000', '#000000', '#000000']}
+        colors={['transparent', 'transparent', 'transparent']}
         locations={[0, 0.5, 1]}
         start={{ x: 0, y: 1 }}
         end={{ x: 0, y: 0 }}
@@ -484,7 +486,7 @@ export default function MooveScreen({ onBack, direction = 'toCash' }: MooveScree
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#000',
+    backgroundColor: 'transparent',
   },
   background: {
     flex: 1,

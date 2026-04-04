@@ -1,5 +1,5 @@
 import { useState, useCallback } from 'react';
-import { useAuthenticatedApi } from '../services/clientStealf';
+import { useAuthenticatedApi } from '../services/api/clientStealf';
 import { useAuth } from '../contexts/AuthContext';
 
 export const SOL_MINT = 'So11111111111111111111111111111111111111112';

@@ -1,5 +1,5 @@
-import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator } from 'react-native';
+import React, { useState } from 'react';
+import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator, Alert } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../../contexts/AuthContext';
 import { useWalletInfos } from '../../hooks/wallet/useWalletInfos';
@@ -40,8 +40,18 @@ export default function BalanceCardPrivacy({
   const { data: yieldBalance } = useYieldBalance();
 
   const visibleBalance = balance || 0;
-  const hiddenBalance = 0; // Umbra — wired later
+  const [hiddenBalance, setHiddenBalance] = useState(0);
+  const [isHiding, setIsHiding] = useState(false);
   const totalBalance = visibleBalance + hiddenBalance;
+
+  const handleAddHidden = async () => {
+    setIsHiding(true);
+    // Simulate transaction delay
+    await new Promise(r => setTimeout(r, 2000));
+    setHiddenBalance(prev => prev + 0.5);
+    setIsHiding(false);
+    Alert.alert('Success', '0.5 SOL moved to Hidden balance');
+  };
 
   return (
     <View style={styles.container}>
@@ -70,14 +80,14 @@ export default function BalanceCardPrivacy({
           <View style={styles.iconContainer}>
             <MooveIcon />
           </View>
-          <Text style={styles.actionText}>Transfer</Text>
+          <Text style={styles.actionText}>Moove</Text>
         </TouchableOpacity>
 
-        <TouchableOpacity style={styles.actionButton} onPress={onWithdraw} activeOpacity={0.7}>
+        <TouchableOpacity style={styles.actionButton} onPress={onGrow} activeOpacity={0.7}>
           <View style={styles.iconContainer}>
-            <SendIcon />
+            <Ionicons name="trending-up" size={22} color="#ffffff" />
           </View>
-          <Text style={styles.actionText}>Send</Text>
+          <Text style={styles.actionText}>Earn</Text>
         </TouchableOpacity>
 
         <TouchableOpacity style={styles.actionButton} onPress={onMore} activeOpacity={0.7}>
@@ -88,115 +98,60 @@ export default function BalanceCardPrivacy({
         </TouchableOpacity>
       </View>
 
-      {/* Balance breakdown */}
-      <View style={styles.breakdown}>
-        {/* Visible row */}
-        <View style={styles.breakdownRow}>
-          <View style={styles.breakdownLeft}>
-            <Ionicons name="eye-outline" size={15} color="rgba(255,255,255,0.5)" />
-            <View>
-              <Text style={styles.breakdownLabel}>Visible</Text>
-              <Text style={styles.breakdownSub}>Your balance on the blockchain</Text>
-            </View>
+      {/* Balance breakdown — vertical cards */}
+      <View style={styles.breakdownCards}>
+        {/* Visible card */}
+        <View style={styles.breakdownCard}>
+          <View style={styles.cardHeader}>
+            <Ionicons name="eye-outline" size={18} color="rgba(255,255,255,0.6)" />
+            <Text style={styles.cardTitle}>Visible</Text>
           </View>
-          <Text style={styles.breakdownAmount}>
+          <Text style={styles.cardAmount}>
             {balanceError ? '$0.00' : `$${visibleBalance.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
           </Text>
+          <Text style={styles.cardDescription}>Your balance on the blockchain</Text>
         </View>
 
-        <View style={styles.separator} />
-
-        {/* Hidden row */}
-        <View style={styles.breakdownRowHidden}>
-          <View style={styles.breakdownRowTop}>
-            <View style={styles.breakdownLeft}>
-              <Ionicons name="eye-off-outline" size={15} color="rgba(255,255,255,0.5)" />
-              <View>
-                <Text style={styles.breakdownLabel}>Hidden</Text>
-                <Text style={styles.breakdownSub}>
-                  {hiddenBalance === 0
-                    ? 'Add funds to make them invisible on-chain'
-                    : 'Your funds are hidden from everyone'}
-                </Text>
-              </View>
-            </View>
-            <View style={styles.breakdownRight}>
-              <Text style={styles.breakdownAmount}>
-                ${hiddenBalance.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-              </Text>
-              {hiddenBalance > 0 ? (
-                <View style={styles.hiddenActions}>
-                  <TouchableOpacity style={styles.smallButton} onPress={onSendHidden} activeOpacity={0.7}>
-                    <Text style={styles.smallButtonText}>Send</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity style={styles.smallButton} onPress={onReveal} activeOpacity={0.7}>
-                    <Text style={styles.smallButtonText}>Withdraw</Text>
-                  </TouchableOpacity>
-                </View>
-              ) : (
-                <TouchableOpacity style={styles.addButton} onPress={onHide} activeOpacity={0.8}>
-                  <Ionicons name="add" size={16} color="rgba(255,255,255,0.8)" />
-                  <Text style={styles.addButtonText}>Add</Text>
+        {/* Hidden card */}
+        <View style={styles.breakdownCard}>
+          <View style={styles.cardHeader}>
+            <Ionicons name="eye-off-outline" size={18} color="rgba(255,255,255,0.6)" />
+            <Text style={styles.cardTitle}>Hidden</Text>
+          </View>
+          <Text style={styles.cardAmount}>
+            ${hiddenBalance.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+          </Text>
+          <Text style={styles.cardDescription}>
+            {hiddenBalance === 0
+              ? 'Add funds to enable hidden transactions and hidden balance'
+              : 'Your balance and transactions are hidden from everyone'}
+          </Text>
+          <View style={styles.cardActions}>
+            {hiddenBalance > 0 ? (
+              <>
+                <TouchableOpacity style={styles.cardButton} onPress={onSendHidden} activeOpacity={0.7}>
+                  <Text style={styles.cardButtonText}>Send</Text>
                 </TouchableOpacity>
-              )}
-            </View>
-          </View>
-
-        </View>
-      </View>
-
-      {/* Grow section */}
-      <View style={styles.growSection}>
-        <Text style={styles.growTitle}>Grow</Text>
-
-        <TouchableOpacity style={styles.growCard} activeOpacity={0.8} onPress={onGrow}>
-          <View style={styles.growCardLeft}>
-            <View style={styles.growIconCircle}>
-              <Ionicons name="trending-up" size={20} color="#FFFFFF" />
-            </View>
-            <View>
-              <Text style={styles.growCardTitle}>Jito SOL</Text>
-              <Text style={styles.growCardSub}>Up to 6% APY</Text>
-            </View>
-          </View>
-          <View style={styles.growCardRight}>
-            <Text style={styles.growCardBalance}>
-              {yieldBalance != null ? `${yieldBalance.toFixed(2)} SOL` : '—'}
-            </Text>
-            <Ionicons name="chevron-forward" size={18} color="rgba(255,255,255,0.4)" />
-          </View>
-        </TouchableOpacity>
-
-        <View style={[styles.growCard, styles.growCardDisabled]}>
-          <View style={styles.growCardLeft}>
-            <View style={styles.growIconCircle}>
-              <Ionicons name="bar-chart" size={20} color="rgba(255,255,255,0.3)" />
-            </View>
-            <View>
-              <Text style={[styles.growCardTitle, styles.growCardTitleDisabled]}>S&P 500</Text>
-              <Text style={styles.growCardSub}>Coming soon</Text>
-            </View>
-          </View>
-          <View style={styles.comingSoonBadge}>
-            <Text style={styles.comingSoonText}>Soon</Text>
-          </View>
-        </View>
-
-        <View style={[styles.growCard, styles.growCardDisabled]}>
-          <View style={styles.growCardLeft}>
-            <View style={styles.growIconCircle}>
-              <Ionicons name="diamond" size={20} color="rgba(255,255,255,0.3)" />
-            </View>
-            <View>
-              <Text style={[styles.growCardTitle, styles.growCardTitleDisabled]}>Gold</Text>
-              <Text style={styles.growCardSub}>Coming soon</Text>
-            </View>
-          </View>
-          <View style={styles.comingSoonBadge}>
-            <Text style={styles.comingSoonText}>Soon</Text>
+                <TouchableOpacity style={styles.cardButton} onPress={onReveal} activeOpacity={0.7}>
+                  <Text style={styles.cardButtonText}>Withdraw</Text>
+                </TouchableOpacity>
+              </>
+            ) : (
+              <TouchableOpacity style={styles.cardButtonAdd} onPress={handleAddHidden} activeOpacity={0.8} disabled={isHiding}>
+                {isHiding ? (
+                  <ActivityIndicator size="small" color="rgba(255,255,255,0.8)" />
+                ) : (
+                  <>
+                    <Ionicons name="add" size={18} color="rgba(255,255,255,0.9)" />
+                    <Text style={styles.cardButtonAddText}>Add</Text>
+                  </>
+                )}
+              </TouchableOpacity>
+            )}
           </View>
         </View>
       </View>
+
     </View>
   );
 }
@@ -227,17 +182,16 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 28,
-    paddingHorizontal: 10,
+    marginBottom: 20,
   },
   actionButton: {
     alignItems: 'center',
     gap: 8,
   },
   iconContainer: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
+    width: 54,
+    height: 54,
+    borderRadius: 27,
     backgroundColor: 'rgba(255, 255, 255, 0.1)',
     justifyContent: 'center',
     alignItems: 'center',
@@ -247,6 +201,70 @@ const styles = StyleSheet.create({
     color: 'rgba(255, 255, 255, 0.8)',
     fontSize: 12,
     fontFamily: 'Sansation-Regular',
+  },
+  breakdownCards: {
+    gap: 12,
+    marginBottom: 28,
+  },
+  breakdownCard: {
+    flex: 1,
+    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.08)',
+    padding: 16,
+  },
+  cardHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 10,
+  },
+  cardTitle: {
+    color: '#ffffff',
+    fontSize: 16,
+    fontFamily: 'Sansation-Bold',
+  },
+  cardAmount: {
+    color: '#ffffff',
+    fontSize: 24,
+    fontFamily: 'Sansation-Bold',
+    marginBottom: 4,
+  },
+  cardDescription: {
+    color: 'rgba(255,255,255,0.4)',
+    fontSize: 13,
+    fontFamily: 'Sansation-Regular',
+  },
+  cardActions: {
+    flexDirection: 'row',
+    gap: 10,
+    marginTop: 14,
+  },
+  cardButton: {
+    backgroundColor: 'rgba(255,255,255,0.1)',
+    paddingHorizontal: 18,
+    paddingVertical: 10,
+    borderRadius: 10,
+  },
+  cardButtonText: {
+    color: 'rgba(255,255,255,0.8)',
+    fontSize: 14,
+    fontFamily: 'Sansation-Bold',
+  },
+  cardButtonAdd: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: 'rgba(255,255,255,0.1)',
+    paddingHorizontal: 18,
+    paddingVertical: 10,
+    borderRadius: 10,
+  },
+  cardButtonAddText: {
+    color: 'rgba(255,255,255,0.9)',
+    fontSize: 14,
+    fontFamily: 'Sansation-Bold',
   },
   breakdown: {
     backgroundColor: 'rgba(255, 255, 255, 0.05)',

@@ -21,6 +21,7 @@ interface TransactionHistoryProps {
   style?: any;
   walletType?: 'cash' | 'privacy';
   compact?: boolean;
+  scrollable?: boolean;
 }
 
 export default function TransactionHistory({
@@ -28,6 +29,7 @@ export default function TransactionHistory({
   style,
   walletType = 'cash',
   compact = false,
+  scrollable = false,
 }: TransactionHistoryProps) {
 
   const { userData } = useAuth();
@@ -152,8 +154,9 @@ export default function TransactionHistory({
   if (isCompactMode) {
     return (
       <ScrollView
-        style={[styles.compactContainer, style]}
+        style={[styles.compactContainer, scrollable && { maxHeight: 200 }, style]}
         showsVerticalScrollIndicator={false}
+        nestedScrollEnabled={true}
         refreshControl={
           <RefreshControl
             refreshing={refreshing}

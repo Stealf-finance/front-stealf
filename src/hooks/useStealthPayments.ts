@@ -10,7 +10,7 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { Connection } from '@solana/web3.js';
-import { useAuthenticatedApi } from '../services/clientStealf';
+import { useAuthenticatedApi } from '../services/api/clientStealf';
 import { signSpendTransaction } from '../services/stealthCrypto';
 
 const RPC_ENDPOINT = process.env.EXPO_PUBLIC_SOLANA_RPC_URL || '';

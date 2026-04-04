@@ -40,7 +40,8 @@ export const RevolutPager = forwardRef<RevolutPagerRef, RevolutPagerProps>(({
   translateXShared,
 }, ref) => {
   const count = pages.length;
-  const translateX = translateXShared || useSharedValue(-initialIndex * width);
+  const internalTranslateX = useSharedValue(-initialIndex * width);
+  const translateX = translateXShared || internalTranslateX;
   const index = useSharedValue(initialIndex);
 
   useImperativeHandle(ref, () => ({
@@ -121,22 +122,8 @@ export const RevolutPager = forwardRef<RevolutPagerRef, RevolutPagerProps>(({
             );
 
             return {
-              opacity: interpolate(
-                progress,
-                [0, 1],
-                [1, 0.92],
-                Extrapolate.CLAMP
-              ),
-              transform: [
-                {
-                  scale: interpolate(
-                    progress,
-                    [0, 1],
-                    [1, 0.98],
-                    Extrapolate.CLAMP
-                  ),
-                },
-              ],
+              opacity: 1,
+              transform: [{ scale: 1 }],
             };
           });
 

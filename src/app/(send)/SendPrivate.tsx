@@ -77,7 +77,7 @@ export default function SendScreen({ onBack, transferType }: SendScreenProps) {
   return (
     <View style={styles.container}>
       <LinearGradient
-        colors={['#000000', '#000000', '#000000']}
+        colors={['transparent', 'transparent', 'transparent']}
         locations={[0, 0.5, 1]}
         start={{ x: 0, y: 1 }}
         end={{ x: 0, y: 0 }}

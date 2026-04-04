@@ -47,19 +47,6 @@ export default function MinimalNavBar({
         </Text>
       </TouchableOpacity>
 
-      {/* Savings */}
-      <TouchableOpacity
-        onPress={() => onNavigateToPage('savings')}
-        activeOpacity={0.7}
-      >
-        <Text style={[
-          styles.navText,
-          currentPage === 'savings' && styles.navTextActive
-        ]}>
-          Savings
-        </Text>
-      </TouchableOpacity>
-
       {/* Points badge */}
       <View style={styles.pointsBadge}>
         <Text style={styles.pointsBadgeText}>✦ {points}</Text>

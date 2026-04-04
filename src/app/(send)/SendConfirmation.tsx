@@ -17,7 +17,7 @@ import ComebackIcon from '../../assets/buttons/comeback.svg';
 import { useFonts } from 'expo-font';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useQueryClient } from '@tanstack/react-query';
-import { useSendTransaction } from '../../hooks/useSendSimpleTransaction';
+import { useSendTransaction } from '../../hooks/transactions/useSendSimpleTransaction';
 import { useStealthTransfer } from '../../hooks/useStealthTransfer';
 import { useAuth } from '../../contexts/AuthContext';
 import * as Clipboard from 'expo-clipboard';
@@ -145,7 +145,7 @@ export default function SendConfirmation({ amount, token, onBack, onClose, onSuc
   return (
     <View style={styles.container}>
       <LinearGradient
-        colors={['#000000', '#000000', '#000000']}
+        colors={['transparent', 'transparent', 'transparent']}
         locations={[0, 0.5, 1]}
         start={{ x: 0, y: 1 }}
         end={{ x: 0, y: 0 }}

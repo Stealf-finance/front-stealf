@@ -6,7 +6,7 @@
  */
 
 import { useState, useEffect, useCallback } from 'react';
-import { useAuthenticatedApi } from '../services/clientStealf';
+import { useAuthenticatedApi } from '../services/api/clientStealf';
 
 export interface WealthStealthPayment {
   _id: string;

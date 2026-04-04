@@ -1,5 +1,6 @@
 import React, { useCallback } from 'react';
 import { View, Text, StyleSheet, ActivityIndicator } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import Animated, {
   useSharedValue,
@@ -97,7 +98,7 @@ export default function SlideToConfirm({ onConfirm, loading, label = 'Slide to c
           {loading ? (
             <ActivityIndicator color="#000" size="small" />
           ) : (
-            <Text style={styles.arrow}>{'\u2192'}</Text>
+            <Ionicons name="arrow-forward" size={22} color="#000" />
           )}
         </Animated.View>
       </GestureDetector>

@@ -12,7 +12,7 @@ import { useState, useCallback } from 'react';
 import * as SecureStore from 'expo-secure-store';
 import { Connection } from '@solana/web3.js';
 import { useTurnkey } from '@turnkey/react-native-wallet-kit';
-import { useAuthenticatedApi } from '../services/clientStealf';
+import { useAuthenticatedApi } from '../services/api/clientStealf';
 import { useAuth } from '../contexts/AuthContext';
 import { useSession } from '../contexts/SessionContext';
 import { createSeedVaultWallet } from '../services/solanaWalletBridge';

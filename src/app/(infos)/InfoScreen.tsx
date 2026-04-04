@@ -38,7 +38,7 @@ export default function InfoScreen({ onBack, source }: InfoScreenProps) {
 
   return (
       <LinearGradient
-            colors={['#000000', '#000000', '#000000']}
+            colors={[source === 'privacy' ? '#252540' : '#000000', source === 'privacy' ? '#252540' : '#000000', source === 'privacy' ? '#252540' : '#000000']}
             locations={[0, 0.5, 1]}
             start={{ x: 0, y: 1 }}
             end={{ x: 0, y: 0 }}

@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator, Image, Animated, Modal } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../../contexts/AuthContext';
 import { useWalletInfos } from '../../hooks/wallet/useWalletInfos';
 import { useCashStealthBalance } from '../../hooks/useCashStealthBalance';
@@ -19,6 +20,7 @@ interface CashBalanceCardProps {
   onMoove?: () => void;
   onSend?: () => void;
   onSwap?: () => void;
+  onYield?: () => void;
 }
 
 export default function CashBalanceCard({
@@ -26,6 +28,7 @@ export default function CashBalanceCard({
   onMoove,
   onSend,
   onSwap,
+  onYield,
 }: CashBalanceCardProps) {
 
   const { userData } = useAuth();
@@ -103,35 +106,19 @@ export default function CashBalanceCard({
     <View style={styles.container}>
       {/* Balance */}
       <View style={styles.totalSection}>
-        <TouchableOpacity onPress={() => setDisplayMode(m => m === 'usd' ? 'sol' : m === 'sol' ? 'usdc' : 'usd')} activeOpacity={0.7}>
+        <Text style={styles.totalLabel}>Public Wallet</Text>
+        <View>
           {isLoadingBalance ? (
             <ActivityIndicator size="small" color="#ffffff" style={{ marginBottom: 8 }} />
           ) : balanceError ? (
             <Text style={styles.totalAmount}>—</Text>
           ) : (
             <Text style={styles.totalAmount}>
-              {getBalanceParts().int}
-              <Text style={styles.totalAmountDecimals}>.{getBalanceParts().dec}</Text>
-              <Text style={styles.totalAmountSymbol}> {getBalanceParts().symbol}</Text>
+              ${(balance || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
             </Text>
           )}
-        </TouchableOpacity>
-
-        {/* Pills selector */}
-        <View style={styles.pillsRow}>
-          {MODES.map(m => (
-            <TouchableOpacity
-              key={m.key}
-              style={[styles.pill, displayMode === m.key && styles.pillActive]}
-              onPress={() => setDisplayMode(m.key)}
-              activeOpacity={0.7}
-            >
-              <Text style={[styles.pillText, displayMode === m.key && styles.pillTextActive]}>
-                {m.label}
-              </Text>
-            </TouchableOpacity>
-          ))}
         </View>
+
       </View>
 
       {/* Stealth UTXOs indicator — visible seulement si stealthBalance > 0 ou success en cours */}
@@ -211,38 +198,6 @@ export default function CashBalanceCard({
         </TouchableOpacity>
       </View>
 
-      {/* Cards Section */}
-      <View style={styles.cardsSection}>
-        <Text style={styles.cardsTitle}>Cards</Text>
-        <TouchableOpacity style={styles.cardItem} activeOpacity={0.85} onPress={handleCardPress}>
-          <Image
-            source={require('../../assets/stealf-card.png')}
-            style={styles.cardImage}
-            resizeMode="contain"
-          />
-        </TouchableOpacity>
-        <Modal transparent visible={showComingSoon} animationType="none" onRequestClose={closeComingSoon}>
-          <TouchableOpacity style={styles.csOverlay} activeOpacity={1} onPress={closeComingSoon}>
-            <TouchableOpacity activeOpacity={1} onPress={e => e.stopPropagation()}>
-              <Animated.View style={[styles.csCard, {
-                opacity: comingSoonAnim,
-                transform: [{ scale: comingSoonAnim.interpolate({ inputRange: [0, 1], outputRange: [0.85, 1] }) }],
-              }]}>
-                <Image
-                  source={require('../../assets/logo-transparent.png')}
-                  style={styles.csLogo}
-                  resizeMode="contain"
-                />
-                <Text style={styles.csTitle}>Coming Soon</Text>
-                <Text style={styles.csMessage}>Card management is on its way.{'\n'}Stay tuned for the next update.</Text>
-                <TouchableOpacity style={styles.csButton} onPress={closeComingSoon} activeOpacity={0.8}>
-                  <Text style={styles.csButtonText}>Got it</Text>
-                </TouchableOpacity>
-              </Animated.View>
-            </TouchableOpacity>
-          </TouchableOpacity>
-        </Modal>
-      </View>
     </View>
   );
 }
@@ -254,7 +209,13 @@ const styles = StyleSheet.create({
     paddingVertical: 20,
   },
   totalSection: {
-    marginBottom: 48,
+    marginBottom: 8,
+  },
+  totalLabel: {
+    color: 'rgba(255, 255, 255, 0.5)',
+    fontSize: 14,
+    fontFamily: 'Sansation-Regular',
+    marginBottom: 4,
   },
   totalAmountDecimals: {
     fontSize: 28,
@@ -321,6 +282,42 @@ const styles = StyleSheet.create({
     width: '100%',
     height: '100%',
     resizeMode: 'contain',
+  },
+  yieldSection: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: 'rgba(255,255,255,0.05)',
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.08)',
+    padding: 16,
+    marginTop: 8,
+  },
+  yieldLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    flex: 1,
+  },
+  yieldIconCircle: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: 'rgba(74,222,128,0.12)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  yieldTitle: {
+    color: '#ffffff',
+    fontSize: 15,
+    fontFamily: 'Sansation-Bold',
+  },
+  yieldSub: {
+    color: 'rgba(255,255,255,0.4)',
+    fontSize: 12,
+    fontFamily: 'Sansation-Regular',
+    marginTop: 2,
   },
   actionsRow: {
     flexDirection: 'row',

@@ -45,7 +45,7 @@ export default function ProfileScreen({ onBack, onNavigateToPage, onLogout, curr
 
   return (
     <View style={styles.container}>
-      <LinearGradient colors={['#000000', '#000000', '#000000']} style={styles.background}>
+      <LinearGradient colors={['transparent', 'transparent', 'transparent']} style={styles.background}>
 
         {/* Profile Header */}
         <View style={styles.profileHeader}>

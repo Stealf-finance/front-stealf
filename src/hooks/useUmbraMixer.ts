@@ -12,7 +12,7 @@
  */
 
 import { Keypair } from '@solana/web3.js';
-import { useAuthenticatedApi } from '../services/clientStealf';
+import { useAuthenticatedApi } from '../services/api/clientStealf';
 
 export interface UmbraDepositParams {
   fromWallet: 'cash' | 'wealth';
