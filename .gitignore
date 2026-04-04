@@ -1,6 +1,7 @@
 node_modules/
 ios/
 android/
+!modules/**/android/
 .expo/
 dist/
 *.tgz

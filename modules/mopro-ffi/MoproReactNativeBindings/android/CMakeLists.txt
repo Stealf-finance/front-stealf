@@ -25,6 +25,7 @@ include_directories(
 
 add_library(mopro-ffi            SHARED
     ../cpp/mopro-ffi.cpp
+    ../cpp/generated/steal.cpp
     cpp-adapter.cpp
 )
 
