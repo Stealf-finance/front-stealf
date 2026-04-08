@@ -23,7 +23,7 @@ export function useSetupWallet() {
   const handleCreateWallet = async (): Promise<SetupWalletResult> => {
     setLoading(true);
     try {
-      const mnemonic = bip39.generateMnemonic(256);
+      const mnemonic = bip39.generateMnemonic(128);
 
       const seed = await bip39.mnemonicToSeed(mnemonic);
       const { key } = derivePath("m/44'/501'/0'/0'", new Uint8Array(seed));
@@ -38,7 +38,6 @@ export function useSetupWallet() {
 
       await walletKeyCache.store(privateKey, mnemonic);
 
-      // Register on Umbra protocol (confidential balances)
       try {
         await ensureRegistered();
       } catch (err) {
@@ -73,7 +72,6 @@ export function useSetupWallet() {
 
       await walletKeyCache.store(privateKey, mnemonic);
 
-      //Register on Umbra protocol (confidential balances)
       try {
         await ensureRegistered();
       } catch (err) {

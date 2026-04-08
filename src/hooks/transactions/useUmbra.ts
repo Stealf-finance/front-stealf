@@ -8,21 +8,23 @@ import {
   getEncryptedBalanceToReceiverClaimableUtxoCreatorFunction,
   getEncryptedBalanceToSelfClaimableUtxoCreatorFunction,
   getReceiverClaimableUtxoToEncryptedBalanceClaimerFunction,
-  getSelfClaimableUtxoToEncryptedBalanceClaimerFunction,
   getEncryptedBalanceQuerierFunction,
+  getClaimableUtxoScannerFunction,
+  getBatchMerkleProofFetcher,
   getUmbraRelayer,
 } from "@umbra-privacy/sdk";
 import {
   createUserRegistrationProver,
   createCreateUtxoWithReceiverUnlockerZkProver,
   createCreateUtxoWithEphemeralUnlockerZkProver,
-  createClaimEphemeralZkProver,
   createClaimReceiverZkProver,
 } from "../../zk";
 import type { Address } from "@solana/kit";
 import bs58 from "bs58";
 import { walletKeyCache } from "../../services/cache/walletKeyCache";
-import { masterSeedStorage, umbraClearSeed } from "../../services/solana/umbraSeed";
+import { masterSeedStorage, umbraClearSeed, setActiveWallet } from "../../services/solana/umbraSeed";
+
+
 
 type UmbraClient = Awaited<ReturnType<typeof getUmbraClient>>;
 
@@ -52,8 +54,11 @@ async function getClient(): Promise<UmbraClient> {
     throw new Error("No stealf_wallet key — wallet setup required");
   }
 
-  if (cachedClient && cachedSignerKey !== privateKeyB58) {
+  setActiveWallet(privateKeyB58);
+
+  if (cachedSignerKey && cachedSignerKey !== privateKeyB58) {
     cachedClient = null;
+    registered = false;
   }
   if (cachedClient) return cachedClient;
 
@@ -61,7 +66,7 @@ async function getClient(): Promise<UmbraClient> {
   if (keyBytes.length === 64) {
     var signer = await createSignerFromPrivateKeyBytes(keyBytes);
   } else {
-    const { createKeyPairFromPrivateKeyBytes, getAddressFromPublicKey } = await import('@solana/kit');
+    const { createKeyPairFromPrivateKeyBytes } = await import('@solana/kit');
     const cryptoKeyPair = await createKeyPairFromPrivateKeyBytes(keyBytes);
     const pubKeyRaw = new Uint8Array(await crypto.subtle.exportKey('raw', cryptoKeyPair.publicKey));
     const fullKeyBytes = new Uint8Array(64);
@@ -103,6 +108,55 @@ export async function fetchEncryptedBalances(
   return fetchBalances(mints);
 }
 
+
+const BURNT_UTXOS_KEY_PREFIX = "umbra_burnt_utxos_";
+const burntUtxoIds = new Set<string>();
+let burntUtxosLoadedForKey: string | null = null;
+
+async function loadBurntUtxosForCurrentWallet(privateKeyB58: string): Promise<void> {
+  if (burntUtxosLoadedForKey === privateKeyB58) return;
+  burntUtxoIds.clear();
+  const safe = privateKeyB58.replace(/[^A-Za-z0-9._-]/g, "_");
+  const key = `${BURNT_UTXOS_KEY_PREFIX}${safe}`;
+  try {
+    const SecureStore = await import("expo-secure-store");
+    const stored = await SecureStore.getItemAsync(key);
+    if (stored) {
+      const ids: string[] = JSON.parse(stored);
+      for (const id of ids) burntUtxoIds.add(id);
+    }
+  } catch (_) {}
+  burntUtxosLoadedForKey = privateKeyB58;
+}
+
+async function persistBurntUtxos(): Promise<void> {
+  if (!burntUtxosLoadedForKey) return;
+  const safe = burntUtxosLoadedForKey.replace(/[^A-Za-z0-9._-]/g, "_");
+  const key = `${BURNT_UTXOS_KEY_PREFIX}${safe}`;
+  try {
+    const SecureStore = await import("expo-secure-store");
+    await SecureStore.setItemAsync(key, JSON.stringify(Array.from(burntUtxoIds)));
+  } catch (_) {}
+}
+
+function utxoToId(utxo: any): string {
+
+  const tree = utxo?.treeIndex?.toString?.() ?? String(utxo?.treeIndex ?? '0');
+  const leaf = utxo?.insertionIndex?.toString?.() ?? String(utxo?.insertionIndex ?? '');
+  return `${tree}:${leaf}`;
+}
+
+export async function fetchPendingClaims(): Promise<any[]> {
+  const client = await getClient();
+  if (cachedSignerKey) await loadBurntUtxosForCurrentWallet(cachedSignerKey);
+  const scan = getClaimableUtxoScannerFunction({ client });
+  // Note: U32 is internally a branded bigint in the SDK, so we must pass bigint literals.
+  const result = await scan(0n as any, 0n as any);
+  const all = result.received ?? [];
+  if (burntUtxoIds.size === 0) return all;
+  return all.filter((u: any) => !burntUtxoIds.has(utxoToId(u)));
+}
+
 let registered = false;
 
 export async function ensureRegistered(): Promise<void> {
@@ -130,8 +184,120 @@ type UmbraOp =
   | "withdraw"
   | "sendPrivate"
   | "selfShield"
-  | "claimSelf"
   | "claimReceived";
+
+export type UmbraErrorCode =
+  | "RECEIVER_NOT_REGISTERED"
+  | "INSUFFICIENT_BALANCE"
+  | "USER_NOT_REGISTERED"
+  | "VERIFYING_KEY_NOT_INITIALIZED"
+  | "RPC_ERROR"
+  | "ZK_PROOF_ERROR"
+  | "UNKNOWN";
+
+export class UmbraError extends Error {
+  code: UmbraErrorCode;
+  op: UmbraOp;
+  /** Best-effort user-facing message in English. */
+  userMessage: string;
+  /** The original SDK error for debugging. */
+  cause?: unknown;
+
+  constructor(
+    code: UmbraErrorCode,
+    op: UmbraOp,
+    rawMessage: string,
+    userMessage: string,
+    cause?: unknown
+  ) {
+    super(rawMessage);
+    this.name = "UmbraError";
+    this.code = code;
+    this.op = op;
+    this.userMessage = userMessage;
+    this.cause = cause;
+  }
+}
+
+/**
+ * Parse a raw SDK error into an `UmbraError` with a stable code + friendly message.
+ */
+function parseUmbraError(err: any, op: UmbraOp): UmbraError {
+  const causeName: string = err?.cause?.name || err?.name || "";
+  const rawMessage: string = err?.cause?.message || err?.message || `${op} failed`;
+  const simulationLogs: string[] = err?.cause?.context?.logs || [];
+
+  // Receiver is not registered on Umbra
+  if (/receiver is not registered/i.test(rawMessage)) {
+    return new UmbraError(
+      "RECEIVER_NOT_REGISTERED",
+      op,
+      rawMessage,
+      "Recipient is not a Stealf user yet. Ask them to set up their privacy wallet first.",
+      err?.cause ?? err
+    );
+  }
+
+  // Current user is not yet registered on Umbra
+  if (/user is not registered|account.*not.*initialised|not registered/i.test(rawMessage)) {
+    return new UmbraError(
+      "USER_NOT_REGISTERED",
+      op,
+      rawMessage,
+      "Your privacy wallet is not registered yet. Try again in a few seconds.",
+      err?.cause ?? err
+    );
+  }
+
+  // Global verifying key not initialized on devnet (program-side issue)
+  if (simulationLogs.some((l) => /zero_knowledge_verifying_key/i.test(l))) {
+    return new UmbraError(
+      "VERIFYING_KEY_NOT_INITIALIZED",
+      op,
+      rawMessage,
+      "Umbra protocol is not fully deployed on this network. Please contact support.",
+      err?.cause ?? err
+    );
+  }
+
+  // Insufficient balance — surface from logs or message
+  if (
+    /insufficient/i.test(rawMessage) ||
+    simulationLogs.some((l) => /insufficient (funds|lamports)/i.test(l))
+  ) {
+    return new UmbraError(
+      "INSUFFICIENT_BALANCE",
+      op,
+      rawMessage,
+      "Insufficient balance to complete this transaction.",
+      err?.cause ?? err
+    );
+  }
+
+  // Generic ZK proof error
+  if (causeName === "CryptographyError" || /zk.?proof|groth16/i.test(rawMessage)) {
+    return new UmbraError(
+      "ZK_PROOF_ERROR",
+      op,
+      rawMessage,
+      "Failed to generate the privacy proof. Please try again.",
+      err?.cause ?? err
+    );
+  }
+
+  // RPC / network
+  if (/rpc|network|fetch|timeout/i.test(rawMessage)) {
+    return new UmbraError(
+      "RPC_ERROR",
+      op,
+      rawMessage,
+      "Network error. Please check your connection and try again.",
+      err?.cause ?? err
+    );
+  }
+
+  return new UmbraError("UNKNOWN", op, rawMessage, rawMessage, err?.cause ?? err);
+}
 
 export function useUmbra() {
   const [loading, setLoading] = useState(false);
@@ -139,29 +305,22 @@ export function useUmbra() {
   const [error, setError] = useState<string | null>(null);
 
   const wrap = useCallback(
-    async <T>(op: UmbraOp, fn: () => Promise<T>): Promise<T | null> => {
+    async <T>(op: UmbraOp, fn: () => Promise<T>): Promise<T> => {
       setLoading(true);
       setCurrentOp(op);
       setError(null);
       try {
         return await fn();
       } catch (err: any) {
+        const umbraErr = parseUmbraError(err, op);
         if (__DEV__) {
-          console.error(`[Umbra] ${op} failed:`, err?.message);
-          if (err?.logs) console.error(`[Umbra] tx logs:`, err.logs);
-          if (err?.cause) {
-            console.error(`[Umbra] cause:`, err.cause);
-            const ctx = err.cause?.context;
-            if (ctx?.logs) console.error(`[Umbra] simulation logs:`, ctx.logs);
-            if (ctx?.err) console.error(`[Umbra] simulation err:`, JSON.stringify(ctx.err));
-            if (ctx?.unitsConsumed != null) console.error(`[Umbra] units consumed:`, ctx.unitsConsumed);
-            try {
-              console.error(`[Umbra] full cause JSON:`, JSON.stringify(err.cause, null, 2));
-            } catch (_) {}
+          console.error(`[Umbra] ${op} failed (${umbraErr.code}):`, umbraErr.message);
+          if (err?.cause?.context?.logs) {
+            console.error(`[Umbra] simulation logs:`, err.cause.context.logs);
           }
         }
-        setError(err?.message || `${op} failed`);
-        return null;
+        setError(umbraErr.userMessage);
+        throw umbraErr;
       } finally {
         setLoading(false);
         setCurrentOp(null);
@@ -243,23 +402,6 @@ export function useUmbra() {
     [wrap]
   );
 
-  /** Claim self-created UTXOs into encrypted balance. */
-  const claimSelf = useCallback(
-    async (utxos: any[]) => {
-      return wrap("claimSelf", async () => {
-        const client = await getClient();
-        const zkProver = createClaimEphemeralZkProver();
-        const relayer = getRelayer();
-        const claimFn = getSelfClaimableUtxoToEncryptedBalanceClaimerFunction(
-          { client },
-          { zkProver: zkProver as any, relayer, fetchBatchMerkleProof: client.fetchBatchMerkleProof! }
-        );
-        return claimFn(utxos);
-      });
-    },
-    [wrap]
-  );
-
   /** Claim received UTXOs into encrypted balance. */
   const claimReceived = useCallback(
     async (utxos: any[]) => {
@@ -267,11 +409,99 @@ export function useUmbra() {
         const client = await getClient();
         const zkProver = createClaimReceiverZkProver();
         const relayer = getRelayer();
+        const fetchBatchMerkleProof = getBatchMerkleProofFetcher({ apiEndpoint: INDEXER_API });
         const claimFn = getReceiverClaimableUtxoToEncryptedBalanceClaimerFunction(
           { client },
-          { zkProver, relayer, fetchBatchMerkleProof: client.fetchBatchMerkleProof! }
+          { zkProver, relayer, fetchBatchMerkleProof }
         );
-        return claimFn(utxos);
+
+        // Make sure the persistent blacklist is loaded before any add/check
+        if (cachedSignerKey) await loadBurntUtxosForCurrentWallet(cachedSignerKey);
+
+        let result;
+        try {
+          result = await claimFn(utxos);
+        } catch (err: any) {
+          // The relayer can throw BEFORE returning a batch result when the
+          // nullifier is already burnt or reserved. In that case we don't get
+          // utxoIds in `batches` — we infer them from the input UTXOs and
+          // blacklist them so the user doesn't keep seeing this UTXO forever.
+          const msg = String(err?.message || err?.cause?.message || '');
+          if (
+            /NullifierAlreadyBurnt/i.test(msg) ||
+            /already burnt/i.test(msg) ||
+            /already reserved/i.test(msg) ||
+            /0x6d64/i.test(msg)
+          ) {
+            let blacklistChanged = false;
+            for (const u of utxos) {
+              const id = utxoToId(u);
+              if (!burntUtxoIds.has(id)) {
+                burntUtxoIds.add(id);
+                blacklistChanged = true;
+              }
+            }
+            if (blacklistChanged) await persistBurntUtxos();
+            // Treat as success — these UTXOs are effectively gone
+            return { batches: new Map() };
+          }
+          throw err;
+        }
+
+        // Inspect every batch and decide what to do
+        const batches = result?.batches;
+        let anySuccess = false;
+        let anyAlreadyBurnt = false;
+        let blacklistChanged = false;
+        const otherFailures: string[] = [];
+        if (batches instanceof Map) {
+          for (const [, batch] of batches) {
+            const status = batch?.status;
+            const utxoIds = batch?.utxoIds ?? [];
+            if (status === 'completed') {
+              anySuccess = true;
+              for (const id of utxoIds) {
+                if (!burntUtxoIds.has(id)) {
+                  burntUtxoIds.add(id);
+                  blacklistChanged = true;
+                }
+              }
+              // Also blacklist via input UTXOs as a safety net (in case relayer ids don't match scan ids)
+              for (const u of utxos) {
+                const id = utxoToId(u);
+                if (!burntUtxoIds.has(id)) {
+                  burntUtxoIds.add(id);
+                  blacklistChanged = true;
+                }
+              }
+            } else if (status === 'failed' || status === 'timed_out') {
+              const reason = batch?.failureReason || '';
+              if (
+                /NullifierAlreadyBurnt/i.test(reason) ||
+                /already burnt/i.test(reason) ||
+                /0x6d64/i.test(reason)
+              ) {
+                anyAlreadyBurnt = true;
+                for (const id of utxoIds) {
+                  if (!burntUtxoIds.has(id)) {
+                    burntUtxoIds.add(id);
+                    blacklistChanged = true;
+                  }
+                }
+              } else {
+                otherFailures.push(reason || 'unknown failure');
+              }
+            }
+          }
+        }
+
+        if (blacklistChanged) await persistBurntUtxos();
+
+        if (otherFailures.length > 0 && !anySuccess && !anyAlreadyBurnt) {
+          throw new Error(otherFailures[0]);
+        }
+
+        return result;
       });
     },
     [wrap]
@@ -286,7 +516,6 @@ export function useUmbra() {
     withdraw,
     sendPrivate,
     selfShield,
-    claimSelf,
     claimReceived,
   };
 }

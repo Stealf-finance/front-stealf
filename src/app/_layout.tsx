@@ -13,6 +13,7 @@ import { TurnkeyProvider } from '@turnkey/react-native-wallet-kit';
 import { TURNKEY_CONFIG, TURNKEY_CALLBACKS } from '../constants/turnkey';
 import { AuthProvider, useAuth } from '../contexts/AuthContext';
 import { useWalletInfos } from '../hooks/wallet/useWalletInfos';
+import { usePendingClaims } from '../hooks/wallet/usePendingClaims';
 import { SplashProvider, useSplash } from '../contexts/SplashContext';
 import ErrorBoundary from '../components/ErrorBoundary';
 import { WelcomeLoader } from '../components/WelcomeLoader';
@@ -49,8 +50,9 @@ function RootNavigator() {
   const router = useRouter();
   const segments = useSegments();
 
-  // Preload ZK circuits in background (bundled + auto-download missing ones)
   usePreloadZKeysOnMount();
+
+  usePendingClaims();
 
   useEffect(() => {
     if (loading) return;

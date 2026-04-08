@@ -6,11 +6,8 @@ import { LAMPORTS_PER_SOL } from '../../services/solana/kit';
 import type { Address } from '@solana/kit';
 
 interface ShieldedBalanceResult {
-  /** Shielded SOL balance in lamports (raw bigint). */
   lamports: bigint;
-  /** Shielded SOL balance as a number (SOL units, e.g. 0.5). */
   sol: number;
-  /** State returned by Umbra: 'shared', 'mxe', 'uninitialised', etc. */
   state: string | null;
 }
 
@@ -27,6 +24,11 @@ export function useShieldedBalance() {
 
       if (entry?.state === 'shared' && typeof entry.balance === 'bigint') {
         const lamports = entry.balance as bigint;
+        // Sanity check: anything above 1B SOL is garbage (corrupted on-chain account or wrong keys)
+        const MAX_PLAUSIBLE_LAMPORTS = 1_000_000_000n * BigInt(LAMPORTS_PER_SOL);
+        if (lamports < 0n || lamports > MAX_PLAUSIBLE_LAMPORTS) {
+          return { lamports: 0n, sol: 0, state: 'corrupted' };
+        }
         return {
           lamports,
           sol: Number(lamports) / LAMPORTS_PER_SOL,

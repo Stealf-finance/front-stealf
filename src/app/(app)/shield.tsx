@@ -15,7 +15,7 @@ import { StatusBar } from 'expo-status-bar';
 import { useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import { LAMPORTS_PER_SOL, toAddress } from '../../services/solana/kit';
-import { useUmbra } from '../../hooks/transactions/useUmbra';
+import { useUmbra, UmbraError } from '../../hooks/transactions/useUmbra';
 import { Image } from 'expo-image';
 import ChevronDown from '../../assets/buttons/chevron-down.svg';
 import { useAuth } from '../../contexts/AuthContext';
@@ -39,7 +39,7 @@ export default function ShieldScreen() {
   const [showSuccess, setShowSuccess] = useState(false);
   const [transactionSignature, setTransactionSignature] = useState<string | null>(null);
 
-  const { deposit, loading, error } = useUmbra();
+  const { deposit, loading } = useUmbra();
 
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const checkScale = useRef(new Animated.Value(0)).current;
@@ -68,13 +68,9 @@ export default function ShieldScreen() {
       const amountLamports = BigInt(Math.floor(amountSOL * LAMPORTS_PER_SOL));
       const result = await deposit(toAddress(selectedAsset.mint), amountLamports);
 
-      if (!result) {
-        throw new Error(error || 'Shield failed');
-      }
-
       const sig = typeof result === 'string'
         ? result
-        : (result as any).callbackSignature || (result as any).queueSignature || '';
+        : (result as any)?.callbackSignature || (result as any)?.queueSignature || '';
       setTransactionSignature(sig);
 
       queryClient.invalidateQueries({ queryKey: ['shielded-balance'] });
@@ -89,10 +85,10 @@ export default function ShieldScreen() {
       ]).start();
     } catch (err: any) {
       if (__DEV__) console.error('[DepositPrivateCash] Shield error:', err);
-      Alert.alert(
-        'Shield Failed',
-        err.message || 'An error occurred while shielding'
-      );
+      const friendly = err instanceof UmbraError
+        ? err.userMessage
+        : (err?.message || 'An error occurred while shielding');
+      Alert.alert('Shield Failed', friendly);
     }
   };
 
@@ -134,7 +130,7 @@ export default function ShieldScreen() {
 
         {/* Header */}
         <View style={styles.header}>
-          <Text style={styles.headerTitle}>Shield</Text>
+          <Text style={styles.headerTitle}>Deposit</Text>
         </View>
 
         {/* Amount Card */}
@@ -147,7 +143,7 @@ export default function ShieldScreen() {
           padding: 20,
         }}>
           <Text style={{ color: 'rgba(255,255,255,0.5)', fontSize: 14, fontFamily: 'Sansation-Regular', marginBottom: 12 }}>
-            You shield
+            You deposit in Shielded Pool
           </Text>
 
           <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -7,8 +7,6 @@ import {
   StyleSheet,
   ActivityIndicator,
   ScrollView,
-  KeyboardAvoidingView,
-  Platform,
   Alert,
 } from 'react-native';
 import * as Clipboard from 'expo-clipboard';
@@ -31,13 +29,54 @@ interface WalletSetupScreenProps {
   generatedMnemonic?: string;
 }
 
+const WORD_COUNT = 12;
+
 export default function WalletSetupScreen({ onComplete, onCancel, loading, generatedMnemonic }: WalletSetupScreenProps) {
   const insets = useSafeAreaInsets();
   const [step, setStep] = useState<SetupStep>(generatedMnemonic ? 'showMnemonic' : 'choose');
-  const [importKey, setImportKey] = useState('');
+  const [words, setWords] = useState<string[]>(() => Array(WORD_COUNT).fill(''));
   const [importError, setImportError] = useState('');
   const [copied, setCopied] = useState(false);
+  const wordInputRefs = useRef<Array<TextInput | null>>([]);
   const clipboardTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const setWordAt = (index: number, value: string) => {
+    setWords((prev) => {
+      const next = [...prev];
+      next[index] = value;
+      return next;
+    });
+    if (importError) setImportError('');
+  };
+
+  /**
+   * Handle paste of a full mnemonic into a single input — distribute across all boxes.
+   */
+  const handleWordChange = (index: number, raw: string) => {
+    const cleaned = raw.replace(/\s+/g, ' ').trim();
+    const parts = cleaned.split(' ').filter(Boolean);
+    if (parts.length > 1) {
+      // User pasted multiple words → distribute starting from the current box
+      setWords((prev) => {
+        const next = [...prev];
+        for (let i = 0; i < parts.length && index + i < WORD_COUNT; i++) {
+          next[index + i] = parts[i].toLowerCase();
+        }
+        return next;
+      });
+      if (importError) setImportError('');
+      // Focus the next empty box, if any
+      const nextIndex = Math.min(index + parts.length, WORD_COUNT - 1);
+      wordInputRefs.current[nextIndex]?.focus();
+      return;
+    }
+    setWordAt(index, raw.toLowerCase());
+  };
+
+  const resetImport = () => {
+    setWords(Array(WORD_COUNT).fill(''));
+    setImportError('');
+  };
 
   useEffect(() => {
     if (generatedMnemonic) {
@@ -85,11 +124,12 @@ export default function WalletSetupScreen({ onComplete, onCancel, loading, gener
           </TouchableOpacity>
         )}
 
-        <KeyboardAvoidingView
-          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-          style={styles.keyboardView}
+        <ScrollView
+          contentContainerStyle={styles.content}
+          keyboardShouldPersistTaps="handled"
+          keyboardDismissMode="on-drag"
+          showsVerticalScrollIndicator={false}
         >
-        <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
 
           {/* --- Choose --- */}
           {step === 'choose' && (
@@ -144,40 +184,57 @@ export default function WalletSetupScreen({ onComplete, onCancel, loading, gener
             <>
               <Text style={styles.title}>Import Wallet</Text>
               <Text style={styles.subtitle}>
-                Enter your seed phrase to restore your wallet
+                Enter your 12-word seed phrase
               </Text>
 
-              <TextInput
-                style={styles.input}
-                placeholder="Enter your 12 or 24 word seed phrase"
-                placeholderTextColor="rgba(255, 255, 255, 0.3)"
-                value={importKey}
-                onChangeText={(text) => { setImportKey(text); setImportError(''); }}
-                autoCapitalize="none"
-                autoCorrect={false}
-                multiline
-                editable={!loading}
-                accessibilityLabel="Seed phrase"
-              />
+              <View style={styles.wordGrid}>
+                {words.map((value, i) => (
+                  <View key={i} style={styles.wordCell}>
+                    <Text style={styles.wordIndex}>{i + 1}</Text>
+                    <TextInput
+                      ref={(ref) => { wordInputRefs.current[i] = ref; }}
+                      style={styles.wordInput}
+                      value={value}
+                      onChangeText={(t) => handleWordChange(i, t)}
+                      onSubmitEditing={() => {
+                        if (i < WORD_COUNT - 1) wordInputRefs.current[i + 1]?.focus();
+                      }}
+                      autoCapitalize="none"
+                      autoCorrect={false}
+                      autoComplete="off"
+                      spellCheck={false}
+                      returnKeyType={i === WORD_COUNT - 1 ? 'done' : 'next'}
+                      submitBehavior={i === WORD_COUNT - 1 ? 'blurAndSubmit' : 'submit'}
+                      editable={!loading}
+                      placeholder=""
+                      accessibilityLabel={`Word ${i + 1}`}
+                    />
+                  </View>
+                ))}
+              </View>
 
               {importError ? (
                 <Text style={styles.errorText}>{importError}</Text>
               ) : null}
 
               <TouchableOpacity
-                style={[styles.primaryButton, (!importKey.trim() || loading) && styles.buttonDisabled]}
+                style={[
+                  styles.primaryButton,
+                  (words.some((w) => !w.trim()) || loading) && styles.buttonDisabled,
+                ]}
                 onPress={() => {
-                  const result = validateMnemonic(importKey.trim());
+                  const mnemonic = words.map((w) => w.trim().toLowerCase()).join(' ');
+                  const result = validateMnemonic(mnemonic);
                   if (!result.valid) {
                     setImportError(result.error || 'Invalid seed phrase');
                     return;
                   }
                   setImportError('');
-                  onComplete({ mode: 'import', storage: 'cold', mnemonic: importKey.trim() });
-                  setImportKey('');
+                  onComplete({ mode: 'import', storage: 'cold', mnemonic });
+                  resetImport();
                 }}
                 activeOpacity={0.7}
-                disabled={!importKey.trim() || loading}
+                disabled={words.some((w) => !w.trim()) || loading}
                 accessibilityRole="button"
                 accessibilityLabel="Import wallet"
               >
@@ -239,7 +296,6 @@ export default function WalletSetupScreen({ onComplete, onCancel, loading, gener
           )}
 
         </ScrollView>
-        </KeyboardAvoidingView>
       </LinearGradient>
     </View>
   );
@@ -326,6 +382,35 @@ const styles = StyleSheet.create({
     minHeight: 80,
     textAlignVertical: 'top',
     marginBottom: 24,
+  },
+  wordGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    marginBottom: 24,
+  },
+  wordCell: {
+    width: '31%',
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+    borderRadius: 12,
+    borderCurve: 'continuous',
+    paddingHorizontal: 10,
+    paddingVertical: 12,
+  },
+  wordIndex: {
+    fontSize: 11,
+    color: 'rgba(255, 255, 255, 0.35)',
+    fontFamily: 'Sansation-Regular',
+    width: 16,
+  },
+  wordInput: {
+    flex: 1,
+    fontSize: 14,
+    color: '#fff',
+    fontFamily: 'Sansation-Regular',
+    padding: 0,
   },
   mnemonicBox: {
     backgroundColor: 'rgba(255, 255, 255, 0.05)',

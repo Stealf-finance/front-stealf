@@ -25,7 +25,7 @@ export default function DepositPrivateCash() {
   const [showSuccessModal, setShowSuccessModal] = useState(false);
   const [transactionSignature, setTransactionSignature] = useState<string | null>(null);
 
-  const { deposit, loading, error } = useUmbra();
+  const { deposit, loading } = useUmbra();
 
   const successAnimation = useRef(new Animated.Value(0)).current;
   const checkmarkScale = useRef(new Animated.Value(0)).current;
@@ -49,10 +49,6 @@ export default function DepositPrivateCash() {
       const amountSOL = parseFloat(amount);
       const amountLamports = BigInt(Math.floor(amountSOL * LAMPORTS_PER_SOL));
       const signature = await deposit(toAddress(SOL_MINT), amountLamports);
-
-      if (!signature) {
-        throw new Error(error || 'Shield failed');
-      }
 
       setTransactionSignature(typeof signature === 'string' ? signature : JSON.stringify(signature));
       setShowSuccessModal(true);

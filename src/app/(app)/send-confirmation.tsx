@@ -108,6 +108,7 @@ export default function SendConfirmation({ amount, walletType = 'cash', onBack, 
           <ScrollView
             contentContainerStyle={{ paddingHorizontal: 20, paddingTop: 16, paddingBottom: 80, flexGrow: 1 }}
             keyboardShouldPersistTaps="handled"
+            keyboardDismissMode="on-drag"
             showsVerticalScrollIndicator={false}
           >
             {/* Grabber — matches send.tsx: paddingTop 12 on grabber + paddingTop 40 on header */}

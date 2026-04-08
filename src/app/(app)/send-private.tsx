@@ -10,8 +10,7 @@ import { useRouter, useLocalSearchParams } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Image } from 'expo-image';
 import ChevronDown from '../../assets/buttons/chevron-down.svg';
-import { useAuth } from '../../contexts/AuthContext';
-import { useWalletInfos } from '../../hooks/wallet/useWalletInfos';
+import { useShieldedBalance } from '../../hooks/wallet/useShieldedBalance';
 import { validateAmount } from '../../services/solana/transactionsGuard';
 import SendPrivateConfirmation from './send-private-confirmation';
 
@@ -21,9 +20,8 @@ export default function SendPrivateScreen() {
   const [amount, setAmount] = useState('');
   const [showConfirmation, setShowConfirmation] = useState(false);
 
-  const { userData } = useAuth();
-  const { balance } = useWalletInfos(userData?.stealf_wallet || '');
-  const totalUSD = balance || 0;
+  const { data: shielded } = useShieldedBalance();
+  const shieldedSol = shielded?.sol ?? 0;
 
   const handleNumberPress = (num: string) => {
     if (num === '.' && amount.includes('.')) return;
@@ -140,7 +138,7 @@ export default function SendPrivateScreen() {
           </View>
 
           <Text style={{ color: 'rgba(255,255,255,0.35)', fontSize: 13, fontFamily: 'Sansation-Regular', textAlign: 'right' }}>
-            {totalUSD.toFixed(4)} SOL
+            {shieldedSol.toFixed(4)} SOL
           </Text>
         </View>
 

@@ -11,6 +11,7 @@ import { useSetupWallet } from '../../../hooks/wallet/useInitPrivateWallet';
 import { useAuthenticatedApi } from '../../../hooks/api/useApi';
 import { useWalletInfos } from '../../../hooks/wallet/useWalletInfos';
 import { useShieldedBalance } from '../../../hooks/wallet/useShieldedBalance';
+import { usePendingClaims } from '../../../hooks/wallet/usePendingClaims';
 import { socketService } from '../../../services/real-time/socketService';
 import { usePager } from '../../../navigation/PagerContext';
 import { useSplash } from '../../../contexts/SplashContext';
@@ -33,6 +34,9 @@ export default function PrivacyScreen() {
   const shieldedBalance = (shielded?.sol ?? 0) * solPrice;
   const walletBalance = balance ?? 0;
   const totalBalance = walletBalance + shieldedBalance;
+
+  const { data: pendingClaims } = usePendingClaims();
+  const pendingCount = pendingClaims?.length ?? 0;
 
   // Wallet setup state
   const [generatedMnemonic, setGeneratedMnemonic] = useState<string | undefined>();
@@ -132,7 +136,7 @@ export default function PrivacyScreen() {
             }}
           >
             <View style={{ flex: 1 }}>
-              <Text style={{ color: '#000100', fontSize: 18, fontFamily: 'Sansation-Bold', marginBottom: 10 }}>Visible</Text>
+              <Text style={{ color: '#000100', fontSize: 18, fontFamily: 'Sansation-Bold', marginBottom: 10 }}>Public</Text>
               <Text style={{ color: '#000100', fontSize: 28, fontFamily: 'Sansation-Light', fontVariant: ['tabular-nums'], marginBottom: 6 }}>
                 ${walletBalance.toFixed(2)}
               </Text>
@@ -147,7 +151,7 @@ export default function PrivacyScreen() {
             activeOpacity={0.7}
             delayPressIn={100}
             accessibilityRole="button"
-            accessibilityLabel="View shielded assets and investments"
+            accessibilityLabel={`View shielded assets and investments${pendingCount > 0 ? `, ${pendingCount} pending claims` : ''}`}
             style={{
               backgroundColor: 'rgba(255,255,255,0.06)',
               borderRadius: 16,
@@ -166,6 +170,26 @@ export default function PrivacyScreen() {
               <Text style={{ color: 'rgba(255,255,255,0.4)', fontSize: 13, fontFamily: 'Sansation-Regular' }}>Protected assets & private investments</Text>
             </View>
             <ChevronRight width={24} height={24} style={{ marginLeft: 12, opacity: 0.8 }} />
+            {pendingCount > 0 && (
+              <View
+                style={{
+                  position: 'absolute',
+                  top: 12,
+                  right: 12,
+                  minWidth: 22,
+                  height: 22,
+                  paddingHorizontal: 6,
+                  borderRadius: 11,
+                  backgroundColor: '#ff3b30',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}
+              >
+                <Text style={{ color: '#fff', fontSize: 12, fontFamily: 'Sansation-Bold', lineHeight: 14 }}>
+                  {pendingCount > 99 ? '99+' : pendingCount}
+                </Text>
+              </View>
+            )}
           </TouchableOpacity>
 
         </View>

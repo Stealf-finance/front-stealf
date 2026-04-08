@@ -5,6 +5,7 @@ import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Animated, { FadeIn, FadeOut } from 'react-native-reanimated';
 import { useShieldedBalance } from '../../hooks/wallet/useShieldedBalance';
+import { usePendingClaims } from '../../hooks/wallet/usePendingClaims';
 import { useAuth } from '../../contexts/AuthContext';
 import { useWalletInfos } from '../../hooks/wallet/useWalletInfos';
 import TabBottomIcon from '../../assets/buttons/received.svg';
@@ -45,6 +46,9 @@ export default function ShieldedDetailScreen({ onClose }: { onClose?: () => void
     : [];
   const investmentBalance = 0;
 
+  const { data: pendingClaims } = usePendingClaims();
+  const pendingCount = pendingClaims?.length ?? 0;
+
   return (
     <View style={{ flex: 1 }}>
       {/* Transparent top — navbar visible behind */}
@@ -59,7 +63,7 @@ export default function ShieldedDetailScreen({ onClose }: { onClose?: () => void
           {/* Header */}
           <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 6 }}>
             <Text style={{ color: '#fff', fontSize: 24, fontFamily: 'Sansation-Bold', flex: 1 }}>
-              Private
+              Shielded Pool
             </Text>
             <TouchableOpacity
               onPress={handleClose}
@@ -78,7 +82,7 @@ export default function ShieldedDetailScreen({ onClose }: { onClose?: () => void
 
           {/* Balance */}
           <Text style={{ color: 'rgba(255,255,255,0.5)', fontSize: 14, fontFamily: 'Sansation-Regular', marginBottom: 4 }}>
-            Private Balance
+            Encrypted Balance
           </Text>
           <Text style={{ color: '#fff', fontSize: 42, fontFamily: 'Sansation-Light', fontVariant: ['tabular-nums'], marginBottom: 28 }}>
             ${(shieldedBalance + investmentBalance).toFixed(2)}
@@ -90,7 +94,7 @@ export default function ShieldedDetailScreen({ onClose }: { onClose?: () => void
               onPress={() => router.push('/(app)/receive-private')}
               activeOpacity={0.7}
               accessibilityRole="button"
-              accessibilityLabel="Receive crypto"
+              accessibilityLabel={`Receive crypto${pendingCount > 0 ? `, ${pendingCount} pending claims` : ''}`}
               style={{
                 flex: 1,
                 minWidth: '22%',
@@ -103,6 +107,26 @@ export default function ShieldedDetailScreen({ onClose }: { onClose?: () => void
             >
               <TabBottomIcon width={16} height={16} color="#000100" />
               <Text style={{ color: '#fff', fontSize: 13, fontFamily: 'Sansation-Bold', marginTop: 6 }}>Receive</Text>
+              {pendingCount > 0 && (
+                <View
+                  style={{
+                    position: 'absolute',
+                    top: 6,
+                    right: 6,
+                    minWidth: 18,
+                    height: 18,
+                    paddingHorizontal: 5,
+                    borderRadius: 9,
+                    backgroundColor: '#ff3b30',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                  }}
+                >
+                  <Text style={{ color: '#fff', fontSize: 11, fontFamily: 'Sansation-Bold', lineHeight: 13 }}>
+                    {pendingCount > 99 ? '99+' : pendingCount}
+                  </Text>
+                </View>
+              )}
             </TouchableOpacity>
 
             <TouchableOpacity

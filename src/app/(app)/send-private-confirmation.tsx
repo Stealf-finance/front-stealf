@@ -15,11 +15,14 @@ import { useRouter } from 'expo-router';
 import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useAuth } from '../../contexts/AuthContext';
-import { useSendTransaction } from '../../hooks/transactions/useSendSimpleTransaction';
+import { useUmbra, UmbraError } from '../../hooks/transactions/useUmbra';
 import { useWalletInfos } from '../../hooks/wallet/useWalletInfos';
 import SlideToConfirm from '../../components/SlideToConfirm';
 import ChevronLeft from '../../assets/buttons/chevron-left.svg';
 import ChevronDown from '../../assets/buttons/chevron-down.svg';
+import { SOL_MINT } from '../../constants/solana';
+import { LAMPORTS_PER_SOL, toAddress } from '../../services/solana/kit';
+import { useQueryClient } from '@tanstack/react-query';
 
 interface SendConfirmationProps {
   amount: string;
@@ -31,8 +34,9 @@ interface SendConfirmationProps {
 
 export default function SendPrivateConfirmation({ amount, onBack, onClose, onSuccess, transferType = 'private' }: SendConfirmationProps) {
   const router = useRouter();
+  const queryClient = useQueryClient();
   const { userData } = useAuth();
-  const { sendTransaction, loading } = useSendTransaction();
+  const { sendPrivate, loading } = useUmbra();
   const { tokens } = useWalletInfos(userData?.stealf_wallet || '');
   const solBalance = tokens.find(t => t.tokenMint === null)?.balance ?? 0;
 
@@ -55,7 +59,20 @@ export default function SendPrivateConfirmation({ amount, onBack, onClose, onSuc
 
     try {
       const amountSOL = parseFloat(amount);
-      await sendTransaction(userData.stealf_wallet, externalAddress, amountSOL, null, undefined, 'stealf', solBalance);
+      if (isNaN(amountSOL) || amountSOL <= 0) {
+        Alert.alert('Error', 'Invalid amount');
+        return;
+      }
+      const amountLamports = BigInt(Math.floor(amountSOL * LAMPORTS_PER_SOL));
+
+      await sendPrivate(
+        toAddress(externalAddress.trim()),
+        toAddress(SOL_MINT),
+        amountLamports
+      );
+
+      // Refresh shielded balance everywhere (privacy.tsx, shielded-detail.tsx, profile.tsx)
+      queryClient.invalidateQueries({ queryKey: ['shielded-balance'] });
 
       setShowSuccess(true);
       Animated.sequence([
@@ -67,7 +84,10 @@ export default function SendPrivateConfirmation({ amount, onBack, onClose, onSuc
       ]).start();
     } catch (err: any) {
       if (__DEV__) console.error('[SendPrivateConfirmation] Transfer error:', err);
-      Alert.alert('Transfer Failed', err.message || 'An error occurred');
+      const friendly = err instanceof UmbraError
+        ? err.userMessage
+        : (err?.message || 'An error occurred');
+      Alert.alert('Transfer Failed', friendly);
     }
   };
 
@@ -81,6 +101,7 @@ export default function SendPrivateConfirmation({ amount, onBack, onClose, onSuc
           <ScrollView
             contentContainerStyle={{ paddingHorizontal: 20, paddingTop: 16, paddingBottom: 80, flexGrow: 1 }}
             keyboardShouldPersistTaps="handled"
+            keyboardDismissMode="on-drag"
             showsVerticalScrollIndicator={false}
           >
             {/* Grabber */}
