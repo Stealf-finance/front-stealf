@@ -10,6 +10,7 @@ import { useAuth } from '../../../contexts/AuthContext';
 import { useSetupWallet } from '../../../hooks/wallet/useInitPrivateWallet';
 import { useAuthenticatedApi } from '../../../hooks/api/useApi';
 import { useWalletInfos } from '../../../hooks/wallet/useWalletInfos';
+import { useShieldedBalance } from '../../../hooks/wallet/useShieldedBalance';
 import { socketService } from '../../../services/real-time/socketService';
 import { usePager } from '../../../navigation/PagerContext';
 import { useSplash } from '../../../contexts/SplashContext';
@@ -24,10 +25,12 @@ export default function PrivacyScreen() {
   const api = useAuthenticatedApi();
 
   const hasPrivacyWallet = !!userData?.stealf_wallet;
-  const { balance } = useWalletInfos(userData?.stealf_wallet || '');
+  const { balance, tokens } = useWalletInfos(userData?.stealf_wallet || '');
+  const solToken = tokens.find((t) => t.tokenMint === null);
+  const solPrice = solToken && solToken.balance > 0 ? solToken.balanceUSD / solToken.balance : 0;
 
-  // TODO: hook into Umbra SDK for shielded balance (includes investments)
-  const shieldedBalance = 0;
+  const { data: shielded } = useShieldedBalance();
+  const shieldedBalance = (shielded?.sol ?? 0) * solPrice;
   const walletBalance = balance ?? 0;
   const totalBalance = walletBalance + shieldedBalance;
 
@@ -111,13 +114,40 @@ export default function PrivacyScreen() {
         {/* Categories */}
         <View style={{ paddingHorizontal: 20, gap: 12, marginBottom: 28 }}>
 
-          {/* Wallet (public) */}
+          {/* Wallet (public) — white card */}
           <TouchableOpacity
             onPress={() => router.push('/(app)/wallet-detail')}
             activeOpacity={0.7}
             delayPressIn={100}
             accessibilityRole="button"
             accessibilityLabel="View wallet details"
+            style={{
+              backgroundColor: '#f1ece1',
+              borderRadius: 16,
+              borderCurve: 'continuous',
+              paddingVertical: 28,
+              paddingHorizontal: 22,
+              flexDirection: 'row',
+              alignItems: 'center',
+            }}
+          >
+            <View style={{ flex: 1 }}>
+              <Text style={{ color: '#000100', fontSize: 18, fontFamily: 'Sansation-Bold', marginBottom: 10 }}>Visible</Text>
+              <Text style={{ color: '#000100', fontSize: 28, fontFamily: 'Sansation-Light', fontVariant: ['tabular-nums'], marginBottom: 6 }}>
+                ${walletBalance.toFixed(2)}
+              </Text>
+              <Text style={{ color: 'rgba(0,1,0,0.5)', fontSize: 13, fontFamily: 'Sansation-Regular' }}>Send, receive & manage your assets</Text>
+            </View>
+            <ChevronRightBlack width={24} height={24} style={{ marginLeft: 12, opacity: 0.8 }} />
+          </TouchableOpacity>
+
+          {/* Shielded (protected assets + investments) — gray card */}
+          <TouchableOpacity
+            onPress={() => router.push('/(app)/shielded-detail')}
+            activeOpacity={0.7}
+            delayPressIn={100}
+            accessibilityRole="button"
+            accessibilityLabel="View shielded assets and investments"
             style={{
               backgroundColor: 'rgba(255,255,255,0.06)',
               borderRadius: 16,
@@ -129,40 +159,13 @@ export default function PrivacyScreen() {
             }}
           >
             <View style={{ flex: 1 }}>
-              <Text style={{ color: '#fff', fontSize: 18, fontFamily: 'Sansation-Bold', marginBottom: 10 }}>Visible</Text>
+              <Text style={{ color: '#fff', fontSize: 18, fontFamily: 'Sansation-Bold', marginBottom: 10 }}>Private</Text>
               <Text style={{ color: '#fff', fontSize: 28, fontFamily: 'Sansation-Light', fontVariant: ['tabular-nums'], marginBottom: 6 }}>
-                ${walletBalance.toFixed(2)}
-              </Text>
-              <Text style={{ color: 'rgba(255,255,255,0.4)', fontSize: 13, fontFamily: 'Sansation-Regular' }}>Send, receive & manage your assets</Text>
-            </View>
-            <ChevronRight width={24} height={24} style={{ marginLeft: 12, opacity: 0.8 }} />
-          </TouchableOpacity>
-
-          {/* Shielded (protected assets + investments) */}
-          <TouchableOpacity
-            onPress={() => router.push('/(app)/shielded-detail')}
-            activeOpacity={0.7}
-            delayPressIn={100}
-            accessibilityRole="button"
-            accessibilityLabel="View shielded assets and investments"
-            style={{
-              backgroundColor: '#6941f5',
-              borderRadius: 16,
-              borderCurve: 'continuous',
-              paddingVertical: 28,
-              paddingHorizontal: 22,
-              flexDirection: 'row',
-              alignItems: 'center',
-            }}
-          >
-            <View style={{ flex: 1 }}>
-              <Text style={{ color: '#000100', fontSize: 18, fontFamily: 'Sansation-Bold', marginBottom: 10 }}>Private</Text>
-              <Text style={{ color: '#000100', fontSize: 28, fontFamily: 'Sansation-Light', fontVariant: ['tabular-nums'], marginBottom: 6 }}>
                 ${shieldedBalance.toFixed(2)}
               </Text>
-              <Text style={{ color: 'rgba(0,1,0,0.8)', fontSize: 13, fontFamily: 'Sansation-Regular' }}>Protected assets & private investments</Text>
+              <Text style={{ color: 'rgba(255,255,255,0.4)', fontSize: 13, fontFamily: 'Sansation-Regular' }}>Protected assets & private investments</Text>
             </View>
-            <ChevronRightBlack width={24} height={24} style={{ marginLeft: 12, opacity: 0.8 }} />
+            <ChevronRight width={24} height={24} style={{ marginLeft: 12, opacity: 0.8 }} />
           </TouchableOpacity>
 
         </View>

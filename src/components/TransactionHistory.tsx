@@ -20,6 +20,8 @@ interface TransactionHistoryProps {
   style?: any;
   walletType?: 'cash' | 'privacy';
   flat?: boolean;
+  /** When true, each row is tappable and opens the transaction on Solscan. */
+  clickable?: boolean;
 }
 
 interface Transaction {
@@ -41,12 +43,15 @@ function getLabel(tx: Transaction) {
   return tx.type === 'sent' ? 'Sent' : tx.type === 'received' ? 'Received' : 'Transaction';
 }
 
-const TransactionRow = React.memo(function TransactionRow({ tx }: { tx: Transaction }) {
-  return (
-    <View
-      style={styles.row}
-      accessibilityLabel={`${getLabel(tx)} ${tx.amountUSD.toFixed(2)} dollars ${tx.tokenSymbol}`}
-    >
+const TransactionRow = React.memo(function TransactionRow({
+  tx,
+  clickable,
+}: {
+  tx: Transaction;
+  clickable?: boolean;
+}) {
+  const content = (
+    <>
       <View style={styles.avatar}>
         {tx.type === 'sent' ? (
           <SendIcon width={20} height={20} />
@@ -65,6 +70,30 @@ const TransactionRow = React.memo(function TransactionRow({ tx }: { tx: Transact
       <Text style={styles.amount}>
         {tx.type === 'received' ? '+' : '-'}${tx.amountUSD.toFixed(2)}
       </Text>
+    </>
+  );
+
+  if (clickable) {
+    const url = tx.signatureURL || `https://solscan.io/tx/${tx.signature}?cluster=devnet`;
+    return (
+      <TouchableOpacity
+        style={styles.row}
+        activeOpacity={0.6}
+        onPress={() => Linking.openURL(url).catch(() => {})}
+        accessibilityRole="link"
+        accessibilityLabel={`${getLabel(tx)} ${tx.amountUSD.toFixed(2)} dollars ${tx.tokenSymbol}, view on Solscan`}
+      >
+        {content}
+      </TouchableOpacity>
+    );
+  }
+
+  return (
+    <View
+      style={styles.row}
+      accessibilityLabel={`${getLabel(tx)} ${tx.amountUSD.toFixed(2)} dollars ${tx.tokenSymbol}`}
+    >
+      {content}
     </View>
   );
 });
@@ -74,6 +103,7 @@ export default function TransactionHistory({
   style,
   walletType = 'cash',
   flat = false,
+  clickable = false,
 }: TransactionHistoryProps) {
 
   const { userData } = useAuth();
@@ -103,8 +133,8 @@ export default function TransactionHistory({
   const isCompactMode = flat || limit <= 3;
 
   const renderItem = useCallback(({ item }: { item: Transaction }) => (
-    <TransactionRow tx={item} />
-  ), []);
+    <TransactionRow tx={item} clickable={clickable} />
+  ), [clickable]);
 
   const keyExtractor = useCallback((item: Transaction) => item.signature, []);
 
@@ -146,7 +176,7 @@ export default function TransactionHistory({
     return (
       <View style={[styles.compactContainer, style]}>
         {displayedTransactions.map(tx => (
-          <TransactionRow key={tx.signature} tx={tx} />
+          <TransactionRow key={tx.signature} tx={tx} clickable={clickable} />
         ))}
       </View>
     );

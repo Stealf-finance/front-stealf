@@ -38,7 +38,7 @@ export default function TransactionHistoryScreen() {
           <Text style={styles.title}>Transaction History</Text>
           <Text style={styles.subtitle}>{walletLabel}</Text>
 
-          <TransactionHistory limit={100} walletType={walletType as 'cash' | 'privacy'} flat />
+          <TransactionHistory limit={100} walletType={walletType as 'cash' | 'privacy'} flat clickable />
         </ScrollView>
       </LinearGradient>
     </View>

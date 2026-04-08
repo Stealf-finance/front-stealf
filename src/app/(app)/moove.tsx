@@ -264,7 +264,7 @@ export default function MooveScreen() {
           <View style={styles.walletCard}>
             <View style={styles.cardRow}>
               <View>
-                <Text style={styles.cardLabel}>Cash</Text>
+                <Text style={styles.cardLabel}>Bank</Text>
                 <Text style={styles.cardBalance} accessibilityRole="text">{formatBalance(cashBalance)}</Text>
               </View>
               <Text numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.5} style={[styles.cardAmount, amount ? styles.cardAmountActive : null, { flex: 1, textAlign: 'right' }]}>

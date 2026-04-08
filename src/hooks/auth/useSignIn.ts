@@ -18,7 +18,6 @@ export function useSignIn() {
       const authResult = await loginWithPasskey();
       const { sessionToken } = authResult;
 
-      // Passkey validated — notify caller immediately before backend calls
       onPasskeySuccess?.();
 
       if (!sessionToken) {

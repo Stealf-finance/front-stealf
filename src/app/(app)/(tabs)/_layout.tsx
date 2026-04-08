@@ -52,9 +52,11 @@ export default function TabsLayout() {
         />
       </View>
 
-      <BottomBar
-        onTransfer={() => router.push('/(app)/transfer')}
-      />
+      {currentPage !== 'profile' && (
+        <BottomBar
+          onTransfer={() => router.push('/(app)/transfer')}
+        />
+      )}
     </View>
   );
 }

@@ -1,7 +1,0 @@
-rust:
-  directory: /Users/thomasgaugain/Documents/STEALF/front-stealf/steal
-  manifestPath: Cargo.toml
-
-android:
-    apiLevel: 28
-    useSharedLibrary: true

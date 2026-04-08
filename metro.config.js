@@ -45,4 +45,7 @@ config.transformer = {
 config.resolver.assetExts = config.resolver.assetExts.filter((ext) => ext !== 'svg');
 config.resolver.sourceExts = [...config.resolver.sourceExts, 'svg'];
 
+// Bundle .zkey files (Umbra ZK circuits) as binary assets
+config.resolver.assetExts.push('zkey');
+
 module.exports = config;

@@ -1,9 +1,13 @@
 import { useState, useCallback } from 'react';
 import { View, Text, ScrollView, TouchableOpacity, Alert } from 'react-native';
+import { Image } from 'expo-image';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Animated, { FadeIn, FadeOut } from 'react-native-reanimated';
-import TabBottomIcon from '../../assets/buttons/tab-bottom-24px.svg';
+import { useShieldedBalance } from '../../hooks/wallet/useShieldedBalance';
+import { useAuth } from '../../contexts/AuthContext';
+import { useWalletInfos } from '../../hooks/wallet/useWalletInfos';
+import TabBottomIcon from '../../assets/buttons/received.svg';
 import ArrowIcon from '../../assets/buttons/arrow.svg';
 import ChevronDown from '../../assets/buttons/chevron-down.svg';
 import ShieldIcon from '../../assets/buttons/shield.svg';
@@ -28,9 +32,17 @@ export default function ShieldedDetailScreen({ onClose }: { onClose?: () => void
     setShowSendOptions(val);
   }, []);
 
-  // TODO: hook into Umbra SDK for real balances
-  const shieldedBalance = 0;
-  const shieldedAssets: { symbol: string; balance: number; balanceUSD: number }[] = [];
+  const { userData } = useAuth();
+  const { tokens } = useWalletInfos(userData?.stealf_wallet || '');
+  const solToken = tokens.find((t) => t.tokenMint === null);
+  const solPrice = solToken && solToken.balance > 0 ? solToken.balanceUSD / solToken.balance : 0;
+
+  const { data: shielded } = useShieldedBalance();
+  const shieldedSol = shielded?.sol ?? 0;
+  const shieldedBalance = shieldedSol * solPrice;
+  const shieldedAssets: { symbol: string; balance: number; balanceUSD: number }[] = shieldedSol > 0
+    ? [{ symbol: 'SOL', balance: shieldedSol, balanceUSD: shieldedSol * solPrice }]
+    : [];
   const investmentBalance = 0;
 
   return (
@@ -47,7 +59,7 @@ export default function ShieldedDetailScreen({ onClose }: { onClose?: () => void
           {/* Header */}
           <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 6 }}>
             <Text style={{ color: '#fff', fontSize: 24, fontFamily: 'Sansation-Bold', flex: 1 }}>
-              Shielded
+              Private
             </Text>
             <TouchableOpacity
               onPress={handleClose}
@@ -66,7 +78,7 @@ export default function ShieldedDetailScreen({ onClose }: { onClose?: () => void
 
           {/* Balance */}
           <Text style={{ color: 'rgba(255,255,255,0.5)', fontSize: 14, fontFamily: 'Sansation-Regular', marginBottom: 4 }}>
-            Shielded Balance
+            Private Balance
           </Text>
           <Text style={{ color: '#fff', fontSize: 42, fontFamily: 'Sansation-Light', fontVariant: ['tabular-nums'], marginBottom: 28 }}>
             ${(shieldedBalance + investmentBalance).toFixed(2)}
@@ -82,7 +94,7 @@ export default function ShieldedDetailScreen({ onClose }: { onClose?: () => void
               style={{
                 flex: 1,
                 minWidth: '22%',
-                backgroundColor: '#7C3AED',
+                backgroundColor: 'rgba(255,255,255,0.08)',
                 borderRadius: 14,
                 borderCurve: 'continuous',
                 paddingVertical: 16,
@@ -90,7 +102,7 @@ export default function ShieldedDetailScreen({ onClose }: { onClose?: () => void
               }}
             >
               <TabBottomIcon width={16} height={16} color="#000100" />
-              <Text style={{ color: '#000100', fontSize: 13, fontFamily: 'Sansation-Bold', marginTop: 6 }}>Receive</Text>
+              <Text style={{ color: '#fff', fontSize: 13, fontFamily: 'Sansation-Bold', marginTop: 6 }}>Receive</Text>
             </TouchableOpacity>
 
             <TouchableOpacity
@@ -135,19 +147,10 @@ export default function ShieldedDetailScreen({ onClose }: { onClose?: () => void
                     borderBottomColor: 'rgba(255,255,255,0.06)',
                   }}
                 >
-                  <View style={{
-                    width: 38,
-                    height: 38,
-                    borderRadius: 19,
-                    backgroundColor: 'rgba(255,255,255,0.1)',
-                    justifyContent: 'center',
-                    alignItems: 'center',
-                    marginRight: 14,
-                  }}>
-                    <Text style={{ color: '#fff', fontSize: 14, fontFamily: 'Sansation-Bold' }}>
-                      {token.symbol.slice(0, 3)}
-                    </Text>
-                  </View>
+                  <Image
+                    source={token.symbol === 'SOL' ? require('../../assets/solana.png') : undefined}
+                    style={{ width: 38, height: 38, borderRadius: 19, marginRight: 14 }}
+                  />
                   <View style={{ flex: 1 }}>
                     <Text style={{ color: '#fff', fontSize: 16, fontFamily: 'Sansation-Bold', marginBottom: 2 }}>
                       {token.symbol}
@@ -176,7 +179,7 @@ export default function ShieldedDetailScreen({ onClose }: { onClose?: () => void
             accessibilityRole="button"
             accessibilityLabel="Jito SOL yield"
             style={{
-              backgroundColor: '#7C3AED',
+              backgroundColor: 'rgba(255,255,255,0.08)',
               borderRadius: 14,
               borderCurve: 'continuous',
               padding: 18,
@@ -186,13 +189,13 @@ export default function ShieldedDetailScreen({ onClose }: { onClose?: () => void
             }}
           >
             <View style={{ flex: 1 }}>
-              <Text style={{ color: '#000100', fontSize: 16, fontFamily: 'Sansation-Bold', marginBottom: 2 }}>Jito SOL</Text>
-              <Text style={{ color: 'rgba(0,1,0,0.6)', fontSize: 13, fontFamily: 'Sansation-Regular' }}>Up to 6% APY</Text>
+              <Text style={{ color: '#fff', fontSize: 16, fontFamily: 'Sansation-Bold', marginBottom: 2 }}>Jito SOL</Text>
+              <Text style={{ color: 'rgba(255,255,255,0.4)', fontSize: 13, fontFamily: 'Sansation-Regular' }}>Up to 6% APY</Text>
             </View>
-            <Text style={{ color: '#000100', fontSize: 16, fontFamily: 'Sansation-Bold', fontVariant: ['tabular-nums'], marginRight: 8 }}>
+            <Text style={{ color: '#fff', fontSize: 16, fontFamily: 'Sansation-Bold', fontVariant: ['tabular-nums'], marginRight: 8 }}>
               ${investmentBalance.toFixed(2)}
             </Text>
-            <Text style={{ color: 'rgba(0,1,0,0.4)', fontSize: 18 }}>›</Text>
+            <Text style={{ color: 'rgba(255,255,255,0.3)', fontSize: 18 }}>›</Text>
           </TouchableOpacity>
 
           {/* S&P 500 — coming soon */}
@@ -264,12 +267,12 @@ export default function ShieldedDetailScreen({ onClose }: { onClose?: () => void
                 <CloseIcon width={16} height={16} color="rgba(255,255,255,0.5)" />
               </TouchableOpacity>
               <TouchableOpacity
-                onPress={() => { animateAndSetManage(false); Alert.alert('Coming Soon', 'Shield will be available soon.'); }}
+                onPress={() => { animateAndSetManage(false); router.push('/(app)/shield'); }}
                 activeOpacity={0.85}
                 accessibilityRole="button"
                 accessibilityLabel="Shield assets"
                 style={{
-                  backgroundColor: '#7C3AED',
+                  backgroundColor: '#f1ece1',
                   borderRadius: 20,
                   borderCurve: 'continuous',
                   paddingVertical: 18,
@@ -278,7 +281,7 @@ export default function ShieldedDetailScreen({ onClose }: { onClose?: () => void
                   justifyContent: 'center',
                 }}
               >
-                <Text style={{ color: '#000100', fontSize: 17, fontFamily: 'Sansation-Bold' }}>Shield</Text>
+                <Text style={{ color: '#000100', fontSize: 17, fontFamily: 'Sansation-Bold' }}>Deposit</Text>
               </TouchableOpacity>
 
               <TouchableOpacity
@@ -287,7 +290,7 @@ export default function ShieldedDetailScreen({ onClose }: { onClose?: () => void
                 accessibilityRole="button"
                 accessibilityLabel="Unshield assets"
                 style={{
-                  backgroundColor: '#7C3AED',
+                  backgroundColor: '#f1ece1',
                   borderRadius: 20,
                   borderCurve: 'continuous',
                   paddingVertical: 18,
@@ -296,7 +299,7 @@ export default function ShieldedDetailScreen({ onClose }: { onClose?: () => void
                   justifyContent: 'center',
                 }}
               >
-                <Text style={{ color: '#000100', fontSize: 17, fontFamily: 'Sansation-Bold' }}>Unshield</Text>
+                <Text style={{ color: '#000100', fontSize: 17, fontFamily: 'Sansation-Bold' }}>Withdraw</Text>
               </TouchableOpacity>
             </Animated.View>
           ) : (
@@ -307,7 +310,7 @@ export default function ShieldedDetailScreen({ onClose }: { onClose?: () => void
                 accessibilityRole="button"
                 accessibilityLabel="Manage assets"
                 style={{
-                  backgroundColor: '#7C3AED',
+                  backgroundColor: '#f1ece1',
                   borderRadius: 20,
                   borderCurve: 'continuous',
                   paddingVertical: 18,
@@ -342,7 +345,7 @@ export default function ShieldedDetailScreen({ onClose }: { onClose?: () => void
                 accessibilityRole="button"
                 accessibilityLabel="Move to public wallet"
                 style={{
-                  backgroundColor: '#7C3AED',
+                  backgroundColor: '#f1ece1',
                   borderRadius: 20,
                   borderCurve: 'continuous',
                   paddingVertical: 18,
@@ -360,7 +363,7 @@ export default function ShieldedDetailScreen({ onClose }: { onClose?: () => void
                 accessibilityRole="button"
                 accessibilityLabel="Send to external wallet"
                 style={{
-                  backgroundColor: '#7C3AED',
+                  backgroundColor: '#f1ece1',
                   borderRadius: 20,
                   borderCurve: 'continuous',
                   paddingVertical: 18,
@@ -380,7 +383,7 @@ export default function ShieldedDetailScreen({ onClose }: { onClose?: () => void
                 accessibilityRole="button"
                 accessibilityLabel="Private transfer"
                 style={{
-                  backgroundColor: '#7C3AED',
+                  backgroundColor: '#f1ece1',
                   borderRadius: 20,
                   borderCurve: 'continuous',
                   paddingVertical: 18,

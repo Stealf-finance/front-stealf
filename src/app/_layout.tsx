@@ -18,6 +18,7 @@ import ErrorBoundary from '../components/ErrorBoundary';
 import { WelcomeLoader } from '../components/WelcomeLoader';
 import { validateEnv } from '../utils/validateEnv';
 import Logo from '../assets/logo/logo.svg';
+import { usePreloadZKeysOnMount } from '../zk';
 
 Sentry.init({
   dsn: process.env.EXPO_PUBLIC_SENTRY_DSN || '',
@@ -47,6 +48,9 @@ function RootNavigator() {
   const { isLoadingBalance } = useWalletInfos(userData?.cash_wallet || '');
   const router = useRouter();
   const segments = useSegments();
+
+  // Preload ZK circuits in background (bundled + auto-download missing ones)
+  usePreloadZKeysOnMount();
 
   useEffect(() => {
     if (loading) return;

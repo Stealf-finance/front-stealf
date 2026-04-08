@@ -21,6 +21,7 @@ import ChevronDown from '../../assets/buttons/chevron-down.svg';
 import { useAuth } from '../../contexts/AuthContext';
 import { useWalletInfos } from '../../hooks/wallet/useWalletInfos';
 import { SOL_MINT } from '../../constants/solana';
+import { useQueryClient } from '@tanstack/react-query';
 
 
 const ASSETS = [
@@ -29,18 +30,20 @@ const ASSETS = [
 
 export default function ShieldScreen() {
   const router = useRouter();
+  const queryClient = useQueryClient();
   const { userData } = useAuth();
   const { tokens } = useWalletInfos(userData?.stealf_wallet || '');
   const [amount, setAmount] = useState('');
   const [selectedAsset, setSelectedAsset] = useState(ASSETS[0]);
   const [showAssetPicker, setShowAssetPicker] = useState(false);
-  const [showSuccessModal, setShowSuccessModal] = useState(false);
+  const [showSuccess, setShowSuccess] = useState(false);
   const [transactionSignature, setTransactionSignature] = useState<string | null>(null);
 
   const { deposit, loading, error } = useUmbra();
 
-  const successAnimation = useRef(new Animated.Value(0)).current;
-  const checkmarkScale = useRef(new Animated.Value(0)).current;
+  const fadeAnim = useRef(new Animated.Value(0)).current;
+  const checkScale = useRef(new Animated.Value(0)).current;
+  const contentFade = useRef(new Animated.Value(0)).current;
 
   const handleNumberPress = (num: string) => {
     if (num === '.' && amount.includes('.')) return;
@@ -63,27 +66,26 @@ export default function ShieldScreen() {
     try {
       const amountSOL = parseFloat(amount);
       const amountLamports = BigInt(Math.floor(amountSOL * LAMPORTS_PER_SOL));
-      const signature = await deposit(toAddress(selectedAsset.mint), amountLamports);
+      const result = await deposit(toAddress(selectedAsset.mint), amountLamports);
 
-      if (!signature) {
+      if (!result) {
         throw new Error(error || 'Shield failed');
       }
 
-      setTransactionSignature(typeof signature === 'string' ? signature : JSON.stringify(signature));
-      setShowSuccessModal(true);
+      const sig = typeof result === 'string'
+        ? result
+        : (result as any).callbackSignature || (result as any).queueSignature || '';
+      setTransactionSignature(sig);
 
+      queryClient.invalidateQueries({ queryKey: ['shielded-balance'] });
+
+      setShowSuccess(true);
       Animated.sequence([
-        Animated.timing(successAnimation, {
-          toValue: 1,
-          duration: 300,
-          useNativeDriver: true,
-        }),
-        Animated.spring(checkmarkScale, {
-          toValue: 1,
-          friction: 4,
-          tension: 40,
-          useNativeDriver: true,
-        }),
+        Animated.timing(fadeAnim, { toValue: 1, duration: 400, useNativeDriver: true }),
+        Animated.parallel([
+          Animated.spring(checkScale, { toValue: 1, friction: 5, tension: 60, useNativeDriver: true }),
+          Animated.timing(contentFade, { toValue: 1, duration: 500, useNativeDriver: true }),
+        ]),
       ]).start();
     } catch (err: any) {
       if (__DEV__) console.error('[DepositPrivateCash] Shield error:', err);
@@ -94,12 +96,17 @@ export default function ShieldScreen() {
     }
   };
 
-  const closeSuccessModal = () => {
-    setShowSuccessModal(false);
-    successAnimation.setValue(0);
-    checkmarkScale.setValue(0);
+  const handleNewShield = () => {
+    setShowSuccess(false);
+    fadeAnim.setValue(0);
+    checkScale.setValue(0);
+    contentFade.setValue(0);
     setTransactionSignature(null);
     setAmount('');
+  };
+
+  const handleCloseAndBack = () => {
+    handleNewShield();
     router.back();
   };
 
@@ -255,91 +262,29 @@ export default function ShieldScreen() {
           </View>
         </View>
 
-        {/* Success Modal */}
-        <Modal
-          transparent={true}
-          visible={showSuccessModal}
-          animationType="none"
-          onRequestClose={closeSuccessModal}
-        >
-          <TouchableOpacity
-            style={styles.modalOverlay}
-            activeOpacity={1}
-            onPress={closeSuccessModal}
-          >
-            <TouchableOpacity
-              activeOpacity={1}
-              onPress={(e) => e.stopPropagation()}
-            >
-              <Animated.View
-                style={[
-                  styles.modalContent,
-                  {
-                    opacity: successAnimation,
-                    transform: [
-                      {
-                        scale: successAnimation.interpolate({
-                          inputRange: [0, 1],
-                          outputRange: [0.8, 1],
-                        }),
-                      },
-                    ],
-                  },
-                ]}
-              >
-                <Animated.View
-                  style={[
-                    styles.checkmarkCircle,
-                    {
-                      transform: [{ scale: checkmarkScale }],
-                    },
-                  ]}
-                >
-                  <Text style={styles.checkmark}>✓</Text>
-                </Animated.View>
-
-                <Text style={styles.successTitle}>Shielded</Text>
-                <Text style={styles.successMessage}>
-                  Your funds have been shielded into the Umbra vault
-                </Text>
-
-                {transactionSignature && (
-                  <TouchableOpacity
-                    style={styles.signatureContainer}
-                    onPress={async () => {
-                      await Clipboard.setStringAsync(transactionSignature);
-                    }}
-                    activeOpacity={0.7}
-                  >
-                    <Text style={styles.signatureLabel}>Signature (tap to copy):</Text>
-                    <Text style={styles.signatureText}>
-                      {transactionSignature.substring(0, 20)}...
-                    </Text>
-                  </TouchableOpacity>
-                )}
-
-                <TouchableOpacity
-                  style={styles.explorerButton}
-                  onPress={() => {
-                    Linking.openURL(`https://explorer.solana.com/tx/${transactionSignature}?cluster=devnet`);
-                  }}
-                  activeOpacity={0.8}
-                >
-                  <Text style={styles.explorerButtonText}>View on Explorer</Text>
-                </TouchableOpacity>
-
-                <TouchableOpacity
-                  style={[styles.explorerButton, { marginTop: 10, backgroundColor: 'rgba(255, 255, 255, 0.1)', borderColor: 'rgba(255, 255, 255, 0.3)' }]}
-                  onPress={closeSuccessModal}
-                  activeOpacity={0.8}
-                >
-                  <Text style={[styles.explorerButtonText, { color: 'white' }]}>Close</Text>
-                </TouchableOpacity>
-              </Animated.View>
-            </TouchableOpacity>
-          </TouchableOpacity>
-        </Modal>
       </LinearGradient>
+
+      {/* Success overlay — same animation as send-confirmation */}
+      {showSuccess && (
+        <Animated.View style={[styles.successScreen, { opacity: fadeAnim, ...StyleSheet.absoluteFillObject, zIndex: 100 }]}>
+          <Animated.View style={[styles.checkCircle, { transform: [{ scale: checkScale }] }]}>
+            <Text style={styles.checkText}>{'✓'}</Text>
+          </Animated.View>
+          <Animated.View style={[styles.successInfo, { opacity: contentFade }]}>
+            <Text style={styles.successTitleNew}>Shielded</Text>
+            <Text style={styles.successAmount}>{amount} {selectedAsset.symbol}</Text>
+            <Text style={styles.successAddress}>Into Umbra vault</Text>
+          </Animated.View>
+          <Animated.View style={[styles.successActions, { opacity: contentFade }]}>
+            <TouchableOpacity style={styles.primaryAction} onPress={handleNewShield} activeOpacity={0.8}>
+              <Text style={styles.primaryActionText}>Shield more</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.secondaryAction} onPress={handleCloseAndBack} activeOpacity={0.8}>
+              <Text style={styles.secondaryActionText}>Back to home</Text>
+            </TouchableOpacity>
+          </Animated.View>
+        </Animated.View>
+      )}
     </View>
   );
 }
@@ -512,4 +457,18 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     fontFamily: 'Sansation-Bold',
   },
+
+  // Success overlay (matches send-confirmation.tsx)
+  successScreen: { flex: 1, backgroundColor: '#000', alignItems: 'center', justifyContent: 'center', paddingHorizontal: 40 },
+  checkCircle: { width: 72, height: 72, borderRadius: 36, borderWidth: 2, borderColor: 'rgba(255,255,255,0.15)', alignItems: 'center', justifyContent: 'center', marginBottom: 40 },
+  checkText: { fontSize: 32, color: 'white', fontWeight: '300' },
+  successInfo: { alignItems: 'center', marginBottom: 60 },
+  successTitleNew: { fontSize: 16, color: 'rgba(255,255,255,0.4)', fontFamily: 'Sansation-Regular', marginBottom: 8 },
+  successAmount: { fontSize: 36, color: 'white', fontFamily: 'Sansation-Light', marginBottom: 12 },
+  successAddress: { fontSize: 14, color: 'rgba(255,255,255,0.3)', fontFamily: 'Sansation-Regular' },
+  successActions: { width: '100%', gap: 12 },
+  primaryAction: { backgroundColor: 'rgba(240,235,220,0.95)', paddingVertical: 16, borderRadius: 30, alignItems: 'center' },
+  primaryActionText: { fontSize: 16, fontWeight: '600', color: '#000', fontFamily: 'Sansation-Bold' },
+  secondaryAction: { paddingVertical: 16, borderRadius: 30, alignItems: 'center' },
+  secondaryActionText: { fontSize: 16, color: 'rgba(255,255,255,0.4)', fontFamily: 'Sansation-Regular' },
 });

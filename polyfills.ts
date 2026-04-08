@@ -17,6 +17,38 @@ if (typeof global.TextEncoder === 'undefined') {
   require('text-encoding-polyfill');
 }
 
+// Hermes lacks EventTarget / CustomEvent — required by @solana/rpc-subscriptions-channel-websocket
+if (typeof globalThis.EventTarget === 'undefined') {
+  class EventTargetPolyfill {
+    private listeners: Record<string, Set<(ev: any) => void>> = {};
+    addEventListener(type: string, listener: (ev: any) => void) {
+      if (!this.listeners[type]) this.listeners[type] = new Set();
+      this.listeners[type].add(listener);
+    }
+    removeEventListener(type: string, listener: (ev: any) => void) {
+      this.listeners[type]?.delete(listener);
+    }
+    dispatchEvent(event: any) {
+      const type = event?.type;
+      if (!type) return true;
+      this.listeners[type]?.forEach((l) => l(event));
+      return true;
+    }
+  }
+  (globalThis as any).EventTarget = EventTargetPolyfill;
+}
+
+if (typeof globalThis.CustomEvent === 'undefined') {
+  (globalThis as any).CustomEvent = class CustomEvent {
+    type: string;
+    detail: any;
+    constructor(type: string, init?: { detail?: any }) {
+      this.type = type;
+      this.detail = init?.detail;
+    }
+  };
+}
+
 // Hermes lacks DOMException — SDK code uses `instanceof DOMException` which crashes
 if (typeof globalThis.DOMException === 'undefined') {
   (globalThis as any).DOMException = class DOMException extends Error {
