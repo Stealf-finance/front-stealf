@@ -114,7 +114,7 @@ export default function WalletSetupScreen({ onComplete, onCancel, loading, gener
         {/* Back button — fixed at top */}
         {step !== 'choose' && (
           <TouchableOpacity
-            style={[styles.backButton, { top: insets.top + 100 }]}
+            style={[styles.backButton, { top: insets.top + 60 }]}
             onPress={() => { setStep('choose'); onCancel?.(); }}
             activeOpacity={0.8}
             accessibilityRole="button"

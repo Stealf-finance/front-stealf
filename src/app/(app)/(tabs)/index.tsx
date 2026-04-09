@@ -119,14 +119,12 @@ const styles = StyleSheet.create({
   bankCardAction: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
     backgroundColor: 'rgba(255, 255, 255, 0.1)',
     borderRadius: 26,
     borderCurve: 'continuous',
     paddingVertical: 14,
-    paddingHorizontal: 16,
-    gap: 8,
-    flexShrink: 1,
+    paddingHorizontal: 24,
+    gap: 12,
   },
   bankCardActionText: {
     fontSize: 13,
