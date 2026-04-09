@@ -45,9 +45,21 @@ export default function AppLayout() {
         <Stack.Screen name="moove" options={SHEET_OPTIONS} />
         <Stack.Screen name="add-funds" options={{ ...SHEET_OPTIONS, sheetAllowedDetents: [1.0] }} />
         <Stack.Screen name="add-funds-privacy" options={SHEET_OPTIONS} />
-        <Stack.Screen name="receive-select" options={{ ...SHEET_OPTIONS, sheetAllowedDetents: [0.4] }} />
+        <Stack.Screen name="receive-select" options={{
+          presentation: 'transparentModal' as const,
+          animation: 'slide_from_bottom' as const,
+          headerShown: false,
+          contentStyle: { backgroundColor: 'transparent' },
+        }} />
+        <Stack.Screen name="receive-cash" options={{
+          presentation: 'transparentModal' as const,
+          animation: 'slide_from_bottom' as const,
+          headerShown: false,
+          contentStyle: { backgroundColor: 'transparent' },
+        }} />
         <Stack.Screen name="receive-private" options={SHEET_OPTIONS} />
         <Stack.Screen name="shield" options={SHEET_OPTIONS} />
+        <Stack.Screen name="unshield" options={SHEET_OPTIONS} />
         <Stack.Screen name="info" options={SHEET_OPTIONS} />
         <Stack.Screen name="transaction-history" options={SHEET_OPTIONS} />
         <Stack.Screen name="saving-dashboard" options={SHEET_OPTIONS} />

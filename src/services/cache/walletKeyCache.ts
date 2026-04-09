@@ -3,10 +3,6 @@ import * as SecureStore from 'expo-secure-store';
 
 const SECURE_STORE_KEY = 'stealf_private_key';
 
-/**
- * Single set of options used for ALL SecureStore operations (set, get, delete).
- * This guarantees we always hit the same iOS Keychain namespace/service.
- */
 const KEYCHAIN_OPTIONS: SecureStore.SecureStoreOptions = {
   keychainService: 'com.stealf.wallet',
   keychainAccessible: SecureStore.AFTER_FIRST_UNLOCK,
@@ -27,16 +23,11 @@ async function secureDel(key: string): Promise<void> {
 
 /**
  * In-memory cache for the signing key with TTL.
- *
- * - Only the private key is persisted to Keychain (not the mnemonic)
- * - Mnemonic is held in RAM only for the current session
- * - RAM cache expires after TTL_MS of inactivity
- * - touch() refreshes the TTL (call after successful sign)
  */
-const TTL_MS = 15 * 60 * 1000; // 15 minutes
+const TTL_MS = 15 * 60 * 1000;
 
 let cachedPrivateKey: string | null = null;
-let cachedMnemonic: string | null = null; // RAM only — never persisted
+let cachedMnemonic: string | null = null;
 let expiresAt: number = 0;
 
 function isExpired(): boolean {
@@ -57,7 +48,6 @@ export const walletKeyCache = {
     refreshTTL();
 
     await secureSet(SECURE_STORE_KEY, privateKey);
-    // Mnemonic is NOT persisted — RAM only for this session
   },
 
   /**
@@ -66,7 +56,6 @@ export const walletKeyCache = {
   async getPrivateKey(): Promise<string | null> {
     if (cachedPrivateKey && !isExpired()) return cachedPrivateKey;
 
-    // Cache expired or empty — try Keychain
     try {
       const val = await secureGet(SECURE_STORE_KEY);
       if (val) {

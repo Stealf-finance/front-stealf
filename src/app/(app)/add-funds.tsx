@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import { useState, useMemo } from 'react';
 import {
   View,
   Text,
@@ -125,21 +125,21 @@ export default function AddFundsScreen() {
           </View>
 
           {/* Devnet Airdrop */}
-            <TouchableOpacity
-              style={[styles.airdropButton, airdropping && styles.airdropButtonDisabled]}
-              onPress={handleAirdrop}
-              disabled={airdropping}
-              activeOpacity={0.8}
-              accessibilityRole="button"
-              accessibilityLabel="Airdrop 2 SOL on devnet"
-            >
-              {airdropping ? (
-                <ActivityIndicator color="#000" />
-              ) : (
-                <Text style={styles.airdropButtonText}>Airdrop 2 SOL (Devnet)</Text>
-              )}
-            </TouchableOpacity>
-          
+          <TouchableOpacity
+            style={[styles.airdropButton, airdropping && styles.airdropButtonDisabled]}
+            onPress={handleAirdrop}
+            disabled={airdropping}
+            activeOpacity={0.8}
+            accessibilityRole="button"
+            accessibilityLabel="Airdrop 2 SOL on devnet"
+          >
+            {airdropping ? (
+              <ActivityIndicator color="#000" />
+            ) : (
+              <Text style={styles.airdropButtonText}>Airdrop 2 SOL (Devnet)</Text>
+            )}
+          </TouchableOpacity>
+
         </View>
       </LinearGradient>
     </View>
@@ -265,6 +265,58 @@ const styles = StyleSheet.create({
   },
   airdropButtonText: {
     fontSize: 15,
+    fontWeight: '600',
+    color: '#000',
+    fontFamily: 'Sansation-Bold',
+  },
+  claimsSection: {
+    marginTop: 32,
+    marginBottom: 24,
+  },
+  claimsTitle: {
+    color: 'white',
+    fontSize: 18,
+    fontFamily: 'Sansation-Regular',
+    marginBottom: 4,
+  },
+  claimsSubtitle: {
+    color: 'rgba(255,255,255,0.5)',
+    fontSize: 13,
+    fontFamily: 'Sansation-Regular',
+    marginBottom: 16,
+  },
+  claimsEmpty: {
+    color: 'rgba(255,255,255,0.4)',
+    fontSize: 14,
+    fontFamily: 'Sansation-Regular',
+    textAlign: 'center',
+    paddingVertical: 24,
+  },
+  claimCard: {
+    backgroundColor: 'rgba(255,255,255,0.06)',
+    borderRadius: 16,
+    padding: 16,
+    marginBottom: 12,
+  },
+  claimAmount: {
+    color: 'white',
+    fontSize: 18,
+    fontFamily: 'Sansation-Bold',
+  },
+  claimSubtext: {
+    color: 'rgba(255,255,255,0.5)',
+    fontSize: 12,
+    fontFamily: 'Sansation-Regular',
+    marginTop: 2,
+  },
+  claimButton: {
+    backgroundColor: 'rgba(240, 235, 220, 0.95)',
+    paddingVertical: 12,
+    borderRadius: 24,
+    alignItems: 'center',
+  },
+  claimButtonText: {
+    fontSize: 14,
     fontWeight: '600',
     color: '#000',
     fontFamily: 'Sansation-Bold',

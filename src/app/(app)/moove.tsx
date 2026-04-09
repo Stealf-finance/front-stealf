@@ -15,7 +15,11 @@ import { LAMPORTS_PER_SOL } from '../../services/solana/kit';
 import { useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '../../contexts/AuthContext';
 import { useWalletInfos } from '../../hooks/wallet/useWalletInfos';
+import { useShieldedBalance } from '../../hooks/wallet/useShieldedBalance';
 import { useSendTransaction } from '../../hooks/transactions/useSendSimpleTransaction';
+import { useUmbra, UmbraError } from '../../hooks/transactions/useUmbra';
+import { SOL_MINT } from '../../constants/solana';
+import { toAddress } from '../../services/solana/kit';
 import SlideToConfirm from '../../components/SlideToConfirm';
 import ArrowIcon from '../../assets/buttons/arrow.svg';
 
@@ -34,11 +38,13 @@ export default function MooveScreen() {
   const hasStealthWallet = !!userData?.stealf_wallet;
   const queryClient = useQueryClient();
   const { balance: cashBalance, tokens: cashTokens } = useWalletInfos(userData?.cash_wallet || '');
-  const { balance: privacyBalance, tokens: privacyTokens } = useWalletInfos(userData?.stealf_wallet || '');
+  const { tokens: stealthTokens } = useWalletInfos(userData?.stealf_wallet || '');
+  const { data: shielded } = useShieldedBalance();
   const { sendTransaction, loading: turnkeyLoading } = useSendTransaction();
+  const { deposit, selfShield, loading: umbraLoading } = useUmbra();
 
   const getSolPrice = (): number => {
-    const allTokens = [...cashTokens, ...privacyTokens];
+    const allTokens = [...cashTokens, ...stealthTokens];
     const solToken = allTokens.find(t => t.tokenMint === null && t.balance > 0);
     if (solToken && solToken.balance > 0) {
       return solToken.balanceUSD / solToken.balance;
@@ -46,14 +52,14 @@ export default function MooveScreen() {
     return 0;
   };
 
-  const isLoading = localLoading || turnkeyLoading;
+  const solPriceMemo = getSolPrice();
+  const privacyBalance = (shielded?.sol ?? 0) * solPriceMemo;
+
+  const isLoading = localLoading || turnkeyLoading || umbraLoading;
 
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const checkScale = useRef(new Animated.Value(0)).current;
   const contentFade = useRef(new Animated.Value(0)).current;
-
-  const fromAddress = direction === 'toCash' ? userData?.stealf_wallet : userData?.cash_wallet;
-  const destinationAddress = direction === 'toCash' ? userData?.cash_wallet : userData?.stealf_wallet;
 
   const wealthDelta = direction === 'toCash' ? '-' : '+';
   const cashDelta = direction === 'toCash' ? '+' : '-';
@@ -108,7 +114,7 @@ export default function MooveScreen() {
   const handleMove = async () => {
     const amountUSD = parseFloat(amount);
     if (!amount || isNaN(amountUSD) || amountUSD <= 0) return;
-    if (!fromAddress || !destinationAddress) return;
+    if (!userData?.cash_wallet || !userData?.stealf_wallet) return;
 
     const sourceBalance = direction === 'toCash' ? privacyBalance : cashBalance;
     if (sourceBalance !== undefined && amountUSD > sourceBalance) {
@@ -122,23 +128,44 @@ export default function MooveScreen() {
       return;
     }
     const amountSOL = Math.floor((amountUSD / solPrice) * LAMPORTS_PER_SOL) / LAMPORTS_PER_SOL;
+    const amountLamports = BigInt(Math.floor(amountSOL * LAMPORTS_PER_SOL));
 
+    setLocalLoading(true);
     try {
       if (direction === 'toPrivacy') {
-        // Cash → Stealth: sign with Turnkey
-        await sendTransaction(fromAddress, destinationAddress, amountSOL, null, undefined, 'cash', cashBalance ?? 0);
+
+        await sendTransaction(
+          userData.cash_wallet,
+          userData.stealf_wallet,
+          amountSOL,
+          null,
+          undefined,
+          'cash',
+          cashBalance ?? 0
+        );
+
+        await deposit(toAddress(SOL_MINT), amountLamports);
       } else {
-        // Stealth → Cash: sign with local keypair
-        await sendTransaction(fromAddress, destinationAddress, amountSOL, null, undefined, 'stealf', privacyBalance ?? 0);
+
+        await selfShield(
+          toAddress(SOL_MINT),
+          amountLamports,
+          toAddress(userData.cash_wallet)
+        );
       }
 
-      queryClient.invalidateQueries({ queryKey: ['wallet-balance', userData?.cash_wallet] });
-      queryClient.invalidateQueries({ queryKey: ['wallet-balance', userData?.stealf_wallet] });
+      // Refresh all relevant caches
+      queryClient.invalidateQueries({ queryKey: ['wallet-balance', userData.cash_wallet] });
+      queryClient.invalidateQueries({ queryKey: ['wallet-balance', userData.stealf_wallet] });
+      queryClient.invalidateQueries({ queryKey: ['shielded-balance'] });
 
       showSuccessAnimation();
     } catch (err: any) {
       if (__DEV__) console.error('[Moove] Transfer error:', err?.message, err);
-      Alert.alert('Transfer Failed', err?.message || 'An error occurred');
+      const friendly = err instanceof UmbraError
+        ? err.userMessage
+        : (err?.message || 'An error occurred');
+      Alert.alert('Transfer Failed', friendly);
     } finally {
       setLocalLoading(false);
     }

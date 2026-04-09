@@ -8,6 +8,7 @@ import {
   getEncryptedBalanceToReceiverClaimableUtxoCreatorFunction,
   getEncryptedBalanceToSelfClaimableUtxoCreatorFunction,
   getReceiverClaimableUtxoToEncryptedBalanceClaimerFunction,
+  getSelfClaimableUtxoToPublicBalanceClaimerFunction,
   getEncryptedBalanceQuerierFunction,
   getClaimableUtxoScannerFunction,
   getBatchMerkleProofFetcher,
@@ -18,13 +19,12 @@ import {
   createCreateUtxoWithReceiverUnlockerZkProver,
   createCreateUtxoWithEphemeralUnlockerZkProver,
   createClaimReceiverZkProver,
+  createClaimEphemeralZkProver,
 } from "../../zk";
 import type { Address } from "@solana/kit";
 import bs58 from "bs58";
 import { walletKeyCache } from "../../services/cache/walletKeyCache";
 import { masterSeedStorage, umbraClearSeed, setActiveWallet } from "../../services/solana/umbraSeed";
-
-
 
 type UmbraClient = Awaited<ReturnType<typeof getUmbraClient>>;
 
@@ -35,8 +35,6 @@ export function clearUmbraState(): void {
   cachedSignerKey = null;
   registered = false;
 }
-
-
 
 const RPC_URL = process.env.EXPO_PUBLIC_SOLANA_RPC_URL || "";
 const WSS_URL = process.env.EXPO_PUBLIC_SOLANA_WSS_URL || "";
@@ -150,11 +148,29 @@ export async function fetchPendingClaims(): Promise<any[]> {
   const client = await getClient();
   if (cachedSignerKey) await loadBurntUtxosForCurrentWallet(cachedSignerKey);
   const scan = getClaimableUtxoScannerFunction({ client });
-  // Note: U32 is internally a branded bigint in the SDK, so we must pass bigint literals.
   const result = await scan(0n as any, 0n as any);
   const all = result.received ?? [];
   if (burntUtxoIds.size === 0) return all;
   return all.filter((u: any) => !burntUtxoIds.has(utxoToId(u)));
+}
+
+/**
+ * Scan the mixer for self-claimable UTXOs whose destinationAddress matches
+ * the given wallet (typically the cash wallet). These were created by the
+ * user via Stealth → Cash flow (`selfShield(destination=cash_wallet)`) and
+ * are waiting to be claimed via the relayer to the destination's public ATA.
+ */
+export async function fetchPendingClaimsForCash(cashWalletAddress: string): Promise<any[]> {
+  const client = await getClient();
+  if (cachedSignerKey) await loadBurntUtxosForCurrentWallet(cachedSignerKey);
+  const scan = getClaimableUtxoScannerFunction({ client });
+  const result = await scan(0n as any, 0n as any);
+  const all = result.selfBurnable ?? [];
+  return all.filter((u: any) => {
+    if (burntUtxoIds.has(utxoToId(u))) return false;
+    const dest = u?.destinationAddress?.toString?.() ?? String(u?.destinationAddress ?? '');
+    return dest === cashWalletAddress;
+  });
 }
 
 let registered = false;
@@ -184,7 +200,8 @@ type UmbraOp =
   | "withdraw"
   | "sendPrivate"
   | "selfShield"
-  | "claimReceived";
+  | "claimReceived"
+  | "claimSelfToPublic";
 
 export type UmbraErrorCode =
   | "RECEIVER_NOT_REGISTERED"
@@ -383,7 +400,7 @@ export function useUmbra() {
 
   /** Self-shield — creates a UTXO claimable by self. */
   const selfShield = useCallback(
-    async (mint: Address, amount: bigint) => {
+    async (mint: Address, amount: bigint, destinationAddress?: Address) => {
       return wrap("selfShield", async () => {
         await ensureRegistered();
         const client = await getClient();
@@ -393,10 +410,33 @@ export function useUmbra() {
           { zkProver }
         );
         return createUtxo({
-          destinationAddress: client.signer.address,
+          destinationAddress: destinationAddress ?? client.signer.address,
           mint,
           amount: amount as any,
         });
+      });
+    },
+    [wrap]
+  );
+
+  /**
+   * Claim self-claimable UTXOs into the destination's PUBLIC balance (ATA).
+   * The relayer signs the on-chain claim, so the on-chain footprint is
+   * `relayer → destinationAddress` — no link to the original sender.
+   * Used as the second step of the anonymous Stealth → Cash flow.
+   */
+  const claimSelfToPublic = useCallback(
+    async (utxos: any[]) => {
+      return wrap("claimSelfToPublic", async () => {
+        const client = await getClient();
+        const zkProver = createClaimEphemeralZkProver();
+        const relayer = getRelayer();
+        const fetchBatchMerkleProof = getBatchMerkleProofFetcher({ apiEndpoint: INDEXER_API });
+        const claimFn = getSelfClaimableUtxoToPublicBalanceClaimerFunction(
+          { client },
+          { zkProver, relayer, fetchBatchMerkleProof }
+        );
+        return claimFn(utxos);
       });
     },
     [wrap]
@@ -422,10 +462,7 @@ export function useUmbra() {
         try {
           result = await claimFn(utxos);
         } catch (err: any) {
-          // The relayer can throw BEFORE returning a batch result when the
-          // nullifier is already burnt or reserved. In that case we don't get
-          // utxoIds in `batches` — we infer them from the input UTXOs and
-          // blacklist them so the user doesn't keep seeing this UTXO forever.
+
           const msg = String(err?.message || err?.cause?.message || '');
           if (
             /NullifierAlreadyBurnt/i.test(msg) ||
@@ -516,6 +553,7 @@ export function useUmbra() {
     withdraw,
     sendPrivate,
     selfShield,
+    claimSelfToPublic,
     claimReceived,
   };
 }

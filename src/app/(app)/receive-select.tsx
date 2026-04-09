@@ -1,81 +1,130 @@
-import { View, Text, TouchableOpacity } from 'react-native';
+import { View, Text, TouchableOpacity, ScrollView } from 'react-native';
 import { useRouter } from 'expo-router';
-import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { usePendingClaimsForCash } from '../../hooks/wallet/usePendingClaimsForCash';
+import ChevronDown from '../../assets/buttons/chevron-down.svg';
 
 export default function ReceiveSelectScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  const { data: pendingClaims } = usePendingClaimsForCash();
+  const pendingCount = pendingClaims?.length ?? 0;
+
+  const handleClose = () => {
+    if (router.canGoBack()) router.back();
+  };
 
   return (
     <View style={{ flex: 1 }}>
-      <LinearGradient
-        colors={['#000000', '#000000', '#000000']}
-        locations={[0, 0.5, 1]}
-        start={{ x: 0, y: 1 }}
-        end={{ x: 0, y: 0 }}
-        style={{ flex: 1 }}
-      >
-        {/* Grabber */}
-        <TouchableOpacity
-          onPress={() => router.back()}
-          activeOpacity={0.8}
-          accessibilityRole="button"
-          accessibilityLabel="Close"
-          style={{ alignItems: 'center', paddingTop: 12, paddingBottom: 16 }}
+      {/* Transparent top — navbar visible behind */}
+      <View style={{ height: insets.top + 40 }} />
+
+      {/* Sheet */}
+      <View style={{ flex: 1, backgroundColor: '#000', borderTopLeftRadius: 16, borderTopRightRadius: 16 }}>
+        <ScrollView
+          contentContainerStyle={{ paddingHorizontal: 20, paddingTop: 20, paddingBottom: insets.bottom + 40 }}
+          showsVerticalScrollIndicator={false}
         >
-          <View style={{ width: 36, height: 5, borderRadius: 3, backgroundColor: 'rgba(255,255,255,0.8)' }} />
-        </TouchableOpacity>
+          {/* Header */}
+          <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 6 }}>
+            <Text style={{ color: '#fff', fontSize: 24, fontFamily: 'Sansation-Bold', flex: 1 }}>
+              Receive funds
+            </Text>
+            <TouchableOpacity
+              onPress={handleClose}
+              activeOpacity={0.7}
+              accessibilityRole="button"
+              accessibilityLabel="Close"
+              style={{ padding: 8 }}
+            >
+              <ChevronDown width={32} height={32} style={{ opacity: 0.6 }} />
+            </TouchableOpacity>
+          </View>
 
-        {/* Title */}
-        <Text style={{ color: '#fff', fontSize: 20, fontFamily: 'Sansation-Bold', paddingHorizontal: 24, marginTop: 16, marginBottom: 28 }}>
-          Receive funds
-        </Text>
+          <Text style={{ color: 'rgba(255,255,255,0.4)', fontSize: 14, fontFamily: 'Sansation-Regular', marginBottom: 24 }}>
+            Choose how you want to receive
+          </Text>
 
-        {/* Options */}
-        <View style={{ paddingHorizontal: 24, gap: 12 }}>
-          <TouchableOpacity
-            onPress={() => { router.back(); setTimeout(() => router.push('/(app)/add-funds'), 100); }}
-            activeOpacity={0.7}
-            accessibilityRole="button"
-            accessibilityLabel="Receive stablecoins"
-            style={{
-              backgroundColor: 'rgba(255,255,255,0.03)',
-              borderRadius: 12,
-              padding: 20,
-              flexDirection: 'row',
-              alignItems: 'center',
-            }}
-          >
-            <View style={{ flex: 1 }}>
-              <Text style={{ fontSize: 16, color: '#fff', fontFamily: 'Sansation-Regular', marginBottom: 2 }}>Receive stablecoins</Text>
-              <Text style={{ fontSize: 13, color: 'rgba(255,255,255,0.4)', fontFamily: 'Sansation-Regular' }}>Receive from a wallet address</Text>
-            </View>
-            <Text style={{ fontSize: 20, color: 'rgba(255,255,255,0.2)', marginLeft: 12 }}>›</Text>
-          </TouchableOpacity>
+          {/* Options */}
+          <View style={{ gap: 12 }}>
+            <TouchableOpacity
+              onPress={() => { router.back(); setTimeout(() => router.push('/(app)/add-funds'), 100); }}
+              activeOpacity={0.7}
+              accessibilityRole="button"
+              accessibilityLabel="Receive stablecoins"
+              style={{
+                backgroundColor: 'rgba(255,255,255,0.08)',
+                borderRadius: 14,
+                borderCurve: 'continuous',
+                padding: 18,
+                flexDirection: 'row',
+                alignItems: 'center',
+              }}
+            >
+              <View style={{ flex: 1 }}>
+                <Text style={{ fontSize: 16, color: '#fff', fontFamily: 'Sansation-Bold', marginBottom: 2 }}>Receive stablecoins</Text>
+                <Text style={{ fontSize: 13, color: 'rgba(255,255,255,0.4)', fontFamily: 'Sansation-Regular' }}>Receive from a wallet address</Text>
+              </View>
+              <Text style={{ fontSize: 18, color: 'rgba(255,255,255,0.3)', marginLeft: 12 }}>›</Text>
+            </TouchableOpacity>
 
-          <TouchableOpacity
-            disabled
-            activeOpacity={1}
-            style={{
-              backgroundColor: 'rgba(255,255,255,0.03)',
-              borderRadius: 12,
-              padding: 20,
-              flexDirection: 'row',
-              alignItems: 'center',
-              opacity: 0.5,
-            }}
-          >
-            <View style={{ flex: 1 }}>
-              <Text style={{ fontSize: 16, color: '#fff', fontFamily: 'Sansation-Regular', marginBottom: 2 }}>Receive Bank Transfer</Text>
-              <Text style={{ fontSize: 13, color: 'rgba(255,255,255,0.4)', fontFamily: 'Sansation-Regular' }}>Receive from a bank account</Text>
+            <TouchableOpacity
+              onPress={() => { router.back(); setTimeout(() => router.push('/(app)/receive-cash'), 100); }}
+              activeOpacity={0.7}
+              accessibilityRole="button"
+              accessibilityLabel={`Pending claims${pendingCount > 0 ? `, ${pendingCount}` : ''}`}
+              style={{
+                backgroundColor: 'rgba(255,255,255,0.08)',
+                borderRadius: 14,
+                borderCurve: 'continuous',
+                padding: 18,
+                flexDirection: 'row',
+                alignItems: 'center',
+              }}
+            >
+              <View style={{ flex: 1 }}>
+                <Text style={{ fontSize: 16, color: '#fff', fontFamily: 'Sansation-Bold', marginBottom: 2 }}>Pending claims</Text>
+                <Text style={{ fontSize: 13, color: 'rgba(255,255,255,0.4)', fontFamily: 'Sansation-Regular' }}>Receive private transfers</Text>
+              </View>
+              {pendingCount > 0 && (
+                <View style={{
+                  minWidth: 22,
+                  height: 22,
+                  borderRadius: 11,
+                  backgroundColor: '#ff3b30',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  paddingHorizontal: 7,
+                  marginLeft: 8,
+                }}>
+                  <Text style={{ color: '#fff', fontSize: 12, fontFamily: 'Sansation-Bold' }}>{pendingCount}</Text>
+                </View>
+              )}
+              <Text style={{ fontSize: 18, color: 'rgba(255,255,255,0.3)', marginLeft: 12 }}>›</Text>
+            </TouchableOpacity>
+
+            <View
+              style={{
+                backgroundColor: 'rgba(255,255,255,0.03)',
+                borderRadius: 14,
+                borderCurve: 'continuous',
+                padding: 18,
+                flexDirection: 'row',
+                alignItems: 'center',
+                opacity: 0.6,
+              }}
+            >
+              <View style={{ flex: 1 }}>
+                <Text style={{ fontSize: 16, color: 'rgba(255,255,255,0.5)', fontFamily: 'Sansation-Bold', marginBottom: 2 }}>Receive Bank Transfer</Text>
+                <Text style={{ fontSize: 13, color: 'rgba(255,255,255,0.3)', fontFamily: 'Sansation-Regular' }}>Receive from a bank account</Text>
+              </View>
+              <View style={{ backgroundColor: 'rgba(255,255,255,0.08)', borderRadius: 8, paddingHorizontal: 8, paddingVertical: 4 }}>
+                <Text style={{ color: 'rgba(255,255,255,0.4)', fontSize: 11, fontFamily: 'Sansation-Bold' }}>Soon</Text>
+              </View>
             </View>
-            <View style={{ backgroundColor: 'rgba(240,235,220,0.2)', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 12, marginLeft: 8 }}>
-              <Text style={{ fontSize: 11, color: 'rgba(240,235,220,0.95)', fontFamily: 'Sansation-Regular', fontWeight: '600' }}>Coming Soon</Text>
-            </View>
-          </TouchableOpacity>
-        </View>
-      </LinearGradient>
+          </View>
+        </ScrollView>
+      </View>
     </View>
   );
 }

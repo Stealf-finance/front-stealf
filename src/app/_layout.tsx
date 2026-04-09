@@ -14,6 +14,7 @@ import { TURNKEY_CONFIG, TURNKEY_CALLBACKS } from '../constants/turnkey';
 import { AuthProvider, useAuth } from '../contexts/AuthContext';
 import { useWalletInfos } from '../hooks/wallet/useWalletInfos';
 import { usePendingClaims } from '../hooks/wallet/usePendingClaims';
+import { usePendingClaimsForCash } from '../hooks/wallet/usePendingClaimsForCash';
 import { SplashProvider, useSplash } from '../contexts/SplashContext';
 import ErrorBoundary from '../components/ErrorBoundary';
 import { WelcomeLoader } from '../components/WelcomeLoader';
@@ -53,6 +54,7 @@ function RootNavigator() {
   usePreloadZKeysOnMount();
 
   usePendingClaims();
+  usePendingClaimsForCash();
 
   useEffect(() => {
     if (loading) return;

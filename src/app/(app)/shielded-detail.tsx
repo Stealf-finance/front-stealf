@@ -309,7 +309,7 @@ export default function ShieldedDetailScreen({ onClose }: { onClose?: () => void
               </TouchableOpacity>
 
               <TouchableOpacity
-                onPress={() => { animateAndSetManage(false); Alert.alert('Coming Soon', 'Unshield will be available soon.'); }}
+                onPress={() => { animateAndSetManage(false); router.push('/(app)/unshield'); }}
                 activeOpacity={0.85}
                 accessibilityRole="button"
                 accessibilityLabel="Unshield assets"

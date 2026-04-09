@@ -55,7 +55,6 @@ export function validateAmount(
     return { valid: false, error: 'Amount must be greater than 0' };
   }
 
-  // Check decimal places
   const parts = amount.split('.');
   if (parts.length === 2 && parts[1].length > maxDecimals) {
     return { valid: false, error: `Maximum ${maxDecimals} decimal places allowed` };

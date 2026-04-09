@@ -3,6 +3,7 @@ import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator, ScrollView
 import { Image } from 'expo-image';
 import { useAuth } from '../../contexts/AuthContext';
 import { useWalletInfos } from '../../hooks/wallet/useWalletInfos';
+import { usePendingClaimsForCash } from '../../hooks/wallet/usePendingClaimsForCash';
 
 // Import SVG icons
 import DepositIcon from '../../assets/buttons/deposit.svg';
@@ -29,6 +30,9 @@ function CashBalanceCard({
   );
 
   const totalUSD = balance || 0;
+
+  const { data: pendingClaims } = usePendingClaimsForCash();
+  const pendingCount = pendingClaims?.length ?? 0;
 
   return (
     <View style={styles.container}>
@@ -63,6 +67,22 @@ function CashBalanceCard({
         >
           <DepositIcon width={16} height={16} color="#fff" />
           <Text style={{ color: '#fff', fontSize: 13, fontFamily: 'Sansation-Bold', marginTop: 6 }}>Receive</Text>
+          {pendingCount > 0 && (
+            <View style={{
+              position: 'absolute',
+              top: 8,
+              right: 8,
+              minWidth: 18,
+              height: 18,
+              borderRadius: 9,
+              backgroundColor: '#ff3b30',
+              alignItems: 'center',
+              justifyContent: 'center',
+              paddingHorizontal: 5,
+            }}>
+              <Text style={{ color: '#fff', fontSize: 11, fontFamily: 'Sansation-Bold' }}>{pendingCount}</Text>
+            </View>
+          )}
         </TouchableOpacity>
 
         <TouchableOpacity
