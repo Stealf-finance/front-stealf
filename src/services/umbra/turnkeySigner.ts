@@ -1,5 +1,7 @@
 import { address, type Address } from '@solana/kit';
 import { getTransactionEncoder, getTransactionDecoder } from '@solana/transactions';
+import nacl from 'tweetnacl';
+import bs58 from 'bs58';
 import type {
   IUmbraSigner,
   SignableTransaction,
@@ -98,27 +100,56 @@ export function createTurnkeyUmbraSigner(args: CreateTurnkeyUmbraSignerArgs): IU
 
     const signedBytes = hexToBytes(signedHex);
     const decoded = decoder.decode(signedBytes) as any;
-    // The wire format only carries `recentBlockhash`, not `lastValidBlockHeight`.
-    // Re-attach the original lifetime constraint so downstream confirmation logic
-    // (which reads `lastValidBlockHeight`) works.
-    if ((tx as any).lifetimeConstraint && !decoded.lifetimeConstraint) {
-      decoded.lifetimeConstraint = (tx as any).lifetimeConstraint;
-    }
-    return decoded as SignedTransaction;
+    // Wire format drops `lastValidBlockHeight`. Spread instead of mutating to
+    // avoid frozen-object issues in strict Hermes builds.
+    return {
+      ...decoded,
+      lifetimeConstraint: (tx as any).lifetimeConstraint,
+    } as SignedTransaction;
   };
 
   const signOneMessage = async (message: Uint8Array) => {
     const messageHex = bytesToHex(message);
-    const { r, s } = await turnkeySignMsg({
+    const tkResult = await turnkeySignMsg({
       walletAccount,
       message: messageHex,
       encoding: 'PAYLOAD_ENCODING_HEXADECIMAL',
       hashFunction: 'HASH_FUNCTION_NOT_APPLICABLE', // Ed25519 signs raw bytes
     });
 
-    // Solana Ed25519 signature = r || s, 64 bytes total.
-    const sigHex = padHex(r, 32) + padHex(s, 32);
-    const signature = hexToBytes(sigHex);
+    // Turnkey returns ECDSA-shaped { r, s, v }. For Ed25519/Solana there's no
+    // canonical r||s split — different SDK versions place the full 64-byte sig
+    // in `r`, others split as 32+32. Try both shapes and verify cryptographically.
+    const candidates: Uint8Array[] = [];
+    const rBytes = hexToBytes(tkResult.r);
+    const sBytes = hexToBytes(tkResult.s);
+    if (rBytes.length === 64) candidates.push(rBytes);
+    if (rBytes.length === 32 && sBytes.length === 32) {
+      const concat = new Uint8Array(64);
+      concat.set(rBytes, 0);
+      concat.set(sBytes, 32);
+      candidates.push(concat);
+    }
+
+    const pubkey = bs58.decode(walletAccount.address);
+    let signature: Uint8Array | null = null;
+    for (const candidate of candidates) {
+      try {
+        if (nacl.sign.detached.verify(message, candidate, pubkey)) {
+          signature = candidate;
+          break;
+        }
+      } catch {
+        // try next candidate
+      }
+    }
+
+    if (!signature) {
+      throw new Error(
+        `TurnkeyUmbraSigner: signMessage produced an invalid Ed25519 signature ` +
+          `(tried ${candidates.length} candidate shape(s)). r=${tkResult.r.length / 2}B s=${sBytes.length}B`
+      );
+    }
 
     return {
       message,

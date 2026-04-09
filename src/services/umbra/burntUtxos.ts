@@ -14,6 +14,12 @@ export function isBurnt(utxo: any): boolean {
   return burntUtxoIds.has(utxoToId(utxo));
 }
 
+/** Reset the in-memory blacklist on logout / wallet switch. */
+export function clearBurntUtxos(): void {
+  burntUtxoIds.clear();
+  burntUtxosLoadedForKey = null;
+}
+
 export async function loadBurntUtxosForCurrentWallet(
   privateKeyB58: string
 ): Promise<void> {

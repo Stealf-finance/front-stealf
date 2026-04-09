@@ -16,6 +16,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '../../contexts/AuthContext';
 import { useWalletInfos } from '../../hooks/wallet/useWalletInfos';
 import { useShieldedBalance } from '../../hooks/wallet/useShieldedBalance';
+import { useSolPrice } from '../../hooks/useSolPrice';
 import { useUmbra, UmbraError } from '../../hooks/transactions/useUmbra';
 import { SOL_MINT } from '../../constants/solana';
 import { toAddress } from '../../services/solana/kit';
@@ -36,21 +37,12 @@ export default function MooveScreen() {
   const { userData } = useAuth();
   const hasStealthWallet = !!userData?.stealf_wallet;
   const queryClient = useQueryClient();
-  const { balance: cashBalance, tokens: cashTokens } = useWalletInfos(userData?.cash_wallet || '');
-  const { tokens: stealthTokens } = useWalletInfos(userData?.stealf_wallet || '');
+  const { balance: cashBalance } = useWalletInfos(userData?.cash_wallet || '');
   const { data: shielded } = useShieldedBalance();
+  const { data: solPriceData } = useSolPrice();
   const { depositFromCash, selfShield, loading: umbraLoading } = useUmbra();
 
-  const getSolPrice = (): number => {
-    const allTokens = [...cashTokens, ...stealthTokens];
-    const solToken = allTokens.find(t => t.tokenMint === null && t.balance > 0);
-    if (solToken && solToken.balance > 0) {
-      return solToken.balanceUSD / solToken.balance;
-    }
-    return 0;
-  };
-
-  const solPriceMemo = getSolPrice();
+  const solPriceMemo = solPriceData ?? 0;
   const privacyBalance = (shielded?.sol ?? 0) * solPriceMemo;
 
   const isLoading = localLoading || umbraLoading;
@@ -120,13 +112,11 @@ export default function MooveScreen() {
       return;
     }
 
-    const solPrice = getSolPrice();
-    if (solPrice <= 0) {
-      Alert.alert('Error', 'Unable to get SOL price');
+    if (solPriceMemo <= 0) {
+      Alert.alert('Error', 'SOL price unavailable. Check your connection and try again.');
       return;
     }
-    const amountSOL = Math.floor((amountUSD / solPrice) * LAMPORTS_PER_SOL) / LAMPORTS_PER_SOL;
-    const amountLamports = BigInt(Math.floor(amountSOL * LAMPORTS_PER_SOL));
+    const amountLamports = BigInt(Math.floor((amountUSD / solPriceMemo) * LAMPORTS_PER_SOL));
 
     setLocalLoading(true);
     try {

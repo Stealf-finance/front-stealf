@@ -48,6 +48,7 @@ export type UmbraErrorCode =
   | "VERIFYING_KEY_NOT_INITIALIZED"
   | "STALE_MERKLE_PROOF"
 
+  | "SIGNING_FAILED"
   | "UNKNOWN";
 
 export class UmbraError extends Error {
@@ -92,6 +93,7 @@ const MSG: Record<UmbraErrorCode, string> = {
   VERIFYING_KEY_NOT_INITIALIZED:
     "Umbra protocol is not fully deployed on this network. Please contact support.",
   STALE_MERKLE_PROOF: "This claim is out of date. Please refresh and try again.",
+  SIGNING_FAILED: "Signing failed. Please try again.",
   UNKNOWN: "Something went wrong. Please try again.",
 };
 
@@ -150,7 +152,14 @@ export function parseUmbraError(err: any, op: UmbraOp): UmbraError {
       case "account-fetch":
         return build(err, op, "RPC_ERROR", err.stage);
       case "transaction-sign":
-        return build(err, op, "USER_CANCELLED", err.stage);
+        // For depositFromCash, the signer is Turnkey (remote) — a sign failure
+        // is a real infra error, not a user cancel.
+        return build(
+          err,
+          op,
+          op === "depositFromCash" ? "SIGNING_FAILED" : "USER_CANCELLED",
+          err.stage
+        );
       case "transaction-send":
         return build(err, op, "TX_TIMEOUT", err.stage);
       default:

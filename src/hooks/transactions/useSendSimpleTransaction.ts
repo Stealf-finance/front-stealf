@@ -162,6 +162,8 @@ export function useSendTransaction() {
     } catch (error: any) {
       if (__DEV__ && !error.isGuard) {
         console.error('[useSendTransaction] Transaction error:', error.message);
+        console.error('[useSendTransaction] cause:', error?.cause?.message || error?.cause);
+        console.error('[useSendTransaction] code:', error?.code);
       }
       setError(error.message);
       throw error;

@@ -3,8 +3,9 @@ import type { Address } from "@solana/kit";
 import { useTurnkey } from "@turnkey/react-native-wallet-kit";
 
 import { parseUmbraError, UmbraError, type UmbraOp } from "../../services/umbra/errors";
-import { clearUmbraClient } from "../../services/umbra/client";
+import { clearUmbraClient, clearCashClient } from "../../services/umbra/client";
 import { clearRegistration, ensureRegistered } from "../../services/umbra/registration";
+import { clearBurntUtxos } from "../../services/umbra/burntUtxos";
 import { umbraClearSeed } from "../../services/umbra/seed";
 
 import { deposit, depositFromCash } from "../../services/umbra/operations/deposit";
@@ -26,7 +27,9 @@ export { ensureRegistered };
 /** Reset every Umbra-related cache. Called on logout / wallet switch. */
 export function clearUmbraState(): void {
   clearUmbraClient();
+  clearCashClient();
   clearRegistration();
+  clearBurntUtxos();
 }
 
 export function useUmbra() {
