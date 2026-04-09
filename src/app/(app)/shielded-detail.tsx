@@ -52,7 +52,7 @@ export default function ShieldedDetailScreen({ onClose }: { onClose?: () => void
   return (
     <View style={{ flex: 1 }}>
       {/* Transparent top — navbar visible behind */}
-      <View style={{ height: insets.top + 40 }} />
+      <View style={{ height: insets.top + 50 }} />
 
       {/* Sheet */}
       <View style={{ flex: 1, backgroundColor: '#000', borderTopLeftRadius: 16, borderTopRightRadius: 16 }}>
@@ -221,48 +221,7 @@ export default function ShieldedDetailScreen({ onClose }: { onClose?: () => void
             </Text>
             <Text style={{ color: 'rgba(255,255,255,0.3)', fontSize: 18 }}>›</Text>
           </TouchableOpacity>
-
-          {/* S&P 500 — coming soon */}
-          <View
-            style={{
-              backgroundColor: 'rgba(255,255,255,0.03)',
-              borderRadius: 14,
-              borderCurve: 'continuous',
-              padding: 18,
-              flexDirection: 'row',
-              alignItems: 'center',
-              marginBottom: 12,
-            }}
-          >
-            <View style={{ flex: 1 }}>
-              <Text style={{ color: 'rgba(255,255,255,0.35)', fontSize: 16, fontFamily: 'Sansation-Bold', marginBottom: 2 }}>S&P 500</Text>
-              <Text style={{ color: 'rgba(255,255,255,0.25)', fontSize: 13, fontFamily: 'Sansation-Regular' }}>Tokenized index exposure</Text>
-            </View>
-            <View style={{ backgroundColor: 'rgba(255,255,255,0.08)', borderRadius: 8, paddingHorizontal: 8, paddingVertical: 4 }}>
-              <Text style={{ color: 'rgba(255,255,255,0.4)', fontSize: 11, fontFamily: 'Sansation-Bold' }}>Soon</Text>
-            </View>
-          </View>
-
-          {/* Gold — coming soon */}
-          <View
-            style={{
-              backgroundColor: 'rgba(255,255,255,0.03)',
-              borderRadius: 14,
-              borderCurve: 'continuous',
-              padding: 18,
-              flexDirection: 'row',
-              alignItems: 'center',
-              marginBottom: 28,
-            }}
-          >
-            <View style={{ flex: 1 }}>
-              <Text style={{ color: 'rgba(255,255,255,0.35)', fontSize: 16, fontFamily: 'Sansation-Bold', marginBottom: 2 }}>Gold</Text>
-              <Text style={{ color: 'rgba(255,255,255,0.25)', fontSize: 13, fontFamily: 'Sansation-Regular' }}>Tokenized gold exposure</Text>
-            </View>
-            <View style={{ backgroundColor: 'rgba(255,255,255,0.08)', borderRadius: 8, paddingHorizontal: 8, paddingVertical: 4 }}>
-              <Text style={{ color: 'rgba(255,255,255,0.4)', fontSize: 11, fontFamily: 'Sansation-Bold' }}>Soon</Text>
-            </View>
-          </View>
+        
         </ScrollView>
       </View>
 

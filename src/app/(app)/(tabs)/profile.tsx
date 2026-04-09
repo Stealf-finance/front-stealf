@@ -2,6 +2,7 @@ import React from 'react';
 import { StyleSheet, View, Text, TouchableOpacity, ScrollView, Alert, Linking } from 'react-native';
 import { Image } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
+import { useTurnkey } from '@turnkey/react-native-wallet-kit';
 import { useAuth } from '../../../contexts/AuthContext';
 import { useAuthenticatedApi } from '../../../hooks/api/useApi';
 import { usePager } from '../../../navigation/PagerContext';
@@ -12,6 +13,7 @@ export default function ProfileScreen() {
   const { userData, setUserData, logout } = useAuth();
   const api = useAuthenticatedApi();
   const { currentPage, navigateToPage } = usePager();
+  const { deleteSubOrganization } = useTurnkey();
 
   const userEmail = userData?.email;
   const username = userData?.username;
@@ -55,6 +57,11 @@ export default function ProfileScreen() {
         { text: 'Cancel', style: 'cancel' },
         { text: 'Delete', style: 'destructive', onPress: async () => {
           try {
+            try {
+              await deleteSubOrganization({ deleteWithoutExport: true });
+            } catch (tkErr: any) {
+              if (__DEV__) console.warn('[deleteAccount] Turnkey sub-org delete failed:', tkErr?.message);
+            }
             await api.del('/api/users/account');
             await logout();
             navigateToPage('home');

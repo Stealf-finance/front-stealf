@@ -7,7 +7,7 @@ import { registerYieldSocketListener, unregisterYieldSocketListener, prefetchYie
 import { getUserIdHash } from '../services/yield/deposit';
 import { attachWalletListeners, detachWalletListeners } from '../hooks/wallet/useWalletInfos';
 import { useQueryClient } from '@tanstack/react-query';
-import { umbraClearSeed } from '../services/solana/umbraSeed';
+import { umbraClearSeed } from '../services/umbra/seed';
 import { clearUmbraState } from '../hooks/transactions/useUmbra';
 
 interface UserData {

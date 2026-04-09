@@ -41,11 +41,10 @@ export default function SendPrivateScreen() {
       Alert.alert('Error', check.error || 'Invalid amount');
       return;
     }
-    // DEV: balance check disabled
-    // if (parseFloat(amount) > totalUSD) {
-    //   Alert.alert('Error', `Insufficient balance. Your balance is $${totalUSD.toFixed(2)}`);
-    //   return;
-    // }
+    if (parseFloat(amount) > shieldedSol) {
+      Alert.alert('Error', `Insufficient balance. Your private balance is ${shieldedSol.toFixed(4)} SOL`);
+      return;
+    }
     setShowConfirmation(true);
   };
 

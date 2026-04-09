@@ -25,7 +25,7 @@ export default function WalletDetailScreen({ onClose }: { onClose?: () => void }
   return (
     <View style={{ flex: 1 }}>
       {/* Transparent top — navbar visible behind */}
-      <View style={{ height: insets.top + 40 }} />
+      <View style={{ height: insets.top + 50 }} />
 
       {/* Sheet */}
       <View style={{ flex: 1, backgroundColor: '#000', borderTopLeftRadius: 16, borderTopRightRadius: 16 }}>

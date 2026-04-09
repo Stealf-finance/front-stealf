@@ -14,10 +14,9 @@ const MODAL_OPTIONS = {
 const SHEET_OPTIONS = {
   presentation: 'formSheet' as const,
   sheetGrabberVisible: false,
-  sheetCornerRadius: 0,
+  sheetCornerRadius: 16,
   sheetAllowedDetents: [0.95],
   headerShown: false,
-  contentStyle: { backgroundColor: '#000000' },
 };
 
 export default function AppLayout() {

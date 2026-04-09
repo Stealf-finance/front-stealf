@@ -16,7 +16,6 @@ import { useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '../../contexts/AuthContext';
 import { useWalletInfos } from '../../hooks/wallet/useWalletInfos';
 import { useShieldedBalance } from '../../hooks/wallet/useShieldedBalance';
-import { useSendTransaction } from '../../hooks/transactions/useSendSimpleTransaction';
 import { useUmbra, UmbraError } from '../../hooks/transactions/useUmbra';
 import { SOL_MINT } from '../../constants/solana';
 import { toAddress } from '../../services/solana/kit';
@@ -40,8 +39,7 @@ export default function MooveScreen() {
   const { balance: cashBalance, tokens: cashTokens } = useWalletInfos(userData?.cash_wallet || '');
   const { tokens: stealthTokens } = useWalletInfos(userData?.stealf_wallet || '');
   const { data: shielded } = useShieldedBalance();
-  const { sendTransaction, loading: turnkeyLoading } = useSendTransaction();
-  const { deposit, selfShield, loading: umbraLoading } = useUmbra();
+  const { depositFromCash, selfShield, loading: umbraLoading } = useUmbra();
 
   const getSolPrice = (): number => {
     const allTokens = [...cashTokens, ...stealthTokens];
@@ -55,7 +53,7 @@ export default function MooveScreen() {
   const solPriceMemo = getSolPrice();
   const privacyBalance = (shielded?.sol ?? 0) * solPriceMemo;
 
-  const isLoading = localLoading || turnkeyLoading || umbraLoading;
+  const isLoading = localLoading || umbraLoading;
 
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const checkScale = useRef(new Animated.Value(0)).current;
@@ -133,18 +131,13 @@ export default function MooveScreen() {
     setLocalLoading(true);
     try {
       if (direction === 'toPrivacy') {
-
-        await sendTransaction(
-          userData.cash_wallet,
-          userData.stealf_wallet,
-          amountSOL,
-          null,
-          undefined,
-          'cash',
-          cashBalance ?? 0
+        // Single tx: cash wallet pays + signs (Turnkey), stealth receives the
+        // encrypted balance credit. No intermediate public transfer needed.
+        await depositFromCash(
+          toAddress(userData.stealf_wallet),
+          toAddress(SOL_MINT),
+          amountLamports
         );
-
-        await deposit(toAddress(SOL_MINT), amountLamports);
       } else {
 
         await selfShield(
@@ -158,6 +151,7 @@ export default function MooveScreen() {
       queryClient.invalidateQueries({ queryKey: ['wallet-balance', userData.cash_wallet] });
       queryClient.invalidateQueries({ queryKey: ['wallet-balance', userData.stealf_wallet] });
       queryClient.invalidateQueries({ queryKey: ['shielded-balance'] });
+      queryClient.invalidateQueries({ queryKey: ['pending-claims-cash'] });
 
       showSuccessAnimation();
     } catch (err: any) {

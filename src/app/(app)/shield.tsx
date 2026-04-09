@@ -63,8 +63,14 @@ export default function ShieldScreen() {
       return;
     }
 
+    const amountSOL = parseFloat(amount);
+    const assetBalance = tokens.find(t => t.tokenSymbol === selectedAsset.symbol)?.balance ?? 0;
+    if (amountSOL > assetBalance) {
+      Alert.alert('Error', `Insufficient balance. Your balance is ${assetBalance.toFixed(4)} ${selectedAsset.symbol}`);
+      return;
+    }
+
     try {
-      const amountSOL = parseFloat(amount);
       const amountLamports = BigInt(Math.floor(amountSOL * LAMPORTS_PER_SOL));
       const result = await deposit(toAddress(selectedAsset.mint), amountLamports);
 
