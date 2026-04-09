@@ -116,7 +116,7 @@ export default function SendPrivateConfirmation({ amount, onBack, onClose, onSuc
             </TouchableOpacity>
 
             {/* Title */}
-            <Text style={{ color: '#fff', fontSize: 20, fontFamily: 'Sansation-Bold', marginBottom: 24, textAlign: 'center' }}>
+            <Text style={{ color: '#f1ece1', fontSize: 20, fontFamily: 'Sansation-Bold', marginBottom: 24, textAlign: 'center' }}>
               Confirm
             </Text>
 
@@ -124,7 +124,7 @@ export default function SendPrivateConfirmation({ amount, onBack, onClose, onSuc
             <Text style={styles.sectionLabel}>ASSET</Text>
             <View style={styles.selectorRow}>
               <Image source={require('../../assets/solana.png')} style={{ width: 32, height: 32 }} />
-              <Text style={{ color: '#fff', fontSize: 16, fontFamily: 'Sansation-Bold', flex: 1, marginLeft: 12 }}>SOL</Text>
+              <Text style={{ color: '#f1ece1', fontSize: 16, fontFamily: 'Sansation-Bold', flex: 1, marginLeft: 12 }}>SOL</Text>
               <ChevronDown width={16} height={16} style={{ opacity: 0.3 }} />
             </View>
 
@@ -132,7 +132,7 @@ export default function SendPrivateConfirmation({ amount, onBack, onClose, onSuc
             <Text style={styles.sectionLabel}>NETWORK</Text>
             <View style={styles.selectorRow}>
               <Image source={require('../../assets/solana.png')} style={{ width: 32, height: 32 }} />
-              <Text style={{ color: '#fff', fontSize: 16, fontFamily: 'Sansation-Bold', flex: 1, marginLeft: 12 }}>Solana Devnet</Text>
+              <Text style={{ color: '#f1ece1', fontSize: 16, fontFamily: 'Sansation-Bold', flex: 1, marginLeft: 12 }}>Solana Devnet</Text>
             </View>
 
             {/* SEND TO */}
@@ -146,7 +146,7 @@ export default function SendPrivateConfirmation({ amount, onBack, onClose, onSuc
               marginBottom: 12,
             }}>
               <TextInput
-                style={{ color: '#fff', fontSize: 14, fontFamily: 'Sansation-Regular', flex: 1 }}
+                style={{ color: '#f1ece1', fontSize: 14, fontFamily: 'Sansation-Regular', flex: 1 }}
                 placeholder="Wallet address"
                 placeholderTextColor="rgba(255,255,255,0.25)"
                 value={externalAddress}
@@ -176,7 +176,7 @@ export default function SendPrivateConfirmation({ amount, onBack, onClose, onSuc
               <View style={{ height: 1, backgroundColor: 'rgba(255,255,255,0.06)', marginVertical: 8 }} />
               <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
                 <Text style={{ color: 'rgba(255,255,255,0.5)', fontSize: 14, fontFamily: 'Sansation-Bold' }}>TOTAL</Text>
-                <Text style={{ color: '#fff', fontSize: 14, fontFamily: 'Sansation-Bold' }}>${amount}</Text>
+                <Text style={{ color: '#f1ece1', fontSize: 14, fontFamily: 'Sansation-Bold' }}>${amount}</Text>
               </View>
             </View>
 

@@ -79,7 +79,7 @@ const styles = StyleSheet.create({
     alignItems: 'baseline',
   },
   pointsValue: {
-    color: '#ffffff',
+    color: '#f1ece1',
     fontSize: 32,
     fontFamily: 'Sansation-Light',
     fontWeight: '300',
@@ -101,7 +101,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   starText: {
-    color: '#ffffff',
+    color: '#f1ece1',
     fontSize: 18,
     marginTop: -2,
   },

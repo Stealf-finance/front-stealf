@@ -245,7 +245,7 @@ const styles = StyleSheet.create({
     marginLeft: 12,
   },
   loadingText: {
-    color: '#FFFFFF',
+    color: '#f1ece1',
     fontSize: 14,
     marginTop: 10,
     textAlign: 'center',

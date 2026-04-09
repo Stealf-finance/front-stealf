@@ -59,7 +59,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   value: {
-    color: '#ffffff',
+    color: '#f1ece1',
     fontSize: 24,
     fontFamily: 'Sansation-Light',
     fontWeight: '300',

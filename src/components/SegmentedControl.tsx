@@ -90,7 +90,7 @@ const styles = StyleSheet.create({
     top: 6,
     bottom: 6,
     borderRadius: 34,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: '#f1ece1',
   },
   tab: {
     flex: 1,

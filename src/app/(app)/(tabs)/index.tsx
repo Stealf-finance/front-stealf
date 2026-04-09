@@ -61,7 +61,7 @@ export default function HomeScreen() {
         {/* Transactions */}
         <View style={{ paddingHorizontal: 20 }}>
           <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-            <Text style={{ color: '#fff', fontSize: 18, fontFamily: 'Sansation-Bold' }}>
+            <Text style={{ color: '#f1ece1', fontSize: 18, fontFamily: 'Sansation-Bold' }}>
               Transactions
             </Text>
             <TouchableOpacity
@@ -98,7 +98,7 @@ const styles = StyleSheet.create({
   },
   bankCardTitle: {
     fontSize: 22,
-    color: '#fff',
+    color: '#f1ece1',
     fontFamily: 'Sansation-Bold',
     marginBottom: 18,
   },
@@ -128,7 +128,7 @@ const styles = StyleSheet.create({
   },
   bankCardActionText: {
     fontSize: 13,
-    color: '#fff',
+    color: '#f1ece1',
     fontFamily: 'Sansation-Bold',
   },
 });

@@ -35,7 +35,7 @@ export default function WalletDetailScreen({ onClose }: { onClose?: () => void }
         >
           {/* Header */}
           <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 6 }}>
-            <Text style={{ color: '#fff', fontSize: 24, fontFamily: 'Sansation-Bold', flex: 1 }}>
+            <Text style={{ color: '#f1ece1', fontSize: 24, fontFamily: 'Sansation-Bold', flex: 1 }}>
               Wallet
             </Text>
             <TouchableOpacity
@@ -57,7 +57,7 @@ export default function WalletDetailScreen({ onClose }: { onClose?: () => void }
           <Text style={{ color: 'rgba(255,255,255,0.5)', fontSize: 14, fontFamily: 'Sansation-Regular', marginBottom: 4 }}>
             Public Balance
           </Text>
-          <Text style={{ color: '#fff', fontSize: 42, fontFamily: 'Sansation-Light', fontVariant: ['tabular-nums'], marginBottom: 28 }}>
+          <Text style={{ color: '#f1ece1', fontSize: 42, fontFamily: 'Sansation-Light', fontVariant: ['tabular-nums'], marginBottom: 28 }}>
             ${walletBalance.toFixed(2)}
           </Text>
 
@@ -96,12 +96,12 @@ export default function WalletDetailScreen({ onClose }: { onClose?: () => void }
               }}
             >
               <BankIcon width={16} height={16} />
-              <Text style={{ color: '#fff', fontSize: 13, fontFamily: 'Sansation-Bold', marginTop: 6 }}>Infos</Text>
+              <Text style={{ color: '#f1ece1', fontSize: 13, fontFamily: 'Sansation-Bold', marginTop: 6 }}>Infos</Text>
             </TouchableOpacity>
           </View>
 
           {/* Assets */}
-          <Text style={{ color: '#fff', fontSize: 18, fontFamily: 'Sansation-Bold', marginBottom: 14 }}>
+          <Text style={{ color: '#f1ece1', fontSize: 18, fontFamily: 'Sansation-Bold', marginBottom: 14 }}>
             Assets
           </Text>
           {tokens.filter(t => t.balance > 0).length === 0 ? (
@@ -126,14 +126,14 @@ export default function WalletDetailScreen({ onClose }: { onClose?: () => void }
                     style={{ width: 38, height: 38, borderRadius: 19, marginRight: 14 }}
                   />
                   <View style={{ flex: 1 }}>
-                    <Text style={{ color: '#fff', fontSize: 16, fontFamily: 'Sansation-Bold', marginBottom: 2 }}>
+                    <Text style={{ color: '#f1ece1', fontSize: 16, fontFamily: 'Sansation-Bold', marginBottom: 2 }}>
                       {token.tokenSymbol}
                     </Text>
                     <Text style={{ color: 'rgba(255,255,255,0.4)', fontSize: 13, fontFamily: 'Sansation-Regular' }}>
                       {token.balance.toFixed(4)}
                     </Text>
                   </View>
-                  <Text style={{ color: '#fff', fontSize: 16, fontFamily: 'Sansation-Bold', fontVariant: ['tabular-nums'] }}>
+                  <Text style={{ color: '#f1ece1', fontSize: 16, fontFamily: 'Sansation-Bold', fontVariant: ['tabular-nums'] }}>
                     ${token.balanceUSD.toFixed(2)}
                   </Text>
                 </View>
@@ -143,7 +143,7 @@ export default function WalletDetailScreen({ onClose }: { onClose?: () => void }
 
           {/* Transactions */}
           <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-            <Text style={{ color: '#fff', fontSize: 18, fontFamily: 'Sansation-Bold' }}>
+            <Text style={{ color: '#f1ece1', fontSize: 18, fontFamily: 'Sansation-Bold' }}>
               Transactions
             </Text>
             <TouchableOpacity
@@ -179,7 +179,7 @@ export default function WalletDetailScreen({ onClose }: { onClose?: () => void }
           accessibilityLabel="Receive"
           style={{
             flex: 1,
-            backgroundColor: '#ffffff',
+            backgroundColor: '#f1ece1',
             borderRadius: 20,
             borderCurve: 'continuous',
             paddingVertical: 18,
@@ -201,7 +201,7 @@ export default function WalletDetailScreen({ onClose }: { onClose?: () => void }
           accessibilityLabel="Send"
           style={{
             flex: 1,
-            backgroundColor: '#ffffff',
+            backgroundColor: '#f1ece1',
             borderRadius: 20,
             borderCurve: 'continuous',
             paddingVertical: 18,

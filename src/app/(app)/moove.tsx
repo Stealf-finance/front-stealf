@@ -206,7 +206,7 @@ export default function MooveScreen() {
           </TouchableOpacity>
 
           <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', paddingHorizontal: 40, minHeight: 500 }}>
-            <Text style={{ color: '#fff', fontSize: 22, fontFamily: 'Sansation-Bold', textAlign: 'center', marginBottom: 12 }}>
+            <Text style={{ color: '#f1ece1', fontSize: 22, fontFamily: 'Sansation-Bold', textAlign: 'center', marginBottom: 12 }}>
               No Stealth Wallet
             </Text>
             <Text style={{ color: 'rgba(255,255,255,0.4)', fontSize: 15, fontFamily: 'Sansation-Regular', textAlign: 'center', marginBottom: 32 }}>
@@ -408,7 +408,7 @@ const styles = StyleSheet.create({
   },
   cardLabel: {
     fontSize: 24,
-    color: '#ffffff',
+    color: '#f1ece1',
     fontFamily: 'Sansation-Bold',
     fontWeight: '600',
     marginBottom: 8,
@@ -426,14 +426,14 @@ const styles = StyleSheet.create({
   },
   cardAmountPositive: {},
   cardAmountActive: {
-    color: '#ffffff',
+    color: '#f1ece1',
   },
   // Flip
   flipButton: {
     width: 34,
     height: 34,
     borderRadius: 17,
-    backgroundColor: '#ffffff',
+    backgroundColor: '#f1ece1',
     alignItems: 'center',
     justifyContent: 'center',
     alignSelf: 'center',

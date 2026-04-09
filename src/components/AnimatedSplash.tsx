@@ -55,7 +55,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   splash: {
-    backgroundColor: '#ffffff',
+    backgroundColor: '#f1ece1',
     alignItems: 'center',
     justifyContent: 'center',
   },

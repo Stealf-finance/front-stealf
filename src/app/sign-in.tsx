@@ -99,7 +99,7 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 32,
     fontFamily: 'Sansation-Bold',
-    color: '#fff',
+    color: '#f1ece1',
     marginBottom: 8,
     textAlign: 'center',
   },
@@ -112,7 +112,7 @@ const styles = StyleSheet.create({
     lineHeight: 24,
   },
   button: {
-    backgroundColor: '#fff',
+    backgroundColor: '#f1ece1',
     paddingVertical: 16,
     paddingHorizontal: 32,
     borderRadius: 12,
@@ -141,6 +141,6 @@ const styles = StyleSheet.create({
   footerLink: {
     fontSize: 14,
     fontFamily: 'Sansation-Bold',
-    color: '#fff',
+    color: '#f1ece1',
   },
 });

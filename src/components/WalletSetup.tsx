@@ -408,7 +408,7 @@ const styles = StyleSheet.create({
   wordInput: {
     flex: 1,
     fontSize: 14,
-    color: '#fff',
+    color: '#f1ece1',
     fontFamily: 'Sansation-Regular',
     padding: 0,
   },

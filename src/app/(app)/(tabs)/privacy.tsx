@@ -110,7 +110,7 @@ export default function PrivacyScreen() {
           <Text style={{ color: 'rgba(255,255,255,0.5)', fontSize: 14, fontFamily: 'Sansation-Regular', marginBottom: 4 }}>
             Available
           </Text>
-          <Text style={{ color: '#fff', fontSize: 48, fontFamily: 'Sansation-Light', fontVariant: ['tabular-nums'] }}>
+          <Text style={{ color: '#f1ece1', fontSize: 48, fontFamily: 'Sansation-Light', fontVariant: ['tabular-nums'] }}>
             ${totalBalance.toFixed(2)}
           </Text>
         </View>
@@ -163,8 +163,8 @@ export default function PrivacyScreen() {
             }}
           >
             <View style={{ flex: 1 }}>
-              <Text style={{ color: '#fff', fontSize: 18, fontFamily: 'Sansation-Bold', marginBottom: 10 }}>Private</Text>
-              <Text style={{ color: '#fff', fontSize: 28, fontFamily: 'Sansation-Light', fontVariant: ['tabular-nums'], marginBottom: 6 }}>
+              <Text style={{ color: '#f1ece1', fontSize: 18, fontFamily: 'Sansation-Bold', marginBottom: 10 }}>Private</Text>
+              <Text style={{ color: '#f1ece1', fontSize: 28, fontFamily: 'Sansation-Light', fontVariant: ['tabular-nums'], marginBottom: 6 }}>
                 ${shieldedBalance.toFixed(2)}
               </Text>
               <Text style={{ color: 'rgba(255,255,255,0.4)', fontSize: 13, fontFamily: 'Sansation-Regular' }}>Protected assets & private investments</Text>
@@ -185,7 +185,7 @@ export default function PrivacyScreen() {
                   justifyContent: 'center',
                 }}
               >
-                <Text style={{ color: '#fff', fontSize: 12, fontFamily: 'Sansation-Bold', lineHeight: 14 }}>
+                <Text style={{ color: '#f1ece1', fontSize: 12, fontFamily: 'Sansation-Bold', lineHeight: 14 }}>
                   {pendingCount > 99 ? '99+' : pendingCount}
                 </Text>
               </View>
@@ -197,7 +197,7 @@ export default function PrivacyScreen() {
         {/* Transactions */}
         <View style={{ paddingHorizontal: 20 }}>
           <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-            <Text style={{ color: '#fff', fontSize: 18, fontFamily: 'Sansation-Bold' }}>
+            <Text style={{ color: '#f1ece1', fontSize: 18, fontFamily: 'Sansation-Bold' }}>
               Transactions
             </Text>
             <TouchableOpacity

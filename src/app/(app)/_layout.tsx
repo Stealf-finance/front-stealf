@@ -15,6 +15,7 @@ const SHEET_OPTIONS = {
   presentation: 'formSheet' as const,
   sheetGrabberVisible: false,
   sheetCornerRadius: 0,
+  sheetAllowedDetents: [0.95],
   headerShown: false,
   contentStyle: { backgroundColor: '#000000' },
 };
@@ -43,19 +44,19 @@ export default function AppLayout() {
         <Stack.Screen name="send-confirmation" options={SHEET_OPTIONS} />
         <Stack.Screen name="send-private-confirmation" options={SHEET_OPTIONS} />
         <Stack.Screen name="moove" options={SHEET_OPTIONS} />
-        <Stack.Screen name="add-funds" options={{ ...SHEET_OPTIONS, sheetAllowedDetents: [1.0] }} />
+        <Stack.Screen name="add-funds" options={SHEET_OPTIONS} />
         <Stack.Screen name="add-funds-privacy" options={SHEET_OPTIONS} />
         <Stack.Screen name="receive-select" options={{
-          presentation: 'transparentModal' as const,
-          animation: 'slide_from_bottom' as const,
-          headerShown: false,
-          contentStyle: { backgroundColor: 'transparent' },
+          ...SHEET_OPTIONS,
+          sheetGrabberVisible: false,
+          sheetCornerRadius: 16,
+          sheetAllowedDetents: [0.5],
         }} />
         <Stack.Screen name="receive-cash" options={{
-          presentation: 'transparentModal' as const,
-          animation: 'slide_from_bottom' as const,
-          headerShown: false,
-          contentStyle: { backgroundColor: 'transparent' },
+          ...SHEET_OPTIONS,
+          sheetGrabberVisible: false,
+          sheetCornerRadius: 16,
+          sheetAllowedDetents: [1.0],
         }} />
         <Stack.Screen name="receive-private" options={SHEET_OPTIONS} />
         <Stack.Screen name="shield" options={SHEET_OPTIONS} />

@@ -87,7 +87,7 @@ export default function ReceivePrivateScreen() {
 
         {/* Header */}
         <View style={{ paddingHorizontal: 24, paddingTop: 20, paddingBottom: 16 }}>
-          <Text style={{ color: '#fff', fontSize: 20, fontFamily: 'Sansation-Bold', marginBottom: 4 }}>
+          <Text style={{ color: '#f1ece1', fontSize: 20, fontFamily: 'Sansation-Bold', marginBottom: 4 }}>
             Pending Claims
           </Text>
           <Text style={{ color: 'rgba(255,255,255,0.4)', fontSize: 13, fontFamily: 'Sansation-Regular' }}>
@@ -131,7 +131,7 @@ export default function ReceivePrivateScreen() {
                 >
                   <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 12 }}>
                     <View style={{ flex: 1 }}>
-                      <Text style={{ color: '#fff', fontSize: 18, fontFamily: 'Sansation-Bold', marginBottom: 2 }}>
+                      <Text style={{ color: '#f1ece1', fontSize: 18, fontFamily: 'Sansation-Bold', marginBottom: 2 }}>
                         {getUtxoAmountLabel(utxo)}
                       </Text>
                       <Text style={{ color: 'rgba(255,255,255,0.4)', fontSize: 13, fontFamily: 'Sansation-Regular' }}>

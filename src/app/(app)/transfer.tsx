@@ -35,7 +35,7 @@ export default function TransferScreen() {
         </TouchableOpacity>
 
         {/* Title */}
-        <Text style={{ color: '#fff', fontSize: 24, fontFamily: 'Sansation-Bold', marginBottom: 24 }}>
+        <Text style={{ color: '#f1ece1', fontSize: 24, fontFamily: 'Sansation-Bold', marginBottom: 24 }}>
           Transfer
         </Text>
 
@@ -123,7 +123,7 @@ export default function TransferScreen() {
             }}
           >
             <View>
-              <Text style={{ color: '#fff', fontSize: 16, fontFamily: 'Sansation-Bold', marginBottom: 4 }}>Private Transfer</Text>
+              <Text style={{ color: '#f1ece1', fontSize: 16, fontFamily: 'Sansation-Bold', marginBottom: 4 }}>Private Transfer</Text>
               <Text style={{ color: 'rgba(255,255,255,0.4)', fontSize: 13, fontFamily: 'Sansation-Regular' }}>Via Umbra Privacy</Text>
             </View>
             <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -182,7 +182,7 @@ export default function TransferScreen() {
               <ArrowSwitchIcon width={14} height={14} color="#fff" />
             </View>
             <View style={{ flex: 1 }}>
-              <Text style={{ color: '#fff', fontSize: 16, fontFamily: 'Sansation-Bold', marginBottom: 2 }}>Move</Text>
+              <Text style={{ color: '#f1ece1', fontSize: 16, fontFamily: 'Sansation-Bold', marginBottom: 2 }}>Move</Text>
               <Text style={{ color: 'rgba(255,255,255,0.4)', fontSize: 13, fontFamily: 'Sansation-Regular' }}>Move your funds both wallets privately</Text>
             </View>
           </TouchableOpacity>

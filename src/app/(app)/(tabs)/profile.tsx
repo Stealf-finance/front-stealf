@@ -196,12 +196,12 @@ const styles = StyleSheet.create({
   avatarText: {
     fontSize: 28,
     fontFamily: 'Sansation-Bold',
-    color: '#ffffff',
+    color: '#f1ece1',
   },
   username: {
     fontSize: 22,
     fontFamily: 'Sansation-Bold',
-    color: '#ffffff',
+    color: '#f1ece1',
     marginBottom: 4,
   },
   userEmail: {
@@ -229,7 +229,7 @@ const styles = StyleSheet.create({
   infoCardValue: {
     fontSize: 22,
     fontFamily: 'Sansation-Bold',
-    color: '#ffffff',
+    color: '#f1ece1',
   },
 
   // Menu
@@ -264,7 +264,7 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: 15,
     fontFamily: 'Sansation-Regular',
-    color: '#ffffff',
+    color: '#f1ece1',
   },
   menuTitleDanger: {
     color: 'rgba(255,100,100,0.8)',

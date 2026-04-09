@@ -436,7 +436,103 @@ export function useUmbra() {
           { client },
           { zkProver, relayer, fetchBatchMerkleProof }
         );
-        return claimFn(utxos);
+
+        // Make sure the persistent blacklist is loaded before any add/check
+        if (cachedSignerKey) await loadBurntUtxosForCurrentWallet(cachedSignerKey);
+
+        const safeStringify = (v: any) =>
+          JSON.stringify(v, (_k, val) => (typeof val === 'bigint' ? val.toString() : val), 2);
+
+        console.log('[claimSelfToPublic] input utxos:', safeStringify(utxos));
+        console.log('[claimSelfToPublic] signer.address:', client?.signer?.address?.toString?.() ?? String(client?.signer?.address));
+
+        let result;
+        try {
+          result = await claimFn(utxos);
+          console.log('[claimSelfToPublic] claimFn result:', safeStringify(result));
+          if (result?.batches instanceof Map) {
+            for (const [k, batch] of result.batches) {
+              console.log(`[claimSelfToPublic] batch ${String(k)}:`, safeStringify(batch));
+            }
+          }
+        } catch (err: any) {
+          console.log('[claimSelfToPublic] claimFn threw:', err?.message, err?.cause?.message);
+          const msg = String(err?.message || err?.cause?.message || '');
+          if (
+            /NullifierAlreadyBurnt/i.test(msg) ||
+            /already burnt/i.test(msg) ||
+            /already reserved/i.test(msg) ||
+            /0x6d64/i.test(msg)
+          ) {
+            let blacklistChanged = false;
+            for (const u of utxos) {
+              const id = utxoToId(u);
+              if (!burntUtxoIds.has(id)) {
+                burntUtxoIds.add(id);
+                blacklistChanged = true;
+              }
+            }
+            if (blacklistChanged) await persistBurntUtxos();
+            // Treat as success — these UTXOs are effectively gone
+            return { batches: new Map() };
+          }
+          throw err;
+        }
+
+        // Inspect every batch and decide what to do
+        const batches = result?.batches;
+        let anySuccess = false;
+        let anyAlreadyBurnt = false;
+        let blacklistChanged = false;
+        const otherFailures: string[] = [];
+        if (batches instanceof Map) {
+          for (const [, batch] of batches) {
+            const status = batch?.status;
+            const utxoIds = batch?.utxoIds ?? [];
+            if (status === 'completed') {
+              anySuccess = true;
+              for (const id of utxoIds) {
+                if (!burntUtxoIds.has(id)) {
+                  burntUtxoIds.add(id);
+                  blacklistChanged = true;
+                }
+              }
+              // Also blacklist via input UTXOs as a safety net (in case relayer ids don't match scan ids)
+              for (const u of utxos) {
+                const id = utxoToId(u);
+                if (!burntUtxoIds.has(id)) {
+                  burntUtxoIds.add(id);
+                  blacklistChanged = true;
+                }
+              }
+            } else if (status === 'failed' || status === 'timed_out') {
+              const reason = batch?.failureReason || '';
+              if (
+                /NullifierAlreadyBurnt/i.test(reason) ||
+                /already burnt/i.test(reason) ||
+                /0x6d64/i.test(reason)
+              ) {
+                anyAlreadyBurnt = true;
+                for (const id of utxoIds) {
+                  if (!burntUtxoIds.has(id)) {
+                    burntUtxoIds.add(id);
+                    blacklistChanged = true;
+                  }
+                }
+              } else {
+                otherFailures.push(reason || 'unknown failure');
+              }
+            }
+          }
+        }
+
+        if (blacklistChanged) await persistBurntUtxos();
+
+        if (otherFailures.length > 0 && !anySuccess && !anyAlreadyBurnt) {
+          throw new Error(otherFailures[0]);
+        }
+
+        return result;
       });
     },
     [wrap]

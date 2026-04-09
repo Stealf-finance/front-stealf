@@ -62,7 +62,7 @@ export default function ShieldedDetailScreen({ onClose }: { onClose?: () => void
         >
           {/* Header */}
           <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 6 }}>
-            <Text style={{ color: '#fff', fontSize: 24, fontFamily: 'Sansation-Bold', flex: 1 }}>
+            <Text style={{ color: '#f1ece1', fontSize: 24, fontFamily: 'Sansation-Bold', flex: 1 }}>
               Shielded Pool
             </Text>
             <TouchableOpacity
@@ -84,7 +84,7 @@ export default function ShieldedDetailScreen({ onClose }: { onClose?: () => void
           <Text style={{ color: 'rgba(255,255,255,0.5)', fontSize: 14, fontFamily: 'Sansation-Regular', marginBottom: 4 }}>
             Encrypted Balance
           </Text>
-          <Text style={{ color: '#fff', fontSize: 42, fontFamily: 'Sansation-Light', fontVariant: ['tabular-nums'], marginBottom: 28 }}>
+          <Text style={{ color: '#f1ece1', fontSize: 42, fontFamily: 'Sansation-Light', fontVariant: ['tabular-nums'], marginBottom: 28 }}>
             ${(shieldedBalance + investmentBalance).toFixed(2)}
           </Text>
 
@@ -106,7 +106,7 @@ export default function ShieldedDetailScreen({ onClose }: { onClose?: () => void
               }}
             >
               <TabBottomIcon width={16} height={16} color="#000100" />
-              <Text style={{ color: '#fff', fontSize: 13, fontFamily: 'Sansation-Bold', marginTop: 6 }}>Receive</Text>
+              <Text style={{ color: '#f1ece1', fontSize: 13, fontFamily: 'Sansation-Bold', marginTop: 6 }}>Receive</Text>
               {pendingCount > 0 && (
                 <View
                   style={{
@@ -122,7 +122,7 @@ export default function ShieldedDetailScreen({ onClose }: { onClose?: () => void
                     justifyContent: 'center',
                   }}
                 >
-                  <Text style={{ color: '#fff', fontSize: 11, fontFamily: 'Sansation-Bold', lineHeight: 13 }}>
+                  <Text style={{ color: '#f1ece1', fontSize: 11, fontFamily: 'Sansation-Bold', lineHeight: 13 }}>
                     {pendingCount > 99 ? '99+' : pendingCount}
                   </Text>
                 </View>
@@ -151,7 +151,7 @@ export default function ShieldedDetailScreen({ onClose }: { onClose?: () => void
           </View>
 
           {/* Shielded Assets */}
-          <Text style={{ color: '#fff', fontSize: 18, fontFamily: 'Sansation-Bold', marginBottom: 14 }}>
+          <Text style={{ color: '#f1ece1', fontSize: 18, fontFamily: 'Sansation-Bold', marginBottom: 14 }}>
             Assets
           </Text>
           {shieldedAssets.length === 0 ? (
@@ -176,14 +176,14 @@ export default function ShieldedDetailScreen({ onClose }: { onClose?: () => void
                     style={{ width: 38, height: 38, borderRadius: 19, marginRight: 14 }}
                   />
                   <View style={{ flex: 1 }}>
-                    <Text style={{ color: '#fff', fontSize: 16, fontFamily: 'Sansation-Bold', marginBottom: 2 }}>
+                    <Text style={{ color: '#f1ece1', fontSize: 16, fontFamily: 'Sansation-Bold', marginBottom: 2 }}>
                       {token.symbol}
                     </Text>
                     <Text style={{ color: 'rgba(255,255,255,0.4)', fontSize: 13, fontFamily: 'Sansation-Regular' }}>
                       {token.balance.toFixed(4)}
                     </Text>
                   </View>
-                  <Text style={{ color: '#fff', fontSize: 16, fontFamily: 'Sansation-Bold', fontVariant: ['tabular-nums'] }}>
+                  <Text style={{ color: '#f1ece1', fontSize: 16, fontFamily: 'Sansation-Bold', fontVariant: ['tabular-nums'] }}>
                     ${token.balanceUSD.toFixed(2)}
                   </Text>
                 </View>
@@ -192,7 +192,7 @@ export default function ShieldedDetailScreen({ onClose }: { onClose?: () => void
           )}
 
           {/* Private Investments */}
-          <Text style={{ color: '#fff', fontSize: 18, fontFamily: 'Sansation-Bold', marginBottom: 14 }}>
+          <Text style={{ color: '#f1ece1', fontSize: 18, fontFamily: 'Sansation-Bold', marginBottom: 14 }}>
             Private Investments
           </Text>
 
@@ -213,10 +213,10 @@ export default function ShieldedDetailScreen({ onClose }: { onClose?: () => void
             }}
           >
             <View style={{ flex: 1 }}>
-              <Text style={{ color: '#fff', fontSize: 16, fontFamily: 'Sansation-Bold', marginBottom: 2 }}>Jito SOL</Text>
+              <Text style={{ color: '#f1ece1', fontSize: 16, fontFamily: 'Sansation-Bold', marginBottom: 2 }}>Jito SOL</Text>
               <Text style={{ color: 'rgba(255,255,255,0.4)', fontSize: 13, fontFamily: 'Sansation-Regular' }}>Up to 6% APY</Text>
             </View>
-            <Text style={{ color: '#fff', fontSize: 16, fontFamily: 'Sansation-Bold', fontVariant: ['tabular-nums'], marginRight: 8 }}>
+            <Text style={{ color: '#f1ece1', fontSize: 16, fontFamily: 'Sansation-Bold', fontVariant: ['tabular-nums'], marginRight: 8 }}>
               ${investmentBalance.toFixed(2)}
             </Text>
             <Text style={{ color: 'rgba(255,255,255,0.3)', fontSize: 18 }}>›</Text>

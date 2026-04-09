@@ -110,7 +110,7 @@ export default function SendPrivateScreen() {
               adjustsFontSizeToFit
               minimumFontScale={0.5}
               style={{
-                color: amount ? '#fff' : 'rgba(255,255,255,0.25)',
+                color: amount ? '#f1ece1' : 'rgba(255,255,255,0.25)',
                 fontSize: 42,
                 fontFamily: 'Sansation-Light',
                 fontVariant: ['tabular-nums'],
@@ -132,7 +132,7 @@ export default function SendPrivateScreen() {
               gap: 6,
             }}>
               <Image source={require('../../assets/solana.png')} style={{ width: 28, height: 28 }} />
-              <Text style={{ color: '#fff', fontSize: 16, fontFamily: 'Sansation-Bold' }}>SOL</Text>
+              <Text style={{ color: '#f1ece1', fontSize: 16, fontFamily: 'Sansation-Bold' }}>SOL</Text>
               <ChevronDown width={14} height={14} style={{ opacity: 0.4 }} />
             </View>
           </View>

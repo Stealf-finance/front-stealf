@@ -66,7 +66,7 @@ function CashBalanceCard({
           }}
         >
           <DepositIcon width={16} height={16} color="#fff" />
-          <Text style={{ color: '#fff', fontSize: 13, fontFamily: 'Sansation-Bold', marginTop: 6 }}>Receive</Text>
+          <Text style={{ color: '#f1ece1', fontSize: 13, fontFamily: 'Sansation-Bold', marginTop: 6 }}>Receive</Text>
           {pendingCount > 0 && (
             <View style={{
               position: 'absolute',
@@ -80,7 +80,7 @@ function CashBalanceCard({
               justifyContent: 'center',
               paddingHorizontal: 5,
             }}>
-              <Text style={{ color: '#fff', fontSize: 11, fontFamily: 'Sansation-Bold' }}>{pendingCount}</Text>
+              <Text style={{ color: '#f1ece1', fontSize: 11, fontFamily: 'Sansation-Bold' }}>{pendingCount}</Text>
             </View>
           )}
         </TouchableOpacity>
@@ -99,7 +99,7 @@ function CashBalanceCard({
           }}
         >
           <BankIcon width={16} height={16} color="#fff" />
-          <Text style={{ color: '#fff', fontSize: 13, fontFamily: 'Sansation-Bold', marginTop: 6 }}>Infos</Text>
+          <Text style={{ color: '#f1ece1', fontSize: 13, fontFamily: 'Sansation-Bold', marginTop: 6 }}>Infos</Text>
         </TouchableOpacity>
       </View>
 
@@ -126,7 +126,7 @@ const styles = StyleSheet.create({
     fontFamily: 'Sansation-Regular',
   },
   totalAmount: {
-    color: '#ffffff',
+    color: '#f1ece1',
     fontSize: 48,
     fontWeight: '300',
     fontFamily: 'Sansation-Light',

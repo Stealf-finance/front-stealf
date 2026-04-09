@@ -29,7 +29,7 @@ function BottomBar({ onTransfer }: BottomBarProps) {
         accessibilityLabel="Card"
         style={{
           flex: 1,
-          backgroundColor: '#ffffff',
+          backgroundColor: '#f1ece1',
           borderRadius: 20,
           borderCurve: 'continuous',
           paddingVertical: 18,
@@ -52,7 +52,7 @@ function BottomBar({ onTransfer }: BottomBarProps) {
         accessibilityLabel="Transfer"
         style={{
           flex: 1,
-          backgroundColor: '#ffffff',
+          backgroundColor: '#f1ece1',
           borderRadius: 20,
           borderCurve: 'continuous',
           paddingVertical: 18,

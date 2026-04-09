@@ -2,7 +2,6 @@ import { View, Text, TouchableOpacity, ScrollView } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { usePendingClaimsForCash } from '../../hooks/wallet/usePendingClaimsForCash';
-import ChevronDown from '../../assets/buttons/chevron-down.svg';
 
 export default function ReceiveSelectScreen() {
   const router = useRouter();
@@ -10,36 +9,20 @@ export default function ReceiveSelectScreen() {
   const { data: pendingClaims } = usePendingClaimsForCash();
   const pendingCount = pendingClaims?.length ?? 0;
 
-  const handleClose = () => {
-    if (router.canGoBack()) router.back();
-  };
-
   return (
-    <View style={{ flex: 1 }}>
-      {/* Transparent top — navbar visible behind */}
-      <View style={{ height: insets.top + 40 }} />
-
-      {/* Sheet */}
-      <View style={{ flex: 1, backgroundColor: '#000', borderTopLeftRadius: 16, borderTopRightRadius: 16 }}>
-        <ScrollView
-          contentContainerStyle={{ paddingHorizontal: 20, paddingTop: 20, paddingBottom: insets.bottom + 40 }}
-          showsVerticalScrollIndicator={false}
-        >
+    <ScrollView
+      style={{ flex: 1, backgroundColor: '#000' }}
+      contentContainerStyle={{ paddingHorizontal: 20, paddingTop: 8, paddingBottom: insets.bottom + 40 }}
+      showsVerticalScrollIndicator={false}
+    >
+      {/* Custom grabber */}
+      <View style={{ alignItems: 'center', marginBottom: 16 }}>
+        <View style={{ width: 36, height: 5, borderRadius: 3, backgroundColor: 'rgba(255,255,255,0.3)' }} />
+      </View>
           {/* Header */}
-          <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 6 }}>
-            <Text style={{ color: '#fff', fontSize: 24, fontFamily: 'Sansation-Bold', flex: 1 }}>
-              Receive funds
-            </Text>
-            <TouchableOpacity
-              onPress={handleClose}
-              activeOpacity={0.7}
-              accessibilityRole="button"
-              accessibilityLabel="Close"
-              style={{ padding: 8 }}
-            >
-              <ChevronDown width={32} height={32} style={{ opacity: 0.6 }} />
-            </TouchableOpacity>
-          </View>
+          <Text style={{ color: '#f1ece1', fontSize: 24, fontFamily: 'Sansation-Bold', marginBottom: 6 }}>
+            Receive funds
+          </Text>
 
           <Text style={{ color: 'rgba(255,255,255,0.4)', fontSize: 14, fontFamily: 'Sansation-Regular', marginBottom: 24 }}>
             Choose how you want to receive
@@ -62,7 +45,7 @@ export default function ReceiveSelectScreen() {
               }}
             >
               <View style={{ flex: 1 }}>
-                <Text style={{ fontSize: 16, color: '#fff', fontFamily: 'Sansation-Bold', marginBottom: 2 }}>Receive stablecoins</Text>
+                <Text style={{ fontSize: 16, color: '#f1ece1', fontFamily: 'Sansation-Bold', marginBottom: 2 }}>Receive stablecoins</Text>
                 <Text style={{ fontSize: 13, color: 'rgba(255,255,255,0.4)', fontFamily: 'Sansation-Regular' }}>Receive from a wallet address</Text>
               </View>
               <Text style={{ fontSize: 18, color: 'rgba(255,255,255,0.3)', marginLeft: 12 }}>›</Text>
@@ -83,7 +66,7 @@ export default function ReceiveSelectScreen() {
               }}
             >
               <View style={{ flex: 1 }}>
-                <Text style={{ fontSize: 16, color: '#fff', fontFamily: 'Sansation-Bold', marginBottom: 2 }}>Pending claims</Text>
+                <Text style={{ fontSize: 16, color: '#f1ece1', fontFamily: 'Sansation-Bold', marginBottom: 2 }}>Pending claims</Text>
                 <Text style={{ fontSize: 13, color: 'rgba(255,255,255,0.4)', fontFamily: 'Sansation-Regular' }}>Receive private transfers</Text>
               </View>
               {pendingCount > 0 && (
@@ -97,7 +80,7 @@ export default function ReceiveSelectScreen() {
                   paddingHorizontal: 7,
                   marginLeft: 8,
                 }}>
-                  <Text style={{ color: '#fff', fontSize: 12, fontFamily: 'Sansation-Bold' }}>{pendingCount}</Text>
+                  <Text style={{ color: '#f1ece1', fontSize: 12, fontFamily: 'Sansation-Bold' }}>{pendingCount}</Text>
                 </View>
               )}
               <Text style={{ fontSize: 18, color: 'rgba(255,255,255,0.3)', marginLeft: 12 }}>›</Text>
@@ -122,9 +105,7 @@ export default function ReceiveSelectScreen() {
                 <Text style={{ color: 'rgba(255,255,255,0.4)', fontSize: 11, fontFamily: 'Sansation-Bold' }}>Soon</Text>
               </View>
             </View>
-          </View>
-        </ScrollView>
       </View>
-    </View>
+    </ScrollView>
   );
 }

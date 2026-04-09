@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { View, Text, TouchableOpacity, ScrollView, ActivityIndicator, Alert, RefreshControl } from 'react-native';
+import { View, Text, TouchableOpacity, ScrollView, ActivityIndicator, Alert } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useQueryClient } from '@tanstack/react-query';
@@ -7,7 +7,6 @@ import { usePendingClaimsForCash } from '../../hooks/wallet/usePendingClaimsForC
 import { useUmbra, UmbraError } from '../../hooks/transactions/useUmbra';
 import { useAuth } from '../../contexts/AuthContext';
 import { LAMPORTS_PER_SOL } from '../../services/solana/kit';
-import ChevronDown from '../../assets/buttons/chevron-down.svg';
 
 function getUtxoAmountLabel(utxo: any): string {
   try {
@@ -24,13 +23,9 @@ export default function ReceiveCashScreen() {
   const insets = useSafeAreaInsets();
   const queryClient = useQueryClient();
   const { userData } = useAuth();
-  const { data: claims, isLoading, refetch, isRefetching } = usePendingClaimsForCash();
+  const { data: claims, isLoading } = usePendingClaimsForCash();
   const { claimSelfToPublic, loading: claimingLoading } = useUmbra();
   const [claimingIndex, setClaimingIndex] = useState<number | null>(null);
-
-  const handleClose = () => {
-    if (router.canGoBack()) router.back();
-  };
 
   const handleClaim = async (utxo: any, index: number) => {
     setClaimingIndex(index);
@@ -64,32 +59,20 @@ export default function ReceiveCashScreen() {
   };
 
   return (
-    <View style={{ flex: 1 }}>
-      {/* Transparent top — navbar visible behind */}
-      <View style={{ height: insets.top + 40 }} />
+    <ScrollView
+      style={{ flex: 1, backgroundColor: '#000' }}
+      contentContainerStyle={{ paddingHorizontal: 20, paddingTop: 8, paddingBottom: insets.bottom + 40 }}
+      showsVerticalScrollIndicator={false}
+    >
+      {/* Custom grabber */}
+      <View style={{ alignItems: 'center', marginBottom: 16 }}>
+        <View style={{ width: 36, height: 5, borderRadius: 3, backgroundColor: 'rgba(255,255,255,0.3)' }} />
+      </View>
 
-      {/* Sheet */}
-      <View style={{ flex: 1, backgroundColor: '#000', borderTopLeftRadius: 16, borderTopRightRadius: 16 }}>
-        <ScrollView
-          contentContainerStyle={{ paddingHorizontal: 20, paddingTop: 20, paddingBottom: insets.bottom + 40 }}
-          showsVerticalScrollIndicator={false}
-          refreshControl={<RefreshControl refreshing={isRefetching} onRefresh={refetch} tintColor="#fff" />}
-        >
-          {/* Header */}
-          <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 6 }}>
-            <Text style={{ color: '#fff', fontSize: 24, fontFamily: 'Sansation-Bold', flex: 1 }}>
-              Pending Claims
-            </Text>
-            <TouchableOpacity
-              onPress={handleClose}
-              activeOpacity={0.7}
-              accessibilityRole="button"
-              accessibilityLabel="Close"
-              style={{ padding: 8 }}
-            >
-              <ChevronDown width={32} height={32} style={{ opacity: 0.6 }} />
-            </TouchableOpacity>
-          </View>
+      {/* Header */}
+      <Text style={{ color: '#f1ece1', fontSize: 24, fontFamily: 'Sansation-Bold', marginBottom: 6 }}>
+        Pending Claims
+      </Text>
 
           <Text style={{ color: 'rgba(255,255,255,0.4)', fontSize: 14, fontFamily: 'Sansation-Regular', marginBottom: 24 }}>
             Private transfers waiting to be received in your cash wallet
@@ -122,7 +105,7 @@ export default function ReceiveCashScreen() {
                 >
                   <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 12 }}>
                     <View style={{ flex: 1 }}>
-                      <Text style={{ color: '#fff', fontSize: 18, fontFamily: 'Sansation-Bold', marginBottom: 2 }}>
+                      <Text style={{ color: '#f1ece1', fontSize: 18, fontFamily: 'Sansation-Bold', marginBottom: 2 }}>
                         {getUtxoAmountLabel(utxo)}
                       </Text>
                       <Text style={{ color: 'rgba(255,255,255,0.4)', fontSize: 13, fontFamily: 'Sansation-Regular' }}>
@@ -153,8 +136,6 @@ export default function ReceiveCashScreen() {
               );
             })
           )}
-        </ScrollView>
-      </View>
-    </View>
+    </ScrollView>
   );
 }

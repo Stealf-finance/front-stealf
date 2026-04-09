@@ -94,7 +94,7 @@ const styles = StyleSheet.create({
     marginLeft: 'auto',
   },
   profileCircleActive: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: '#f1ece1',
   },
   profileInitial: {
     fontSize: 16,
