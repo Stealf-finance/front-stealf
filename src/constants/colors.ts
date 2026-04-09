@@ -1,11 +1,3 @@
-/**
- * App-wide color tokens.
- *
- * The base "white" of the app is an off-white (#f1ece1). Use these tokens
- * instead of hardcoding hex values so the palette stays consistent and a
- * future theme change is a one-file edit.
- */
-
 export const COLORS = {
   // Backgrounds
   bg: '#000000',

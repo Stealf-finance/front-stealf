@@ -38,7 +38,10 @@ export default function SendPrivateConfirmation({ amount, onBack, onClose, onSuc
   const { userData } = useAuth();
   const { sendPrivate, loading } = useUmbra();
   const { tokens } = useWalletInfos(userData?.stealf_wallet || '');
-  const solBalance = tokens.find(t => t.tokenMint === null)?.balance ?? 0;
+  const solToken = tokens.find(t => t.tokenMint === null);
+  const solBalance = solToken?.balance ?? 0;
+  const solPrice = solToken && solToken.balance > 0 ? solToken.balanceUSD / solToken.balance : 0;
+  const amountUSD = (parseFloat(amount) || 0) * solPrice;
 
   const [externalAddress, setExternalAddress] = useState('');
   const [showSuccess, setShowSuccess] = useState(false);
@@ -163,7 +166,7 @@ export default function SendPrivateConfirmation({ amount, onBack, onClose, onSuc
             <View style={{ marginBottom: 20 }}>
               <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 6 }}>
                 <Text style={{ color: 'rgba(255,255,255,0.4)', fontSize: 13, fontFamily: 'Sansation-Regular' }}>AMOUNT</Text>
-                <Text style={{ color: 'rgba(255,255,255,0.6)', fontSize: 13, fontFamily: 'Sansation-Regular' }}>${amount}</Text>
+                <Text style={{ color: 'rgba(255,255,255,0.6)', fontSize: 13, fontFamily: 'Sansation-Regular' }}>${amountUSD.toFixed(2)}</Text>
               </View>
               <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 6 }}>
                 <Text style={{ color: 'rgba(255,255,255,0.4)', fontSize: 13, fontFamily: 'Sansation-Regular' }}>NETWORK FEE</Text>
@@ -176,7 +179,7 @@ export default function SendPrivateConfirmation({ amount, onBack, onClose, onSuc
               <View style={{ height: 1, backgroundColor: 'rgba(255,255,255,0.06)', marginVertical: 8 }} />
               <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
                 <Text style={{ color: 'rgba(255,255,255,0.5)', fontSize: 14, fontFamily: 'Sansation-Bold' }}>TOTAL</Text>
-                <Text style={{ color: '#f1ece1', fontSize: 14, fontFamily: 'Sansation-Bold' }}>${amount}</Text>
+                <Text style={{ color: '#f1ece1', fontSize: 14, fontFamily: 'Sansation-Bold' }}>${amountUSD.toFixed(2)}</Text>
               </View>
             </View>
 
@@ -214,7 +217,7 @@ export default function SendPrivateConfirmation({ amount, onBack, onClose, onSuc
           </Animated.View>
           <Animated.View style={[styles.successInfo, { opacity: contentFade }]}>
             <Text style={styles.successTitle}>Sent Privately</Text>
-            <Text style={styles.successAmount}>${amount}</Text>
+            <Text style={styles.successAmount}>${amountUSD.toFixed(2)}</Text>
             <Text style={styles.successAddress}>
               {externalAddress.substring(0, 6)}...{externalAddress.substring(externalAddress.length - 4)}
             </Text>

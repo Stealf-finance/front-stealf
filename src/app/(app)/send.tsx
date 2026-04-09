@@ -24,9 +24,9 @@ export default function SendScreen() {
 
   const { userData } = useAuth();
   const walletAddress = walletType === 'stealf' ? userData?.stealf_wallet : userData?.cash_wallet;
-  const { balance } = useWalletInfos(walletAddress || '');
+  const { tokens } = useWalletInfos(walletAddress || '');
 
-  const totalUSD = balance || 0;
+  const solBalance = tokens.find(t => t.tokenMint === null)?.balance ?? 0;
 
   const handleNumberPress = (num: string) => {
     if (num === '.' && amount.includes('.')) return;
@@ -46,11 +46,10 @@ export default function SendScreen() {
       Alert.alert('Error', check.error || 'Invalid amount');
       return;
     }
-    // DEV: balance check disabled
-    // if (parseFloat(amount) > totalUSD) {
-    //   Alert.alert('Error', `Insufficient balance. Your balance is $${totalUSD.toFixed(2)}`);
-    //   return;
-    // }
+    if (parseFloat(amount) > solBalance) {
+      Alert.alert('Error', `Insufficient balance. Your balance is ${solBalance.toFixed(4)} SOL`);
+      return;
+    }
     setShowConfirmation(true);
   };
 
@@ -147,7 +146,7 @@ export default function SendScreen() {
           </View>
 
           <Text style={{ color: 'rgba(255,255,255,0.35)', fontSize: 13, fontFamily: 'Sansation-Regular', textAlign: 'right' }}>
-            {totalUSD.toFixed(4)} SOL
+            {solBalance.toFixed(4)} SOL
           </Text>
         </View>
 

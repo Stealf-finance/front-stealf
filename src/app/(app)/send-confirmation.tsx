@@ -48,6 +48,8 @@ export default function SendConfirmation({ amount, walletType = 'cash', onBack, 
     return 0;
   };
 
+  const amountUSD = (parseFloat(amount) || 0) * getSolPrice();
+
   const [externalAddress, setExternalAddress] = useState('');
   const [showSuccess, setShowSuccess] = useState(false);
 
@@ -71,13 +73,11 @@ export default function SendConfirmation({ amount, walletType = 'cash', onBack, 
     }
 
     try {
-      const amountUSD = parseFloat(amount);
-      const solPrice = getSolPrice();
-      if (solPrice <= 0) {
-        Alert.alert('Error', 'Unable to get SOL price');
+      const amountSOL = parseFloat(amount);
+      if (!Number.isFinite(amountSOL) || amountSOL <= 0) {
+        Alert.alert('Error', 'Invalid amount');
         return;
       }
-      const amountSOL = Math.floor((amountUSD / solPrice) * LAMPORTS_PER_SOL) / LAMPORTS_PER_SOL;
 
       await sendTransaction(senderWallet, externalAddress, amountSOL, null, undefined, walletType, solBalance);
 
@@ -171,18 +171,19 @@ export default function SendConfirmation({ amount, walletType = 'cash', onBack, 
             <View style={{ marginBottom: 20 }}>
               <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 6 }}>
                 <Text style={{ color: 'rgba(255,255,255,0.4)', fontSize: 13, fontFamily: 'Sansation-Regular' }}>AMOUNT</Text>
-                <Text style={{ color: 'rgba(255,255,255,0.6)', fontSize: 13, fontFamily: 'Sansation-Regular' }}>${amount}</Text>
+                <Text style={{ color: 'rgba(255,255,255,0.6)', fontSize: 13, fontFamily: 'Sansation-Regular' }}>${amountUSD.toFixed(2)}</Text>
               </View>
               <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 6 }}>
                 <Text style={{ color: 'rgba(255,255,255,0.4)', fontSize: 13, fontFamily: 'Sansation-Regular' }}>NETWORK FEE</Text>
-                <Text style={{ color: 'rgba(255,255,255,0.6)', fontSize: 13, fontFamily: 'Sansation-Regular' }}>~$0.01</Text>
+                <Text style={{ color: 'rgba(255,255,255,0.6)', fontSize: 13, fontFamily: 'Sansation-Regular' }}> __</Text>
               </View>
               <View style={{ height: 1, backgroundColor: 'rgba(255,255,255,0.06)', marginVertical: 8 }} />
               <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
                 <Text style={{ color: 'rgba(255,255,255,0.5)', fontSize: 14, fontFamily: 'Sansation-Bold' }}>TOTAL</Text>
-                <Text style={{ color: '#f1ece1', fontSize: 14, fontFamily: 'Sansation-Bold' }}>${amount}</Text>
+                <Text style={{ color: '#f1ece1', fontSize: 14, fontFamily: 'Sansation-Bold' }}>${amountUSD.toFixed(2)}</Text>
               </View>
             </View>
+
 
             {/* Slide to confirm */}
             <SlideToConfirm onConfirm={handleConfirm} loading={loading} />
@@ -218,7 +219,7 @@ export default function SendConfirmation({ amount, walletType = 'cash', onBack, 
           </Animated.View>
           <Animated.View style={[styles.successInfo, { opacity: contentFade }]}>
             <Text style={styles.successTitle}>Sent</Text>
-            <Text style={styles.successAmount}>${amount}</Text>
+            <Text style={styles.successAmount}>${amountUSD.toFixed(2)}</Text>
             <Text style={styles.successAddress}>
               {externalAddress.substring(0, 6)}...{externalAddress.substring(externalAddress.length - 4)}
             </Text>
