@@ -7,7 +7,7 @@ import Animated, { FadeIn, FadeOut } from 'react-native-reanimated';
 import { useShieldedBalance } from '../../hooks/wallet/useShieldedBalance';
 import { usePendingClaims } from '../../hooks/wallet/usePendingClaims';
 import { useAuth } from '../../contexts/AuthContext';
-import { useWalletInfos } from '../../hooks/wallet/useWalletInfos';
+import { useSolPrice } from '../../hooks/useSolPrice';
 import TabBottomIcon from '../../assets/buttons/received.svg';
 import ArrowIcon from '../../assets/buttons/arrow.svg';
 import ChevronDown from '../../assets/buttons/chevron-down.svg';
@@ -34,9 +34,8 @@ export default function ShieldedDetailScreen({ onClose }: { onClose?: () => void
   }, []);
 
   const { userData } = useAuth();
-  const { tokens } = useWalletInfos(userData?.stealf_wallet || '');
-  const solToken = tokens.find((t) => t.tokenMint === null);
-  const solPrice = solToken && solToken.balance > 0 ? solToken.balanceUSD / solToken.balance : 0;
+  const { data: solPriceData } = useSolPrice();
+  const solPrice = solPriceData ?? 0;
 
   const { data: shielded } = useShieldedBalance();
   const shieldedSol = shielded?.sol ?? 0;

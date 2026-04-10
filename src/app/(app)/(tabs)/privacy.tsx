@@ -16,6 +16,7 @@ import { socketService } from '../../../services/real-time/socketService';
 import { useQueryClient } from '@tanstack/react-query';
 import { usePager } from '../../../navigation/PagerContext';
 import { useSplash } from '../../../contexts/SplashContext';
+import { useSolPrice } from '../../../hooks/useSolPrice';
 
 export default function PrivacyScreen() {
   const router = useRouter();
@@ -42,8 +43,8 @@ export default function PrivacyScreen() {
 
   const hasPrivacyWallet = !!userData?.stealf_wallet;
   const { balance, tokens } = useWalletInfos(userData?.stealf_wallet || '');
-  const solToken = tokens.find((t) => t.tokenMint === null);
-  const solPrice = solToken && solToken.balance > 0 ? solToken.balanceUSD / solToken.balance : 0;
+  const { data: solPriceData } = useSolPrice();
+  const solPrice = solPriceData ?? 0;
 
   const { data: shielded } = useShieldedBalance();
   const shieldedBalance = (shielded?.sol ?? 0) * solPrice;

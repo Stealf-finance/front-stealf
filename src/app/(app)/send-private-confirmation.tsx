@@ -18,6 +18,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import { useUmbra, UmbraError } from '../../hooks/transactions/useUmbra';
 import { useWalletInfos } from '../../hooks/wallet/useWalletInfos';
 import SlideToConfirm from '../../components/SlideToConfirm';
+import { useSolPrice } from '../../hooks/useSolPrice';
 import ChevronLeft from '../../assets/buttons/chevron-left.svg';
 import ChevronDown from '../../assets/buttons/chevron-down.svg';
 import { SOL_MINT } from '../../constants/solana';
@@ -38,10 +39,9 @@ export default function SendPrivateConfirmation({ amount, onBack, onClose, onSuc
   const { userData } = useAuth();
   const { sendPrivate, loading } = useUmbra();
   const { tokens } = useWalletInfos(userData?.stealf_wallet || '');
-  const solToken = tokens.find(t => t.tokenMint === null);
-  const solBalance = solToken?.balance ?? 0;
-  const solPrice = solToken && solToken.balance > 0 ? solToken.balanceUSD / solToken.balance : 0;
-  const amountUSD = (parseFloat(amount) || 0) * solPrice;
+  const solBalance = tokens.find(t => t.tokenMint === null)?.balance ?? 0;
+  const { data: solPriceData } = useSolPrice();
+  const amountUSD = (parseFloat(amount) || 0) * (solPriceData ?? 0);
 
   const [externalAddress, setExternalAddress] = useState('');
   const [showSuccess, setShowSuccess] = useState(false);

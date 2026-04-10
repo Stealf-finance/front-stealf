@@ -20,6 +20,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import { useWalletInfos } from '../../hooks/wallet/useWalletInfos';
 import { LAMPORTS_PER_SOL } from '../../services/solana/kit';
 import SlideToConfirm from '../../components/SlideToConfirm';
+import { useSolPrice } from '../../hooks/useSolPrice';
 import ChevronLeft from '../../assets/buttons/chevron-left.svg';
 import ChevronDown from '../../assets/buttons/chevron-down.svg';
 
@@ -40,15 +41,9 @@ export default function SendConfirmation({ amount, walletType = 'cash', onBack, 
 
   const solToken = tokens.find(t => t.tokenMint === null);
   const solBalance = solToken?.balance ?? 0;
+  const { data: solPriceData } = useSolPrice();
 
-  const getSolPrice = (): number => {
-    if (solToken && solToken.balance > 0) {
-      return solToken.balanceUSD / solToken.balance;
-    }
-    return 0;
-  };
-
-  const amountUSD = (parseFloat(amount) || 0) * getSolPrice();
+  const amountUSD = (parseFloat(amount) || 0) * (solPriceData ?? 0);
 
   const [externalAddress, setExternalAddress] = useState('');
   const [showSuccess, setShowSuccess] = useState(false);

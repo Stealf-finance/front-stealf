@@ -8,6 +8,7 @@ import { useAuthenticatedApi } from '../../../hooks/api/useApi';
 import { usePager } from '../../../navigation/PagerContext';
 import { useWalletInfos } from '../../../hooks/wallet/useWalletInfos';
 import { useShieldedBalance } from '../../../hooks/wallet/useShieldedBalance';
+import { useSolPrice } from '../../../hooks/useSolPrice';
 
 export default function ProfileScreen() {
   const { userData, setUserData, logout } = useAuth();
@@ -21,11 +22,10 @@ export default function ProfileScreen() {
   const initial = username ? username.charAt(0).toUpperCase() : 'U';
 
   const { balance: cashBalance } = useWalletInfos(userData?.cash_wallet || '');
-  const { balance: privacyBalance, tokens: privacyTokens } = useWalletInfos(userData?.stealf_wallet || '');
-  const solToken = privacyTokens.find((t) => t.tokenMint === null);
-  const solPrice = solToken && solToken.balance > 0 ? solToken.balanceUSD / solToken.balance : 0;
+  const { balance: privacyBalance } = useWalletInfos(userData?.stealf_wallet || '');
+  const { data: solPriceData } = useSolPrice();
   const { data: shielded } = useShieldedBalance();
-  const shieldedUSD = (shielded?.sol ?? 0) * solPrice;
+  const shieldedUSD = (shielded?.sol ?? 0) * (solPriceData ?? 0);
   const netWorth = (cashBalance ?? 0) + (privacyBalance ?? 0) + shieldedUSD;
 
   const handleLogout = () => {

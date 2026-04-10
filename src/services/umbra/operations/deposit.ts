@@ -24,6 +24,9 @@ export interface DepositFromCashArgs extends GetCashClientArgs {
 }
 
 export async function depositFromCash(args: DepositFromCashArgs) {
+  // The stealth wallet must be registered on Umbra before it can receive
+  // encrypted balance credits. ensureRegistered() uses the stealth client.
+  await ensureRegistered();
   const { destinationAddress, mint, amount, ...cashClientArgs } = args;
   const client = await getCashClient(cashClientArgs);
   const doDeposit = getPublicBalanceToEncryptedBalanceDirectDepositorFunction({ client });

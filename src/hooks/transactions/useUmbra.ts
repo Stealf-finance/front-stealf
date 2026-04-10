@@ -56,7 +56,9 @@ export function useUmbra() {
         const umbraErr = parseUmbraError(err, op);
         if (__DEV__) {
           console.error(`[Umbra] ${op} failed (${umbraErr.code}):`, umbraErr.message);
-          if (err?.cause?.context?.logs) {
+          console.error(`[Umbra] raw cause:`, err?.cause?.message || err?.cause);
+          console.error(`[Umbra] stage:`, umbraErr.stage);
+          if (err?.cause?.context?.logs?.length) {
             console.error(`[Umbra] simulation logs:`, err.cause.context.logs);
           }
         }
