@@ -74,7 +74,6 @@ export default function SendPrivateConfirmation({ amount, onBack, onClose, onSuc
         amountLamports
       );
 
-      // Refresh shielded balance everywhere (privacy.tsx, shielded-detail.tsx, profile.tsx)
       queryClient.invalidateQueries({ queryKey: ['shielded-balance'] });
 
       setShowSuccess(true);

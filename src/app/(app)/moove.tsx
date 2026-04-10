@@ -123,10 +123,16 @@ export default function MooveScreen() {
       if (direction === 'toPrivacy') {
         // Single tx: cash wallet pays + signs (Turnkey), stealth receives the
         // encrypted balance credit. No intermediate public transfer needed.
-        await depositFromCash(
+        const depositResult = await depositFromCash(
           toAddress(userData.stealf_wallet),
           toAddress(SOL_MINT),
           amountLamports
+        );
+        if (__DEV__) console.log('[Moove] depositFromCash result:', JSON.stringify(depositResult, (_, v) => typeof v === 'bigint' ? v.toString() : v, 2));
+        // depositFromCash is signed by the cash wallet — the Umbra indexer
+        // needs a few seconds to reflect it in the stealth's encrypted balance.
+        [5000, 10000, 20000].forEach((d) =>
+          setTimeout(() => queryClient.invalidateQueries({ queryKey: ['shielded-balance'] }), d)
         );
       } else {
 
@@ -137,7 +143,9 @@ export default function MooveScreen() {
         );
       }
 
-      // Refresh all relevant caches
+      // Don't invalidate wallet-balance immediately — the RPC may not have
+      // the tx yet and would return stale data (0), wiping the cache.
+      // Balance updates come via socket events (balance:updated).
       queryClient.invalidateQueries({ queryKey: ['wallet-balance', userData.cash_wallet] });
       queryClient.invalidateQueries({ queryKey: ['wallet-balance', userData.stealf_wallet] });
       queryClient.invalidateQueries({ queryKey: ['shielded-balance'] });

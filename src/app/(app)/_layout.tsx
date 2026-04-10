@@ -15,8 +15,9 @@ const SHEET_OPTIONS = {
   presentation: 'formSheet' as const,
   sheetGrabberVisible: false,
   sheetCornerRadius: 16,
-  sheetAllowedDetents: [0.95],
+  sheetAllowedDetents: [1.0],
   headerShown: false,
+  contentStyle: { backgroundColor: '#000' },
 };
 
 export default function AppLayout() {

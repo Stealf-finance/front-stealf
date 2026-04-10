@@ -50,7 +50,6 @@ export default function ReceivePrivateScreen() {
         return old.filter((u) => u?.commitmentIndex?.toString() !== claimedKey);
       });
 
-      // Then trigger background refetch to reconcile with on-chain state
       queryClient.invalidateQueries({ queryKey: ['pending-claims'] });
       queryClient.invalidateQueries({ queryKey: ['shielded-balance'] });
 

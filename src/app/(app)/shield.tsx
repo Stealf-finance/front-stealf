@@ -79,7 +79,9 @@ export default function ShieldScreen() {
         : (result as any)?.callbackSignature || (result as any)?.queueSignature || '';
       setTransactionSignature(sig);
 
-      queryClient.invalidateQueries({ queryKey: ['shielded-balance'] });
+      if (__DEV__) console.log('[Shield] invalidating shielded-balance');
+      await queryClient.invalidateQueries({ queryKey: ['shielded-balance'] });
+      if (__DEV__) console.log('[Shield] invalidation done');
 
       setShowSuccess(true);
       Animated.sequence([

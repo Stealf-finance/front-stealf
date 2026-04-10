@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, Alert } from 'react-native';
+import { useState, useCallback } from 'react';
+import { View, Text, ScrollView, TouchableOpacity, Alert, RefreshControl } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import WalletSetupScreen, { WalletSetupChoice } from '../../../components/WalletSetup';
@@ -13,6 +13,7 @@ import { useWalletInfos } from '../../../hooks/wallet/useWalletInfos';
 import { useShieldedBalance } from '../../../hooks/wallet/useShieldedBalance';
 import { usePendingClaims } from '../../../hooks/wallet/usePendingClaims';
 import { socketService } from '../../../services/real-time/socketService';
+import { useQueryClient } from '@tanstack/react-query';
 import { usePager } from '../../../navigation/PagerContext';
 import { useSplash } from '../../../contexts/SplashContext';
 
@@ -24,6 +25,20 @@ export default function PrivacyScreen() {
   const { userData, setUserData } = useAuth();
   const setupWallet = useSetupWallet();
   const api = useAuthenticatedApi();
+
+  const queryClient = useQueryClient();
+  const [refreshing, setRefreshing] = useState(false);
+
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    await Promise.all([
+      queryClient.invalidateQueries({ queryKey: ['wallet-balance', userData?.stealf_wallet] }),
+      queryClient.invalidateQueries({ queryKey: ['wallet-history', userData?.stealf_wallet] }),
+      queryClient.invalidateQueries({ queryKey: ['shielded-balance'] }),
+      queryClient.invalidateQueries({ queryKey: ['pending-claims'] }),
+    ]);
+    setRefreshing(false);
+  }, [queryClient, userData?.stealf_wallet]);
 
   const hasPrivacyWallet = !!userData?.stealf_wallet;
   const { balance, tokens } = useWalletInfos(userData?.stealf_wallet || '');
@@ -101,6 +116,7 @@ export default function PrivacyScreen() {
       <ScrollView
         contentContainerStyle={{ paddingBottom: 120 }}
         showsVerticalScrollIndicator={false}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#f1ece1" progressViewOffset={100} />}
       >
         {/* Spacer — same as home screen */}
         <View style={{ height: insets.top + 60 }} />

@@ -1,8 +1,9 @@
-import { useState } from 'react';
-import { View, Text, ScrollView, StyleSheet, TouchableOpacity, Alert } from 'react-native';
+import { useState, useCallback } from 'react';
+import { View, Text, ScrollView, StyleSheet, TouchableOpacity, Alert, RefreshControl } from 'react-native';
 import { Image } from 'expo-image';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useQueryClient } from '@tanstack/react-query';
 import TransactionHistory from '../../../components/TransactionHistory';
 import CashBalanceCard from '../../../components/features/CashBalanceCard';
 import SendIcon from '../../../assets/buttons/send.svg';
@@ -14,14 +15,24 @@ export default function HomeScreen() {
   const { currentPage } = usePager();
   const { userData } = useAuth();
   const insets = useSafeAreaInsets();
+  const queryClient = useQueryClient();
 
   const [showSendModal, setShowSendModal] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
+
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    await queryClient.invalidateQueries({ queryKey: ['wallet-balance', userData?.cash_wallet] });
+    await queryClient.invalidateQueries({ queryKey: ['wallet-history', userData?.cash_wallet] });
+    setRefreshing(false);
+  }, [queryClient, userData?.cash_wallet]);
 
   return (
     <View style={{ flex: 1, backgroundColor: '#000' }}>
       <ScrollView
         contentContainerStyle={{ paddingBottom: 120 }}
         showsVerticalScrollIndicator={false}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#f1ece1" progressViewOffset={100} />}
       >
         <View style={{ height: insets.top + 60 }} />
 

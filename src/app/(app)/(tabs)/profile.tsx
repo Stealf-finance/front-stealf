@@ -87,10 +87,8 @@ export default function ProfileScreen() {
 
   return (
     <View style={styles.container}>
-      <ScrollView
-        style={styles.scrollView}
-        contentContainerStyle={styles.scrollContent}
-        showsVerticalScrollIndicator={false}
+      <View
+        style={[styles.scrollView, styles.scrollContent]}
       >
         {/* Header */}
         <View style={styles.header}>
@@ -165,7 +163,7 @@ export default function ProfileScreen() {
           <Text style={styles.brandText}>STEALF</Text>
           <Text style={styles.versionText}>Version 0.1</Text>
         </View>
-      </ScrollView>
+      </View>
     </View>
   );
 }
@@ -280,7 +278,7 @@ const styles = StyleSheet.create({
   // Footer
   footer: {
     alignItems: 'center',
-    paddingTop: 40,
+    paddingTop: 0,
     paddingBottom: 20,
   },
   brandLogo: {

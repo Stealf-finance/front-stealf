@@ -31,7 +31,7 @@ export default function ReceiveSelectScreen() {
           {/* Options */}
           <View style={{ gap: 12 }}>
             <TouchableOpacity
-              onPress={() => { router.back(); setTimeout(() => router.push('/(app)/add-funds'), 100); }}
+              onPress={() => router.replace('/(app)/add-funds')}
               activeOpacity={0.7}
               accessibilityRole="button"
               accessibilityLabel="Receive stablecoins"
@@ -52,7 +52,7 @@ export default function ReceiveSelectScreen() {
             </TouchableOpacity>
 
             <TouchableOpacity
-              onPress={() => { router.back(); setTimeout(() => router.push('/(app)/receive-cash'), 100); }}
+              onPress={() => router.replace('/(app)/receive-cash')}
               activeOpacity={0.7}
               accessibilityRole="button"
               accessibilityLabel={`Pending claims${pendingCount > 0 ? `, ${pendingCount}` : ''}`}
