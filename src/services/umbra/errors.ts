@@ -152,16 +152,19 @@ export function parseUmbraError(err: any, op: UmbraOp): UmbraError {
       case "account-fetch":
         return build(err, op, "RPC_ERROR", err.stage);
       case "transaction-sign":
-        // For depositFromCash, the signer is Turnkey (remote) — a sign failure
-        // is a real infra error, not a user cancel.
         return build(
           err,
           op,
           op === "depositFromCash" ? "SIGNING_FAILED" : "USER_CANCELLED",
           err.stage
         );
-      case "transaction-send":
+      case "transaction-send": {
+        const logs: string[] = err?.cause?.context?.logs || [];
+        if (logs.some((l: string) => /insufficient/i.test(l))) {
+          return build(err, op, "INSUFFICIENT_BALANCE", err.stage);
+        }
         return build(err, op, "TX_TIMEOUT", err.stage);
+      }
       default:
         return build(err, op, "UNKNOWN", err.stage);
     }

@@ -80,7 +80,10 @@ export default function ShieldScreen() {
       setTransactionSignature(sig);
 
       if (__DEV__) console.log('[Shield] invalidating shielded-balance');
-      await queryClient.invalidateQueries({ queryKey: ['shielded-balance'] });
+      queryClient.invalidateQueries({ queryKey: ['shielded-balance'] });
+      setTimeout(() => {
+        queryClient.invalidateQueries({ queryKey: ['wallet-balance', userData?.stealf_wallet] });
+      }, 3000);
       if (__DEV__) console.log('[Shield] invalidation done');
 
       setShowSuccess(true);
