@@ -276,12 +276,18 @@ export function useAuthFlow() {
       const data = await response.json();
 
       if (!data.canProceed) {
-        const apiErrors: { field: string; message: string }[] = data.errors || [];
-        const messages = apiErrors.map((e) => e.message);
+        const messages: string[] = [];
 
-        if (messages.length === 0) {
-          messages.push('Unable to create account');
-        }
+        // Unavailable fields (1 = email, 2 = pseudo)
+        const unavailable: number[] = data.unavailable || [];
+        if (unavailable.includes(1)) messages.push('This email is already taken.');
+        if (unavailable.includes(2)) messages.push('This username is already taken.');
+
+        // Validation errors from backend (e.g. invalid pseudo format)
+        const apiErrors: { field: string; message: string }[] = data.errors || [];
+        for (const e of apiErrors) messages.push(e.message);
+
+        if (messages.length === 0) messages.push('Unable to create account.');
 
         return { success: false, message: messages.join('\n') };
       }
