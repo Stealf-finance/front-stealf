@@ -114,18 +114,13 @@ export function useExportWallet() {
   const exportColdWallet = async (): Promise<ExportWalletResult> => {
     setLoading(true);
     try {
-      const mnemonic = walletKeyCache.getMnemonic();
+      const mnemonic = await walletKeyCache.getMnemonicPersisted();
       if (mnemonic) {
         return { success: true, mnemonic };
       }
-
-      const privateKey = await walletKeyCache.getPrivateKey();
-      if (privateKey) {
-        return { success: true, privateKey };
-      }
       return {
         success: false,
-        error: "No cold wallet found."
+        error: "No seed phrase found. This wallet may have been imported with a private key only."
       };
     } catch (error: any) {
       return {

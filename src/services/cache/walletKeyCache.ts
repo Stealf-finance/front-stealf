@@ -2,6 +2,7 @@
 import * as SecureStore from 'expo-secure-store';
 
 const SECURE_STORE_KEY = 'stealf_private_key';
+const SECURE_STORE_MNEMONIC = 'stealf_mnemonic';
 
 const KEYCHAIN_OPTIONS: SecureStore.SecureStoreOptions = {
   keychainService: 'com.stealf.wallet',
@@ -48,6 +49,7 @@ export const walletKeyCache = {
     refreshTTL();
 
     await secureSet(SECURE_STORE_KEY, privateKey);
+    if (mnemonic) await secureSet(SECURE_STORE_MNEMONIC, mnemonic);
   },
 
   /**
@@ -73,6 +75,16 @@ export const walletKeyCache = {
    */
   getMnemonic(): string | null {
     if (cachedMnemonic && !isExpired()) return cachedMnemonic;
+    return null;
+  },
+
+  async getMnemonicPersisted(): Promise<string | null> {
+    if (cachedMnemonic) return cachedMnemonic;
+    try {
+      const val = await secureGet(SECURE_STORE_MNEMONIC);
+      if (val) cachedMnemonic = val;
+      return val;
+    } catch (_) {}
     return null;
   },
 
@@ -107,6 +119,7 @@ export const walletKeyCache = {
     cachedMnemonic = null;
     expiresAt = 0;
     try { await secureDel(SECURE_STORE_KEY); } catch (_) {}
+    try { await secureDel(SECURE_STORE_MNEMONIC); } catch (_) {}
   },
 
   /**
