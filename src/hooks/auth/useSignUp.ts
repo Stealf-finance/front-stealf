@@ -51,7 +51,9 @@ export function useAuthFlow() {
    */
   const createPasskey = useCallback(async (email: string, pseudo: string, preAuthToken?: string): Promise<PasskeyResult> => {
     try {
+      const safePseudo = pseudo.replace(/[^a-zA-Z0-9 \-_:/]/g, '').slice(0, 50);
       const authResult = await signUpWithPasskey({
+        passkeyDisplayName: `Stealf - ${safePseudo}`,
         createSubOrgParams: {
           subOrgName: `User ${email}`,
           customWallet: CASH_WALLET_CONFIG,
