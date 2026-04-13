@@ -1,5 +1,6 @@
 import {
   getPublicBalanceToEncryptedBalanceDirectDepositorFunction,
+  isRegistrationError,
 } from "@umbra-privacy/sdk";
 import type { Address } from "@solana/kit";
 import { getClient, getCashClient, type GetCashClientArgs } from "../client";
@@ -29,7 +30,13 @@ export async function depositFromCash(args: DepositFromCashArgs) {
     await ensureRegistered();
   } catch (err: any) {
     const msg = err?.message || err?.cause?.message || '';
-    if (/simulation failed|insufficient|rent/i.test(msg)) {
+    const logs: string[] = err?.cause?.context?.logs || [];
+    const isFeeProblem =
+      /simulation failed|insufficient|rent/i.test(msg) ||
+      logs.some((l: string) => /insufficient/i.test(l)) ||
+      (isRegistrationError(err) && err.stage === 'transaction-send');
+
+    if (isFeeProblem) {
       throw new UmbraError({
         code: 'INSUFFICIENT_BALANCE',
         op: 'depositFromCash',

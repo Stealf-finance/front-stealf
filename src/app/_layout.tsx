@@ -11,7 +11,6 @@ import NetInfo from '@react-native-community/netinfo';
 import { TurnkeyProvider } from '@turnkey/react-native-wallet-kit';
 import { TURNKEY_CONFIG, TURNKEY_CALLBACKS } from '../constants/turnkey';
 import { AuthProvider, useAuth } from '../contexts/AuthContext';
-import { useWalletInfos } from '../hooks/wallet/useWalletInfos';
 import { usePendingClaims } from '../hooks/wallet/usePendingClaims';
 import { usePendingClaimsForCash } from '../hooks/wallet/usePendingClaimsForCash';
 import { SplashProvider, useSplash } from '../contexts/SplashContext';
@@ -39,9 +38,8 @@ const queryClient = new QueryClient({
 });
 
 function RootNavigator() {
-  const { isAuthenticated, userData, loading } = useAuth();
+  const { isAuthenticated, loading } = useAuth();
   const { splashVisible, splashFading, startFade, hideSplash } = useSplash();
-  const { isLoadingBalance } = useWalletInfos(userData?.cash_wallet || '');
   const router = useRouter();
   const segments = useSegments();
 
@@ -64,18 +62,16 @@ function RootNavigator() {
 
   useEffect(() => {
     if (loading) return;
-    if (isAuthenticated && isLoadingBalance) return;
-
     SplashScreen.hideAsync();
-  }, [loading, isAuthenticated, isLoadingBalance]);
+  }, [loading]);
 
   useEffect(() => {
     if (!splashVisible || splashFading) return;
-    if (!isAuthenticated || isLoadingBalance) return;
+    if (!isAuthenticated) return;
 
     const timer = setTimeout(() => startFade(), 300);
     return () => clearTimeout(timer);
-  }, [splashVisible, splashFading, isAuthenticated, isLoadingBalance, startFade]);
+  }, [splashVisible, splashFading, isAuthenticated, startFade]);
 
   return (
     <View style={{ flex: 1, backgroundColor: '#000' }}>

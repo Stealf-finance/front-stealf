@@ -1,7 +1,5 @@
 import { Redirect, Stack } from 'expo-router';
-import * as SplashScreen from 'expo-splash-screen';
 import { useAuth } from '../../contexts/AuthContext';
-import { useWalletInfos } from '../../hooks/wallet/useWalletInfos';
 import { PagerProvider } from '../../navigation/PagerContext';
 
 const MODAL_OPTIONS = {
@@ -21,18 +19,14 @@ const SHEET_OPTIONS = {
 };
 
 export default function AppLayout() {
-  const { isAuthenticated, userData, loading } = useAuth();
-  const { isLoadingBalance } = useWalletInfos(userData?.cash_wallet || '');
+  const { isAuthenticated, loading } = useAuth();
+
   if (loading) {
     return null;
   }
 
   if (!isAuthenticated) {
     return <Redirect href="/sign-in" />;
-  }
-
-  if (isLoadingBalance) {
-    return null;
   }
 
   return (
