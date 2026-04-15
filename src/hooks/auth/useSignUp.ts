@@ -27,13 +27,43 @@ interface PasskeyResult {
   retryable?: boolean;
 }
 
+const TURNKEY_KEYCHAIN_PREFIX = 'com.turnkey.keypair:';
+const TURNKEY_ASYNC_STORAGE_PREFIX = '@turnkey/';
+
+async function purgeTurnkeyKeychain(): Promise<void> {
+  try {
+    const Keychain = require('react-native-keychain');
+    const services: string[] = await Keychain.getAllGenericPasswordServices();
+    const turnkeyServices = services.filter((s) => s.startsWith(TURNKEY_KEYCHAIN_PREFIX));
+    await Promise.all(
+      turnkeyServices.map((service) =>
+        Keychain.resetGenericPassword({ service }).catch(() => undefined)
+      )
+    );
+  } catch (_) {
+  }
+}
+
+async function purgeTurnkeyAsyncStorage(): Promise<void> {
+  try {
+    const AsyncStorage = require('@react-native-async-storage/async-storage').default;
+    const allKeys: string[] = await AsyncStorage.getAllKeys();
+    const turnkeyKeys = allKeys.filter((k) => k.startsWith(TURNKEY_ASYNC_STORAGE_PREFIX));
+    if (turnkeyKeys.length > 0) {
+      await AsyncStorage.multiRemove(turnkeyKeys);
+    }
+  } catch (_) {
+  }
+}
+
 function isRetryablePasskeyError(err: any): boolean {
   let current: any = err;
   for (let i = 0; i < 5 && current; i++) {
     const code = current?.error || current?.code;
     const msg = current?.message || '';
     if (code === 'RequestFailed' || code === 'UserCancelled') return true;
-    if (/no credentials|cancelled|canceled|timeout|timed out|failed to sign up with passkey|network request failed|network request timed out|network error/i.test(msg)) {
+    if (code === 'E_CRYPTO_FAILED') return true;
+    if (/no credentials|cancelled|canceled|timeout|timed out|failed to sign up with passkey|failed to delete unused key pair|network request failed|network request timed out|network error|empty key extracted|authentication tag verification failed/i.test(msg)) {
       return true;
     }
     current = current?.cause;
@@ -67,6 +97,9 @@ export function useAuthFlow() {
    */
   const createPasskey = useCallback(async (email: string, pseudo: string, preAuthToken?: string): Promise<PasskeyResult> => {
     try {
+      await purgeTurnkeyAsyncStorage();
+      await purgeTurnkeyKeychain();
+
       const safePseudo = pseudo.replace(/[^a-zA-Z0-9 \-_:/]/g, '').slice(0, 50);
       const authResult = await signUpWithPasskey({
         passkeyDisplayName: `Stealf - ${safePseudo}`,
@@ -128,13 +161,17 @@ export function useAuthFlow() {
       }
       const retryable = isRetryablePasskeyError(err);
       const causeMsg = err?.cause?.message || '';
-      const isNetwork = /network request failed|network request timed out|network error/i.test(causeMsg) ||
-                        /network request failed|network request timed out|network error/i.test(err?.message || '');
+      const topMsg = err?.message || '';
+      const isNetwork = /network request failed|network request timed out|network error/i.test(causeMsg + topMsg);
+      const isCryptoStore = err?.cause?.code === 'E_CRYPTO_FAILED' ||
+                            /empty key extracted|authentication tag verification failed|failed to delete unused key pair/i.test(causeMsg + topMsg);
       const errorMsg = !retryable
-        ? (err?.message || 'Failed to create passkey')
+        ? (topMsg || 'Failed to create passkey')
         : isNetwork
           ? 'Network error. Please check your connection and try again.'
-          : 'Face ID was cancelled or timed out. Please try again.';
+          : isCryptoStore
+            ? 'Device storage issue. Please restart the app and try again.'
+            : 'Face ID was cancelled or timed out. Please try again.';
       setError(errorMsg);
       setErrorRetryable(retryable);
       setScreenState('error');

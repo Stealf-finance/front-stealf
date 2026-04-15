@@ -139,20 +139,11 @@ const data = BalanceResponseSchema.parse(response);
 
 ---
 
-### 7. Error logging en production (Sentry)
+### 7. Error logging en production
 
 **Statut** : `ErrorBoundary.tsx` existe mais ne log rien vers un service externe. Les erreurs sont visibles uniquement en dev via `__DEV__` console.log.
 **Risque** : Aucune visibilite sur les crashes en production. Impossible de debugger des problemes utilisateur.
-**Action** :
-```bash
-npx expo install @sentry/react-native
-```
-```typescript
-// App.tsx
-import * as Sentry from '@sentry/react-native';
-Sentry.init({ dsn: 'https://...', tracesSampleRate: 0.2 });
-```
-Logger au minimum : erreurs de transaction, erreurs auth, socket disconnects, erreurs ZK proofs.
+**Action** : integrer un service de monitoring (Sentry, Bugsnag, Instabug...) et logger au minimum les erreurs de transaction, auth, socket disconnects, et erreurs ZK proofs.
 
 ---
 
@@ -442,7 +433,7 @@ Le swipePager custom peut rester comme composant dans le group route (home,priva
 | 4 | P0 | Tests unitaires | Non fait | Moyen |
 | 5 | P0 | Accessibilite (a11y) | **Fait** | Faible |
 | 6 | P1 | Validation Zod | **Fait** | Moyen |
-| 7 | P1 | Sentry error logging | **Fait** | Faible |
+| 7 | P1 | Error logging (à réintégrer si besoin) | Non fait | Faible |
 | 8 | P1 | expo-image | **Fait** | Faible |
 | 9 | P1 | Split AuthContext | Partiel (SplashContext extrait) | Moyen |
 | 10 | P1 | Animated legacy → reanimated | **Fait** | Moyen |
@@ -489,7 +480,6 @@ Le swipePager custom peut rester comme composant dans le group route (home,priva
 ### Batch optimisations (30/03/2026)
 - TypeScript strict mode active (0 erreur)
 - Zod validation sur les reponses API (schemas.ts + useWalletInfos)
-- Sentry error logging (root layout + ErrorBoundary)
 - Animated → reanimated dans les tabs (index.tsx, privacy.tsx)
 - Responsive design (useSafeAreaInsets dans 5 fichiers)
 - API client standalone (services/api/client.ts)

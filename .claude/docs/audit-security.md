@@ -263,7 +263,6 @@ Phase : MVP / Beta
 - [x] ~~Valider le montant withdraw cote front~~ FAIT
 - [x] ~~Nettoyer imports morts (useSocket, AddFundsPrivacy)~~ FAIT
 - [x] `useFonts centralise dans root layout` FAIT
-- [x] `Sentry error logging ajoute` FAIT
 - [x] `Zod validation sur les reponses API` FAIT
 - [ ] Wrapper tous les `console.log`/`console.error` sensibles dans `__DEV__` ou strip via babel
 

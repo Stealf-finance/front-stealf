@@ -30,14 +30,13 @@ Stealf est une neobank/fintech a double wallets sur Solana. Equipe : Thomas et L
 - Real-time: socket.io-client
 - Storage: expo-secure-store (keychain), walletKeyCache (RAM+Keychain)
 - UI: react-native-reanimated, expo-linear-gradient, expo-image, expo-haptics, Sansation font
-- Monitoring: @sentry/react-native (init root layout, captures ErrorBoundary, desactive en __DEV__)
 - Offline: @react-native-community/netinfo + React Query onlineManager
 
 ## Architecture
 
 ### Structure src/
 - `app/` : Expo Router root (configure via `["expo-router", { root: "src/app" }]` dans app.config.js)
-  - `_layout.tsx` : Root layout - providers (QueryClient, AuthProvider, SafeAreaProvider, SplashProvider), SplashScreen.preventAutoHideAsync(), navigation auth (sign-in/sign-up vs app), Sentry init
+  - `_layout.tsx` : Root layout - providers (QueryClient, AuthProvider, SafeAreaProvider, SplashProvider), SplashScreen.preventAutoHideAsync(), navigation auth (sign-in/sign-up vs app)
   - `sign-in.tsx` : Route publique (passkey login)
   - `sign-up.tsx` : Route publique (useReducer pour le flow multi-etapes)
   - `(app)/` : Groupe protege
@@ -91,7 +90,6 @@ Stealf est une neobank/fintech a double wallets sur Solana. Equipe : Thomas et L
 - transactionsGuard valide adresse/montant/solde avant envoi
 - walletKeyCache : cle privee en RAM (15 min TTL) + Keychain fallback, touch() apres chaque signing
 - ZK circuits telechargees depuis CDN, cachees localement (expo-file-system)
-- **Sentry** : init dans root layout, captures dans ErrorBoundary, desactive en __DEV__
 - **Zod** : validation des reponses API dans useWalletInfos
 
 ### Flow yield (Arcium + Jito SOL)

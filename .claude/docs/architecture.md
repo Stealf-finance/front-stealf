@@ -53,7 +53,7 @@ front-stealf/
 |-- fs-shim.js                  Module vide (shim pour @arcium-hq/client)
 |-- codegenv2-shim.js           Module vide (shim pour @bufbuild/protobuf/codegenv2)
 |-- babel.config.js             Expo preset + reanimated plugin
-|-- app.config.js               Expo config (bundle ID, passkey RP, expo-router, sentry)
+|-- app.config.js               Expo config (bundle ID, passkey RP, expo-router)
 |-- tsconfig.json               TS config (strict: true, baseUrl: ".", jsx: react-jsx)
 |-- package.json                Dependencies + scripts (main: ./index.js)
 |-- .env                        Variables d'environnement (non commite)
@@ -96,7 +96,7 @@ front-stealf/
 |   |   |-- Verified.tsx                        Email verifie + passkey creation
 |   |   |-- WalletSetup.tsx                     Choix creer/importer wallet
 |   |   |-- AnimatedSplash.tsx                  Splash anime (expo-image)
-|   |   |-- ErrorBoundary.tsx                   Error boundary (+ Sentry capture)
+|   |   |-- ErrorBoundary.tsx                   Error boundary
 |   |   |-- AddFundsModal.tsx                   Modal ajout fonds
 |   |   |-- SendModal.tsx / SendPrivacyModal.tsx
 |   |   +-- features/
