@@ -28,14 +28,16 @@ export default function VerifiedScreen({ email, pseudo, preAuthToken, onBack, on
     screenState,
     loading,
     error,
+    errorRetryable,
     generatedMnemonic,
     createPasskey,
+    retryPasskey,
     handleWalletChoice,
     handleMnemonicConfirmed,
   } = useAuthFlow();
 
   useEffect(() => {
-    createPasskey(email, pseudo, preAuthToken);
+    createPasskey(email, pseudo, preAuthToken || undefined);
   }, [email]);
 
   const onWalletChoice = async (choice: WalletSetupChoice) => {
@@ -109,10 +111,28 @@ export default function VerifiedScreen({ email, pseudo, preAuthToken, onBack, on
         )}
         <View style={styles.content}>
           <View style={styles.errorIconContainer}>
-            <Text style={styles.errorIcon}>⚠️</Text>
+            <Text style={styles.errorIcon}>{errorRetryable ? '🔒' : '⚠️'}</Text>
           </View>
-          <Text style={styles.errorTitle}>Wallet Creation Failed</Text>
+          <Text style={styles.errorTitle}>
+            {errorRetryable ? 'Face ID Cancelled' : 'Wallet Creation Failed'}
+          </Text>
           <Text style={styles.errorText}>{error}</Text>
+          {errorRetryable && (
+            <TouchableOpacity
+              style={styles.retryButton}
+              onPress={() => retryPasskey(email, pseudo, preAuthToken || undefined)}
+              disabled={loading}
+              activeOpacity={0.8}
+              accessibilityRole="button"
+              accessibilityLabel="Try again"
+            >
+              {loading ? (
+                <ActivityIndicator color="#000" />
+              ) : (
+                <Text style={styles.retryButtonText}>Try again</Text>
+              )}
+            </TouchableOpacity>
+          )}
         </View>
       </LinearGradient>
     </View>
@@ -178,5 +198,20 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     lineHeight: 22,
     paddingHorizontal: 24,
+  },
+  retryButton: {
+    backgroundColor: 'rgba(240, 235, 220, 0.95)',
+    paddingVertical: 16,
+    paddingHorizontal: 48,
+    borderRadius: 30,
+    marginTop: 32,
+    minWidth: 200,
+    alignItems: 'center',
+  },
+  retryButtonText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#000',
+    fontFamily: 'Sansation-Bold',
   },
 });

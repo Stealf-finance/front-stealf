@@ -24,6 +24,21 @@ interface PasskeyResult {
   sessionToken?: string;
   cashWallet?: string;
   error?: string;
+  retryable?: boolean;
+}
+
+function isRetryablePasskeyError(err: any): boolean {
+  let current: any = err;
+  for (let i = 0; i < 5 && current; i++) {
+    const code = current?.error || current?.code;
+    const msg = current?.message || '';
+    if (code === 'RequestFailed' || code === 'UserCancelled') return true;
+    if (/no credentials|cancelled|canceled|timeout|timed out|failed to sign up with passkey|network request failed|network request timed out|network error/i.test(msg)) {
+      return true;
+    }
+    current = current?.cause;
+  }
+  return false;
 }
 
 interface WalletChoiceResult {
@@ -41,6 +56,7 @@ export function useAuthFlow() {
   const [screenState, setScreenState] = useState<ScreenState>('passkey');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [errorRetryable, setErrorRetryable] = useState(false);
   const [sessionToken, setSessionToken] = useState<string | null>(null);
   const [cashWallet, setCashWallet] = useState<string>('');
   const [generatedMnemonic, setGeneratedMnemonic] = useState<string | undefined>();
@@ -97,13 +113,41 @@ export function useAuthFlow() {
 
       return { success: true, sessionToken: token, cashWallet: cashAddr };
     } catch (err: any) {
-      if (__DEV__) console.error('Passkey creation failed:', err);
-      const errorMsg = err?.message || 'Failed to create passkey';
+      if (__DEV__) {
+        console.error('Passkey creation failed:', err);
+        let current: any = err?.cause;
+        let depth = 1;
+        while (current && depth < 5) {
+          console.error(`  cause[${depth}]:`, {
+            code: current?.code || current?.error,
+            message: current?.message,
+          });
+          current = current?.cause;
+          depth++;
+        }
+      }
+      const retryable = isRetryablePasskeyError(err);
+      const causeMsg = err?.cause?.message || '';
+      const isNetwork = /network request failed|network request timed out|network error/i.test(causeMsg) ||
+                        /network request failed|network request timed out|network error/i.test(err?.message || '');
+      const errorMsg = !retryable
+        ? (err?.message || 'Failed to create passkey')
+        : isNetwork
+          ? 'Network error. Please check your connection and try again.'
+          : 'Face ID was cancelled or timed out. Please try again.';
       setError(errorMsg);
+      setErrorRetryable(retryable);
       setScreenState('error');
-      return { success: false, error: errorMsg };
+      return { success: false, error: errorMsg, retryable };
     }
   }, [signUpWithPasskey, refreshWallets]);
+
+  const retryPasskey = useCallback((email: string, pseudo: string, preAuthToken?: string) => {
+    setError('');
+    setErrorRetryable(false);
+    setScreenState('passkey');
+    return createPasskey(email, pseudo, preAuthToken);
+  }, [createPasskey]);
 
   /**
    * Step 2: Handle wallet setup choice and register with backend
@@ -316,10 +360,12 @@ export function useAuthFlow() {
     setScreenState,
     loading,
     error,
+    errorRetryable,
     generatedMnemonic,
 
     // Actions
     createPasskey,
+    retryPasskey,
     handleWalletChoice,
     handleMnemonicConfirmed,
     handleResendMagicLink,
