@@ -1,13 +1,17 @@
 import { useState } from 'react';
 import { useTurnkey } from "@turnkey/react-native-wallet-kit";
+import { useQueryClient } from '@tanstack/react-query';
 import { useAuth as useAuthContext } from '../../contexts/AuthContext';
 import { authStorage } from '../../services/auth/authStorage';
+import { apiGet } from '../../services/api/client';
+import { BalanceResponseSchema, HistoryResponseSchema } from '../../services/api/schemas';
 
 const API_URL = process.env.EXPO_PUBLIC_API_URL;
 
 export function useSignIn() {
   const { loginWithPasskey, refreshWallets } = useTurnkey();
   const { setUserData } = useAuthContext();
+  const queryClient = useQueryClient();
 
   const [loading, setLoading] = useState(false);
 
@@ -32,6 +36,26 @@ export function useSignIn() {
         throw new Error('Failed to get wallet addresses');
       }
 
+      const localData = await authStorage.getUserData();
+      const stealf_wallet = localData?.stealf_wallet || '';
+
+      const prefetchWalletData = (address: string) => {
+        if (!address) return;
+        queryClient.prefetchQuery({
+          queryKey: ['wallet-balance', address],
+          queryFn: async () => BalanceResponseSchema.parse(await apiGet(`/api/wallet/balance/${address}`, sessionToken)),
+          staleTime: Infinity,
+        });
+        queryClient.prefetchQuery({
+          queryKey: ['wallet-history', address],
+          queryFn: async () => HistoryResponseSchema.parse(await apiGet(`/api/wallet/history/${address}?limit=10`, sessionToken)),
+          staleTime: Infinity,
+        });
+      };
+
+      prefetchWalletData(cash_wallet);
+      prefetchWalletData(stealf_wallet);
+
       const response = await fetch(`${API_URL}/api/users/${cash_wallet}`, {
         method: 'GET',
         headers: {
@@ -50,13 +74,11 @@ export function useSignIn() {
         throw new Error('Backend did not return user data');
       }
 
-      const localData = await authStorage.getUserData();
-
       setUserData({
         email: data.data.user.email,
         username: data.data.user.username || data.data.user.pseudo,
         cash_wallet: data.data.user.cash_wallet,
-        stealf_wallet: localData?.stealf_wallet || '',
+        stealf_wallet,
         subOrgId: data.data.user.subOrgId,
         points: data.data.user.points ?? 0,
       });
