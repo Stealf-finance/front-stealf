@@ -48,30 +48,38 @@ export function useSignIn() {
       const localData = await authStorage.getUserData();
       const stealf_wallet = localData?.stealf_wallet || '';
 
-      const prefetchWalletData = (address: string) => {
-        if (!address) return;
-        queryClient.prefetchQuery({
-          queryKey: ['wallet-balance', address],
-          queryFn: async () => BalanceResponseSchema.parse(await apiGet(`/api/wallet/balance/${address}`, sessionToken)),
-          staleTime: Infinity,
-        });
-        queryClient.prefetchQuery({
-          queryKey: ['wallet-history', address],
-          queryFn: async () => HistoryResponseSchema.parse(await apiGet(`/api/wallet/history/${address}?limit=10`, sessionToken)),
-          staleTime: Infinity,
-        });
+      const prefetchWalletData = (address: string): Promise<unknown>[] => {
+        if (!address) return [];
+        queryClient.removeQueries({ queryKey: ['wallet-balance', address] });
+        queryClient.removeQueries({ queryKey: ['wallet-history', address] });
+        return [
+          queryClient.prefetchQuery({
+            queryKey: ['wallet-balance', address],
+            queryFn: async () => BalanceResponseSchema.parse(await apiGet(`/api/wallet/balance/${address}`, sessionToken)),
+            staleTime: Infinity,
+          }),
+          queryClient.prefetchQuery({
+            queryKey: ['wallet-history', address],
+            queryFn: async () => HistoryResponseSchema.parse(await apiGet(`/api/wallet/history/${address}?limit=10`, sessionToken)),
+            staleTime: Infinity,
+          }),
+        ];
       };
 
-      prefetchWalletData(cash_wallet);
-      prefetchWalletData(stealf_wallet);
-
-      const response = await fetch(`${API_URL}/api/users/${cash_wallet}`, {
+      const userFetchPromise = fetch(`${API_URL}/api/users/${cash_wallet}`, {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${sessionToken}`,
         },
       });
+
+      const [response] = await Promise.all([
+        userFetchPromise,
+        ...prefetchWalletData(cash_wallet),
+        ...prefetchWalletData(stealf_wallet),
+      ]);
+
       if (!response.ok) {
         const errorData = await response.json();
         throw new Error(errorData.error || 'Failed to authenticate with backend');

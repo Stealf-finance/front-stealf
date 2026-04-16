@@ -62,7 +62,7 @@ export default function PrivacyScreen() {
   const handleWalletSetup = async (choice: WalletSetupChoice) => {
     if (choice.mode === 'create') {
       if (generatedMnemonic && pendingWalletAddress) {
-        await registerPrivacyWallet(pendingWalletAddress);
+        await registerPrivacyWallet(pendingWalletAddress, true);
         setGeneratedMnemonic(undefined);
         setPendingWalletAddress(null);
         return;
@@ -83,11 +83,11 @@ export default function PrivacyScreen() {
         Alert.alert('Error', result.error || 'Failed to import wallet');
         return;
       }
-      await registerPrivacyWallet(result.walletAddress || '');
+      await registerPrivacyWallet(result.walletAddress || '', false);
     }
   };
 
-  const registerPrivacyWallet = async (walletAddress: string) => {
+  const registerPrivacyWallet = async (walletAddress: string, isFresh: boolean) => {
     try {
       await api.post('/api/wallet/privacy-wallet', { walletAddress });
     } catch (err: any) {
@@ -97,16 +97,29 @@ export default function PrivacyScreen() {
     }
     socketService.subscribeToWallet(walletAddress);
 
-    queryClient.prefetchQuery({
-      queryKey: ['wallet-balance', walletAddress],
-      queryFn: async () => BalanceResponseSchema.parse(await api.get(`/api/wallet/balance/${walletAddress}`)),
-      staleTime: Infinity,
-    });
-    queryClient.prefetchQuery({
-      queryKey: ['wallet-history', walletAddress],
-      queryFn: async () => HistoryResponseSchema.parse(await api.get(`/api/wallet/history/${walletAddress}?limit=10`)),
-      staleTime: Infinity,
-    });
+    if (isFresh) {
+      queryClient.setQueryData(['wallet-balance', walletAddress], {
+        address: walletAddress,
+        tokens: [],
+        totalUSD: 0,
+      });
+      queryClient.setQueryData(['wallet-history', walletAddress], {
+        address: walletAddress,
+        count: 0,
+        transactions: [],
+      });
+    } else {
+      queryClient.prefetchQuery({
+        queryKey: ['wallet-balance', walletAddress],
+        queryFn: async () => BalanceResponseSchema.parse(await api.get(`/api/wallet/balance/${walletAddress}`)),
+        staleTime: Infinity,
+      });
+      queryClient.prefetchQuery({
+        queryKey: ['wallet-history', walletAddress],
+        queryFn: async () => HistoryResponseSchema.parse(await api.get(`/api/wallet/history/${walletAddress}?limit=10`)),
+        staleTime: Infinity,
+      });
+    }
 
     showSplash();
     if (userData) {

@@ -3,8 +3,6 @@ import { useTurnkey, ClientState } from "@turnkey/react-native-wallet-kit";
 import { useQueryClient } from "@tanstack/react-query";
 import { useAuth as useAuthContext } from "../../contexts/AuthContext";
 import { CASH_WALLET_CONFIG } from "../../constants/turnkey";
-import { apiGet } from "../../services/api/client";
-import { BalanceResponseSchema, HistoryResponseSchema } from "../../services/api/schemas";
 
 const API_URL = process.env.EXPO_PUBLIC_API_URL;
 
@@ -78,17 +76,17 @@ export function useAuthFlow() {
   const queryClient = useQueryClient();
   const isClientReady = clientState === ClientState.Ready;
 
-  const prefetchWalletData = useCallback((address: string, token: string) => {
-    if (!address || !token) return;
-    queryClient.prefetchQuery({
-      queryKey: ['wallet-balance', address],
-      queryFn: async () => BalanceResponseSchema.parse(await apiGet(`/api/wallet/balance/${address}`, token)),
-      staleTime: Infinity,
+  const seedEmptyWalletData = useCallback((address: string) => {
+    if (!address) return;
+    queryClient.setQueryData(['wallet-balance', address], {
+      address,
+      tokens: [],
+      totalUSD: 0,
     });
-    queryClient.prefetchQuery({
-      queryKey: ['wallet-history', address],
-      queryFn: async () => HistoryResponseSchema.parse(await apiGet(`/api/wallet/history/${address}?limit=10`, token)),
-      staleTime: Infinity,
+    queryClient.setQueryData(['wallet-history', address], {
+      address,
+      count: 0,
+      transactions: [],
     });
   }, [queryClient]);
 
@@ -130,7 +128,7 @@ export function useAuthFlow() {
       const cashAddr = wallets?.[0]?.accounts?.[0]?.address || '';
       if (!cashAddr) throw new Error('Failed to retrieve cash wallet address');
 
-      prefetchWalletData(cashAddr, token);
+      seedEmptyWalletData(cashAddr);
 
       const headers: Record<string, string> = {
         'Content-Type': 'application/json',
@@ -189,7 +187,7 @@ export function useAuthFlow() {
       setScreenState('error');
       return { success: false, error: errorMsg, retryable };
     }
-  }, [signUpWithPasskey, refreshWallets, isClientReady, prefetchWalletData]);
+  }, [signUpWithPasskey, refreshWallets, isClientReady, seedEmptyWalletData]);
 
   const retryPasskey = useCallback((email: string, pseudo: string, preAuthToken?: string) => {
     setError('');
@@ -232,13 +230,15 @@ export function useAuthFlow() {
       });
 
       if (!response.ok) {
-        throw new Error('Failed to resend magic link');
+        const errorData = await response.json().catch(() => ({}));
+        if (__DEV__) console.error('[Resend] backend rejected:', response.status, errorData);
+        throw new Error(errorData.error || `Failed to resend magic link (${response.status})`);
       }
 
       return { success: true, message: 'Magic link sent! Check your email.' };
     } catch (error: any) {
       if (__DEV__) console.error('Error resending magic link:', error);
-      return { success: false, message: 'Failed to resend magic link' };
+      return { success: false, message: error?.message || 'Failed to resend magic link' };
     } finally {
       setLoadingParam(false);
     }
