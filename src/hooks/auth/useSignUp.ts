@@ -97,7 +97,7 @@ export function useAuthFlow() {
   const [errorRetryable, setErrorRetryable] = useState(false);
 
   /**
-   * Create passkey and cash wallet via Turnkey
+   * Create passkey and bank wallet via Turnkey
    */
   const createPasskey = useCallback(async (email: string, pseudo: string, preAuthToken?: string): Promise<PasskeyResult> => {
     try {
@@ -284,7 +284,6 @@ export function useAuthFlow() {
         if (unavailable.includes(1)) messages.push('This email is already taken.');
         if (unavailable.includes(2)) messages.push('This username is already taken.');
 
-        // Validation errors from backend (e.g. invalid pseudo format)
         const apiErrors: { field: string; message: string }[] = data.errors || [];
         for (const e of apiErrors) messages.push(e.message);
 
