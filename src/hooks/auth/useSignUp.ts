@@ -99,7 +99,7 @@ export function useAuthFlow() {
   /**
    * Create passkey and cash wallet via Turnkey
    */
-  const createPasskey = useCallback(async (email: string, pseudo: string, preAuthToken?: string, opts?: { purgeFirst?: boolean }): Promise<PasskeyResult> => {
+  const createPasskey = useCallback(async (email: string, pseudo: string, preAuthToken?: string): Promise<PasskeyResult> => {
     try {
       if (!isClientReady) {
         const errorMsg = 'App is still starting up. Please try again in a moment.';
@@ -109,10 +109,8 @@ export function useAuthFlow() {
         return { success: false, error: errorMsg, retryable: true };
       }
 
-      if (opts?.purgeFirst) {
-        await purgeTurnkeyAsyncStorage();
-        await purgeTurnkeyKeychain();
-      }
+      await purgeTurnkeyAsyncStorage();
+      await purgeTurnkeyKeychain();
 
       const safePseudo = pseudo.replace(/[^a-zA-Z0-9 \-_:/]/g, '').slice(0, 50);
       const authResult = await signUpWithPasskey({
@@ -195,7 +193,7 @@ export function useAuthFlow() {
     setError('');
     setErrorRetryable(false);
     setScreenState('passkey');
-    return createPasskey(email, pseudo, preAuthToken, { purgeFirst: true });
+    return createPasskey(email, pseudo, preAuthToken);
   }, [createPasskey]);
 
   /**
