@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useTurnkey } from "@turnkey/react-native-wallet-kit";
+import { useTurnkey, ClientState } from "@turnkey/react-native-wallet-kit";
 import { useQueryClient } from '@tanstack/react-query';
 import { useAuth as useAuthContext } from '../../contexts/AuthContext';
 import { authStorage } from '../../services/auth/authStorage';
@@ -9,13 +9,22 @@ import { BalanceResponseSchema, HistoryResponseSchema } from '../../services/api
 const API_URL = process.env.EXPO_PUBLIC_API_URL;
 
 export function useSignIn() {
-  const { loginWithPasskey, refreshWallets } = useTurnkey();
+  const { loginWithPasskey, refreshWallets, clientState } = useTurnkey();
   const { setUserData } = useAuthContext();
   const queryClient = useQueryClient();
 
   const [loading, setLoading] = useState(false);
+  const isClientReady = clientState === ClientState.Ready;
 
   const signInWithPasskey = async (onPasskeySuccess?: () => void) => {
+    if (!isClientReady) {
+      return {
+        success: false,
+        message: 'Please wait',
+        description: 'App is still starting up. Try again in a moment.',
+      };
+    }
+
     setLoading(true);
 
     try {
@@ -100,6 +109,7 @@ export function useSignIn() {
 
   return {
     loading,
+    isClientReady,
     signInWithPasskey,
   };
 }

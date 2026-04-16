@@ -16,7 +16,8 @@ import { useSignIn } from '../hooks/auth/useSignIn';
 export default function SignInScreen() {
   const router = useRouter();
   const { showSplash } = useSplash();
-  const { loading, signInWithPasskey } = useSignIn();
+  const { loading, isClientReady, signInWithPasskey } = useSignIn();
+  const buttonDisabled = loading || !isClientReady;
 
   const handleSignIn = async () => {
     const result = await signInWithPasskey(showSplash);
@@ -53,14 +54,18 @@ export default function SignInScreen() {
 
           {/* Sign In Button */}
           <TouchableOpacity
-            style={styles.button}
+            style={[styles.button, buttonDisabled && styles.buttonDisabled]}
             onPress={handleSignIn}
-            disabled={loading}
+            disabled={buttonDisabled}
             activeOpacity={0.8}
             accessibilityRole="button"
             accessibilityLabel="Sign in with passkey"
           >
-            <Text style={styles.buttonText}>Sign In with Passkey</Text>
+            {!isClientReady ? (
+              <ActivityIndicator color="#000" />
+            ) : (
+              <Text style={styles.buttonText}>Sign In with Passkey</Text>
+            )}
           </TouchableOpacity>
 
           {/* Sign Up Link */}

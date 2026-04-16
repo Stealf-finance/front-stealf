@@ -5,12 +5,10 @@ import {
   TouchableOpacity,
   StyleSheet,
   ActivityIndicator,
-  Alert,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import ComebackIcon from '../assets/buttons/comeback.svg';
 
-import WalletSetupScreen, { WalletSetupChoice } from './WalletSetup';
 import { useAuthFlow } from '../hooks/auth/useSignUp';
 import { LinearGradient } from 'expo-linear-gradient';
 
@@ -19,37 +17,21 @@ interface VerifiedScreenProps {
   pseudo: string;
   preAuthToken?: string | null;
   onBack?: () => void;
-  onAuthStart?: () => void;
 }
 
-export default function VerifiedScreen({ email, pseudo, preAuthToken, onBack, onAuthStart }: VerifiedScreenProps) {
+export default function VerifiedScreen({ email, pseudo, preAuthToken, onBack }: VerifiedScreenProps) {
   const insets = useSafeAreaInsets();
   const {
     screenState,
-    loading,
     error,
     errorRetryable,
-    generatedMnemonic,
     createPasskey,
     retryPasskey,
-    handleWalletChoice,
-    handleMnemonicConfirmed,
   } = useAuthFlow();
 
   useEffect(() => {
     createPasskey(email, pseudo, preAuthToken || undefined);
   }, [email]);
-
-  const onWalletChoice = async (choice: WalletSetupChoice) => {
-    const result = await handleWalletChoice(choice, email, pseudo, preAuthToken || undefined);
-    if (!result.success) {
-      Alert.alert('Error', result.error || 'Failed to set up wallet');
-    }
-  };
-
-  const onMnemonicConfirmed = () => {
-    handleMnemonicConfirmed(pseudo);
-  };
 
   // --- RENDERS ---
 
@@ -79,21 +61,6 @@ export default function VerifiedScreen({ email, pseudo, preAuthToken, onBack, on
     );
   }
 
-  if (screenState === 'walletSetup' || screenState === 'showMnemonic') {
-    return (
-      <WalletSetupScreen
-        onComplete={screenState === 'showMnemonic' ? onMnemonicConfirmed : onWalletChoice}
-        loading={loading}
-        generatedMnemonic={generatedMnemonic}
-      />
-    );
-  }
-
-  if (screenState === 'creatingWallet') {
-    onAuthStart?.();
-    return <View style={styles.container} />;
-  }
-
   // Error state
   return (
     <View style={styles.container}>
@@ -121,16 +88,11 @@ export default function VerifiedScreen({ email, pseudo, preAuthToken, onBack, on
             <TouchableOpacity
               style={styles.retryButton}
               onPress={() => retryPasskey(email, pseudo, preAuthToken || undefined)}
-              disabled={loading}
               activeOpacity={0.8}
               accessibilityRole="button"
               accessibilityLabel="Try again"
             >
-              {loading ? (
-                <ActivityIndicator color="#000" />
-              ) : (
-                <Text style={styles.retryButtonText}>Try again</Text>
-              )}
+              <Text style={styles.retryButtonText}>Try again</Text>
             </TouchableOpacity>
           )}
         </View>

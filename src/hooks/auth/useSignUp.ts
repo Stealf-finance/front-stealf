@@ -1,9 +1,10 @@
 import { useState, useCallback } from "react";
-import { useTurnkey } from "@turnkey/react-native-wallet-kit";
+import { useTurnkey, ClientState } from "@turnkey/react-native-wallet-kit";
+import { useQueryClient } from "@tanstack/react-query";
 import { useAuth as useAuthContext } from "../../contexts/AuthContext";
-import { useSetupWallet } from "../wallet/useInitPrivateWallet";
 import { CASH_WALLET_CONFIG } from "../../constants/turnkey";
-import type { WalletSetupChoice } from "../../components/WalletSetup";
+import { apiGet } from "../../services/api/client";
+import { BalanceResponseSchema, HistoryResponseSchema } from "../../services/api/schemas";
 
 const API_URL = process.env.EXPO_PUBLIC_API_URL;
 
@@ -17,7 +18,7 @@ interface UseAuthFlowParams {
   setShowLogoAnimation: (show: boolean) => void;
 }
 
-type ScreenState = 'passkey' | 'walletSetup' | 'creatingWallet' | 'showMnemonic' | 'error';
+type ScreenState = 'passkey' | 'error';
 
 interface PasskeyResult {
   success: boolean;
@@ -71,34 +72,47 @@ function isRetryablePasskeyError(err: any): boolean {
   return false;
 }
 
-interface WalletChoiceResult {
-  success: boolean;
-  user?: any;
-  mnemonic?: string;
-  error?: string;
-}
-
 export function useAuthFlow() {
   const { setUserData } = useAuthContext();
-  const { signUpWithPasskey, refreshWallets } = useTurnkey();
-  const setupWallet = useSetupWallet();
+  const { signUpWithPasskey, refreshWallets, clientState } = useTurnkey();
+  const queryClient = useQueryClient();
+  const isClientReady = clientState === ClientState.Ready;
+
+  const prefetchWalletData = useCallback((address: string, token: string) => {
+    if (!address || !token) return;
+    queryClient.prefetchQuery({
+      queryKey: ['wallet-balance', address],
+      queryFn: async () => BalanceResponseSchema.parse(await apiGet(`/api/wallet/balance/${address}`, token)),
+      staleTime: Infinity,
+    });
+    queryClient.prefetchQuery({
+      queryKey: ['wallet-history', address],
+      queryFn: async () => HistoryResponseSchema.parse(await apiGet(`/api/wallet/history/${address}?limit=10`, token)),
+      staleTime: Infinity,
+    });
+  }, [queryClient]);
 
   const [screenState, setScreenState] = useState<ScreenState>('passkey');
-  const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [errorRetryable, setErrorRetryable] = useState(false);
-  const [sessionToken, setSessionToken] = useState<string | null>(null);
-  const [cashWallet, setCashWallet] = useState<string>('');
-  const [generatedMnemonic, setGeneratedMnemonic] = useState<string | undefined>();
-  const [pendingUser, setPendingUser] = useState<any>(null);
 
   /**
    * Create passkey and cash wallet via Turnkey
    */
-  const createPasskey = useCallback(async (email: string, pseudo: string, preAuthToken?: string): Promise<PasskeyResult> => {
+  const createPasskey = useCallback(async (email: string, pseudo: string, preAuthToken?: string, opts?: { purgeFirst?: boolean }): Promise<PasskeyResult> => {
     try {
-      await purgeTurnkeyAsyncStorage();
-      await purgeTurnkeyKeychain();
+      if (!isClientReady) {
+        const errorMsg = 'App is still starting up. Please try again in a moment.';
+        setError(errorMsg);
+        setErrorRetryable(true);
+        setScreenState('error');
+        return { success: false, error: errorMsg, retryable: true };
+      }
+
+      if (opts?.purgeFirst) {
+        await purgeTurnkeyAsyncStorage();
+        await purgeTurnkeyKeychain();
+      }
 
       const safePseudo = pseudo.replace(/[^a-zA-Z0-9 \-_:/]/g, '').slice(0, 50);
       const authResult = await signUpWithPasskey({
@@ -112,13 +126,11 @@ export function useAuthFlow() {
       const { sessionToken: token } = authResult;
       if (!token) throw new Error('No session token received from Turnkey');
 
-      setSessionToken(token);
-
       const wallets = await refreshWallets();
       const cashAddr = wallets?.[0]?.accounts?.[0]?.address || '';
       if (!cashAddr) throw new Error('Failed to retrieve cash wallet address');
 
-      setCashWallet(cashAddr);
+      prefetchWalletData(cashAddr, token);
 
       const headers: Record<string, string> = {
         'Content-Type': 'application/json',
@@ -177,110 +189,19 @@ export function useAuthFlow() {
       setScreenState('error');
       return { success: false, error: errorMsg, retryable };
     }
-  }, [signUpWithPasskey, refreshWallets]);
+  }, [signUpWithPasskey, refreshWallets, isClientReady, prefetchWalletData]);
 
   const retryPasskey = useCallback((email: string, pseudo: string, preAuthToken?: string) => {
     setError('');
     setErrorRetryable(false);
     setScreenState('passkey');
-    return createPasskey(email, pseudo, preAuthToken);
+    return createPasskey(email, pseudo, preAuthToken, { purgeFirst: true });
   }, [createPasskey]);
-
-  /**
-   * Step 2: Handle wallet setup choice and register with backend
-   */
-  const handleWalletChoice = useCallback(async (
-    choice: WalletSetupChoice,
-    email: string,
-    pseudo: string,
-    preAuthToken?: string
-  ): Promise<WalletChoiceResult> => {
-    setLoading(true);
-    setScreenState('creatingWallet');
-
-    try {
-      let walletAddr = '';
-
-      if (choice.mode === 'create') {
-        const result = await setupWallet.handleCreateWallet();
-        if (!result.success) throw new Error(result.error);
-        walletAddr = result.walletAddress || '';
-        setGeneratedMnemonic(result.mnemonic);
-      } else if (choice.mode === 'import') {
-        const result = await setupWallet.handleImportWallet(choice.mnemonic);
-        if (!result.success) throw new Error(result.error);
-        walletAddr = result.walletAddress || '';
-      }
-
-      // Register with backend
-      const headers: Record<string, string> = {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${sessionToken}`,
-      };
-      if (preAuthToken) {
-        headers['X-Preauth-Token'] = preAuthToken;
-      }
-
-      const response = await fetch(`${API_URL}/api/users/auth`, {
-        method: 'POST',
-        headers,
-        body: JSON.stringify({
-          email,
-          pseudo,
-          cash_wallet: cashWallet,
-        }),
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to authenticate with backend');
-      }
-
-      const data = await response.json();
-      if (!data.data?.user) throw new Error('Backend did not return user data');
-
-      if (choice.mode === 'create') {
-        // Show mnemonic for user backup
-        setPendingUser(data.data.user);
-        setScreenState('showMnemonic');
-        setLoading(false);
-        return {
-          success: true,
-          user: data.data.user,
-          mnemonic: generatedMnemonic,
-        };
-      }
-
-      finishAuth(data.data.user, pseudo);
-      return { success: true, user: data.data.user };
-
-    } catch (err: any) {
-      if (__DEV__) console.error('Wallet setup failed:', err);
-      const errorMsg = err?.message || 'Failed to set up wallet';
-      setError(errorMsg);
-      setScreenState('error');
-      setLoading(false);
-      return { success: false, error: errorMsg };
-    } finally {
-      setLoading(false);
-    }
-  }, [sessionToken, cashWallet, setupWallet, generatedMnemonic]);
-
-  /**
-   * Called after user confirms they saved their mnemonic
-   */
-  const handleMnemonicConfirmed = useCallback((pseudo: string) => {
-    setGeneratedMnemonic(undefined);
-    if (pendingUser) {
-      finishAuth(pendingUser, pseudo);
-    }
-  }, [pendingUser]);
 
   /**
    * Complete authentication by setting user data
    */
   const finishAuth = (user: any, pseudo: string) => {
-    setPendingUser(null);
     setUserData({
       email: user.email,
       username: user.username || user.pseudo || pseudo,
@@ -289,7 +210,6 @@ export function useAuthFlow() {
       subOrgId: user.subOrgId,
       points: user.points ?? 0,
     });
-
   };
 
   /**
@@ -395,16 +315,12 @@ export function useAuthFlow() {
     // State
     screenState,
     setScreenState,
-    loading,
     error,
     errorRetryable,
-    generatedMnemonic,
 
     // Actions
     createPasskey,
     retryPasskey,
-    handleWalletChoice,
-    handleMnemonicConfirmed,
     handleResendMagicLink,
     handleEmailSubmit,
   };

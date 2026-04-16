@@ -9,6 +9,7 @@ import TransactionHistory from '../../../components/TransactionHistory';
 import { useAuth } from '../../../contexts/AuthContext';
 import { useSetupWallet } from '../../../hooks/wallet/useInitPrivateWallet';
 import { useAuthenticatedApi } from '../../../hooks/api/useApi';
+import { BalanceResponseSchema, HistoryResponseSchema } from '../../../services/api/schemas';
 import { useWalletInfos } from '../../../hooks/wallet/useWalletInfos';
 import { useShieldedBalance } from '../../../hooks/wallet/useShieldedBalance';
 import { usePendingClaims } from '../../../hooks/wallet/usePendingClaims';
@@ -20,7 +21,7 @@ import { useSolPrice } from '../../../hooks/useSolPrice';
 
 export default function PrivacyScreen() {
   const router = useRouter();
-  usePager(); // keep provider mounted
+  usePager();
   const { showSplash } = useSplash();
   const insets = useSafeAreaInsets();
   const { userData, setUserData } = useAuth();
@@ -95,6 +96,18 @@ export default function PrivacyScreen() {
       return;
     }
     socketService.subscribeToWallet(walletAddress);
+
+    queryClient.prefetchQuery({
+      queryKey: ['wallet-balance', walletAddress],
+      queryFn: async () => BalanceResponseSchema.parse(await api.get(`/api/wallet/balance/${walletAddress}`)),
+      staleTime: Infinity,
+    });
+    queryClient.prefetchQuery({
+      queryKey: ['wallet-history', walletAddress],
+      queryFn: async () => HistoryResponseSchema.parse(await api.get(`/api/wallet/history/${walletAddress}?limit=10`)),
+      staleTime: Infinity,
+    });
+
     showSplash();
     if (userData) {
       setUserData({ ...userData, stealf_wallet: walletAddress });

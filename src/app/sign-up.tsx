@@ -15,7 +15,6 @@ import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useSplash } from '../contexts/SplashContext';
 import VerifiedScreen from '../components/Verified';
 import { useAuthFlow } from '../hooks/auth/useSignUp';
 import { useEmailVerificationPolling } from '../hooks/auth/useEmailVerificationPolling';
@@ -66,7 +65,6 @@ function signUpReducer(state: SignUpState, action: SignUpAction): SignUpState {
 
 export default function SignUpScreen(){
   const router = useRouter();
-  const { showSplash } = useSplash();
   const insets = useSafeAreaInsets();
   const authFlow = useAuthFlow();
 
@@ -124,7 +122,7 @@ export default function SignUpScreen(){
   };
 
   if (step === 'verified' && email && pseudo) {
-    return <VerifiedScreen email={email} pseudo={pseudo} preAuthToken={preAuthToken} onBack={() => dispatch({ type: 'SET_STEP', step: 'email' })} onAuthStart={() => showSplash()} />;
+    return <VerifiedScreen email={email} pseudo={pseudo} preAuthToken={preAuthToken} onBack={() => dispatch({ type: 'SET_STEP', step: 'email' })} />;
   }
 
   return (
