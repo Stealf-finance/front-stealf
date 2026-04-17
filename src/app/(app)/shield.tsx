@@ -41,6 +41,13 @@ export default function ShieldScreen() {
 
   const { deposit, loading } = useUmbra();
 
+  // Refetch balance on mount (staleTime: Infinity in useWalletInfos means it never auto-refetches)
+  React.useEffect(() => {
+    if (userData?.stealf_wallet) {
+      queryClient.invalidateQueries({ queryKey: ['wallet-balance', userData.stealf_wallet] });
+    }
+  }, []);
+
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const checkScale = useRef(new Animated.Value(0)).current;
   const contentFade = useRef(new Animated.Value(0)).current;
@@ -219,8 +226,6 @@ export default function ShieldScreen() {
           )}
         </TouchableOpacity>
 
-        <View style={{ flex: 1 }} />
-
         {/* Custom Keyboard */}
         <View style={styles.keyboard}>
           <View style={styles.keyboardRow}>
@@ -369,6 +374,7 @@ const styles = StyleSheet.create({
   },
   keyboard: {
     paddingHorizontal: 40,
+    marginTop: 40,
   },
   keyboardRow: {
     flexDirection: 'row',

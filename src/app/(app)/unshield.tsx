@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react';
+import React, { useState, useRef } from 'react';
 import {
   View,
   Text,
@@ -37,6 +37,11 @@ export default function UnshieldScreen() {
   const [showSuccess, setShowSuccess] = useState(false);
 
   const { withdraw, loading } = useUmbra();
+
+  // Refetch shielded balance on mount
+  React.useEffect(() => {
+    queryClient.invalidateQueries({ queryKey: ['shielded-balance'] });
+  }, []);
 
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const checkScale = useRef(new Animated.Value(0)).current;
@@ -207,8 +212,6 @@ export default function UnshieldScreen() {
           )}
         </TouchableOpacity>
 
-        <View style={{ flex: 1 }} />
-
         {/* Custom Keyboard */}
         <View style={styles.keyboard}>
           <View style={styles.keyboardRow}>
@@ -289,7 +292,7 @@ const styles = StyleSheet.create({
     color: '#000',
     fontFamily: 'Sansation-Bold',
   },
-  keyboard: { paddingHorizontal: 40 },
+  keyboard: { paddingHorizontal: 40, marginTop: 40 },
   keyboardRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',

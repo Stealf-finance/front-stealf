@@ -53,13 +53,13 @@ export default function AppLayout() {
           sheetAllowedDetents: [0.9],
         }} />
         <Stack.Screen name="receive-private" options={{ ...SHEET_OPTIONS, sheetAllowedDetents: [0.9] }} />
-        <Stack.Screen name="shield" options={SHEET_OPTIONS} />
-        <Stack.Screen name="unshield" options={SHEET_OPTIONS} />
+        <Stack.Screen name="shield" options={{ ...SHEET_OPTIONS, sheetAllowedDetents: [0.95] }} />
+        <Stack.Screen name="unshield" options={{ ...SHEET_OPTIONS, sheetAllowedDetents: [0.95] }} />
         <Stack.Screen name="info" options={{
           ...SHEET_OPTIONS,
           sheetAllowedDetents: [0.55],
         }} />
-        <Stack.Screen name="transaction-history" options={SHEET_OPTIONS} />
+        <Stack.Screen name="transaction-history" options={{ ...SHEET_OPTIONS, sheetAllowedDetents: [0.85] }} />
         <Stack.Screen name="saving-dashboard" options={SHEET_OPTIONS} />
         <Stack.Screen name="deposit-withdraw" options={MODAL_OPTIONS} />
         <Stack.Screen name="transfer" options={{
