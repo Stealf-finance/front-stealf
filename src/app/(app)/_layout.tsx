@@ -33,13 +33,13 @@ export default function AppLayout() {
     <PagerProvider>
       <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: '#000' } }}>
         <Stack.Screen name="(tabs)" />
-        <Stack.Screen name="send" options={SHEET_OPTIONS} />
-        <Stack.Screen name="send-private" options={SHEET_OPTIONS} />
+        <Stack.Screen name="send" options={{ ...SHEET_OPTIONS, sheetAllowedDetents: [0.9] }} />
+        <Stack.Screen name="send-private" options={{ ...SHEET_OPTIONS, sheetAllowedDetents: [0.9] }} />
         <Stack.Screen name="send-confirmation" options={SHEET_OPTIONS} />
         <Stack.Screen name="send-private-confirmation" options={SHEET_OPTIONS} />
-        <Stack.Screen name="moove" options={SHEET_OPTIONS} />
-        <Stack.Screen name="add-funds" options={SHEET_OPTIONS} />
-        <Stack.Screen name="add-funds-privacy" options={SHEET_OPTIONS} />
+        <Stack.Screen name="moove" options={{ ...SHEET_OPTIONS, sheetAllowedDetents: [0.9] }} />
+        <Stack.Screen name="add-funds" options={{ ...SHEET_OPTIONS, sheetAllowedDetents: [0.9] }} />
+        <Stack.Screen name="add-funds-privacy" options={{ ...SHEET_OPTIONS, sheetAllowedDetents: [0.9] }} />
         <Stack.Screen name="receive-select" options={{
           ...SHEET_OPTIONS,
           sheetGrabberVisible: false,
@@ -50,16 +50,22 @@ export default function AppLayout() {
           ...SHEET_OPTIONS,
           sheetGrabberVisible: false,
           sheetCornerRadius: 16,
-          sheetAllowedDetents: [1.0],
+          sheetAllowedDetents: [0.9],
         }} />
-        <Stack.Screen name="receive-private" options={SHEET_OPTIONS} />
+        <Stack.Screen name="receive-private" options={{ ...SHEET_OPTIONS, sheetAllowedDetents: [0.9] }} />
         <Stack.Screen name="shield" options={SHEET_OPTIONS} />
         <Stack.Screen name="unshield" options={SHEET_OPTIONS} />
-        <Stack.Screen name="info" options={SHEET_OPTIONS} />
+        <Stack.Screen name="info" options={{
+          ...SHEET_OPTIONS,
+          sheetAllowedDetents: [0.55],
+        }} />
         <Stack.Screen name="transaction-history" options={SHEET_OPTIONS} />
         <Stack.Screen name="saving-dashboard" options={SHEET_OPTIONS} />
         <Stack.Screen name="deposit-withdraw" options={MODAL_OPTIONS} />
-        <Stack.Screen name="transfer" options={SHEET_OPTIONS} />
+        <Stack.Screen name="transfer" options={{
+          ...SHEET_OPTIONS,
+          sheetAllowedDetents: [0.9],
+        }} />
         <Stack.Screen name="shielded-detail" options={{
           presentation: 'transparentModal' as const,
           animation: 'slide_from_bottom' as const,
