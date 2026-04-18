@@ -62,7 +62,14 @@ export default function HomeScreen() {
                   accessibilityLabel="Get bank account"
                 >
                   <SendIcon width={16} height={16} />
-                  <Text style={styles.bankCardActionText} numberOfLines={1}>Get bank account</Text>
+                  <Text
+                    style={styles.bankCardActionText}
+                    numberOfLines={1}
+                    adjustsFontSizeToFit
+                    minimumFontScale={0.75}
+                  >
+                    Get bank account
+                  </Text>
                 </TouchableOpacity>
               </View>
             </View>
@@ -118,9 +125,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   cardImage: {
-    width: 120,
-    height: 76,
-    marginRight: 16,
+    width: 110,
+    height: 70,
+    marginRight: 12,
   },
   bankCardRight: {
     flex: 1,
@@ -130,16 +137,18 @@ const styles = StyleSheet.create({
   bankCardAction: {
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
     backgroundColor: 'rgba(255, 255, 255, 0.1)',
     borderRadius: 26,
     borderCurve: 'continuous',
     paddingVertical: 14,
-    paddingHorizontal: 24,
-    gap: 12,
+    paddingHorizontal: 14,
+    gap: 8,
   },
   bankCardActionText: {
     fontSize: 13,
     color: '#f1ece1',
     fontFamily: 'Sansation-Bold',
+    flexShrink: 1,
   },
 });
