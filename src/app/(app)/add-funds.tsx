@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import {
   View,
   Text,
@@ -7,8 +7,6 @@ import {
   Alert,
   ActivityIndicator,
 } from 'react-native';
-import { airdropFactory, lamports } from '@solana/kit';
-import { getRpc, getRpcSubscriptions, toAddress } from '../../services/solana/kit';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 
 import { LinearGradient } from 'expo-linear-gradient';
@@ -16,32 +14,81 @@ import QRCode from 'react-native-qrcode-svg';
 import * as Clipboard from 'expo-clipboard';
 import { useAuth } from '../../contexts/AuthContext';
 import CopyIcon from '../../assets/buttons/copier-coller.svg';
+import { useFaucetStatus, useFaucetClaim } from '../../hooks/useFaucet';
+
+function formatCountdown(target: Date | null): string | null {
+  if (!target) return null;
+  const ms = target.getTime() - Date.now();
+  if (ms <= 0) return null;
+  const totalMinutes = Math.ceil(ms / 60_000);
+  const h = Math.floor(totalMinutes / 60);
+  const m = totalMinutes % 60;
+  if (h > 0) return `${h}h ${m.toString().padStart(2, '0')}m`;
+  return `${m}m`;
+}
 
 export default function AddFundsScreen() {
   const router = useRouter();
   const { wallet = 'cash' } = useLocalSearchParams<{ wallet?: string }>();
   const { userData } = useAuth();
-  const walletAddress = wallet === 'stealf' ? userData?.stealf_wallet : userData?.cash_wallet;
+  const walletType: 'cash' | 'stealf' = wallet === 'stealf' ? 'stealf' : 'cash';
+  const walletAddress = walletType === 'stealf' ? userData?.stealf_wallet : userData?.cash_wallet;
   const [copied, setCopied] = useState(false);
-  const [airdropping, setAirdropping] = useState(false);
+
+  const { data: status, refetch: refetchStatus } = useFaucetStatus();
+  const { mutateAsync: claim, isPending: airdropping } = useFaucetClaim();
+
+  const amountSol = status ? status.amountLamports / 1_000_000_000 : 2;
+  const walletStatus = status?.wallets?.[walletType];
+  const nextAt = walletStatus?.nextAvailableAt ? new Date(walletStatus.nextAvailableAt) : null;
+
+  // Re-render every 30s so the countdown stays roughly accurate without refetching.
+  const [, forceTick] = useState(0);
+  useEffect(() => {
+    if (!nextAt) return;
+    const id = setInterval(() => forceTick(t => t + 1), 30_000);
+    return () => clearInterval(id);
+  }, [nextAt?.getTime()]);
+
+  const cooldownLabel = formatCountdown(nextAt);
+  const canClaim = !!walletAddress && !cooldownLabel && !airdropping;
 
   const handleAirdrop = async () => {
-    if (!walletAddress) return;
-    setAirdropping(true);
+    if (!walletAddress) {
+      Alert.alert('Airdrop failed', 'No wallet address available.');
+      return;
+    }
     try {
-      const rpc = getRpc();
-      const rpcSubscriptions = getRpcSubscriptions();
-      const airdrop = airdropFactory({ rpc, rpcSubscriptions } as any);
-      await airdrop({
-        commitment: 'confirmed',
-        recipientAddress: toAddress(walletAddress),
-        lamports: lamports(2_000_000_000n),
-      });
-      Alert.alert('Airdrop', '2 SOL received!');
+      await claim({ wallet: walletAddress, walletType });
+      Alert.alert('Airdrop', `${amountSol} SOL received!`);
+      refetchStatus();
     } catch (err: any) {
-      Alert.alert('Airdrop Failed, try again later');
-    } finally {
-      setAirdropping(false);
+      const status = err?.status;
+      if (status === 429) {
+        const serverNext = err?.data?.nextAvailableAt
+          ? new Date(err.data.nextAvailableAt)
+          : null;
+        const label = serverNext ? formatCountdown(serverNext) : cooldownLabel;
+        refetchStatus();
+        Alert.alert(
+          'Faucet cooldown',
+          label
+            ? `You already claimed on this wallet. Available in ${label}.`
+            : 'You already claimed on this wallet. Try again later.'
+        );
+      } else if (status === 503) {
+        Alert.alert('Faucet unavailable', 'The faucet is temporarily out of funds. Please try again later.');
+      } else if (status === 502) {
+        Alert.alert('Transfer failed', 'The on-chain transfer failed. Please try again.');
+      } else if (status === 403) {
+        Alert.alert('Not allowed', 'This wallet does not belong to your account.');
+      } else if (status === 400) {
+        Alert.alert('Invalid request', 'Something is wrong with the request. Please retry.');
+      } else if (status === 401) {
+        Alert.alert('Session expired', 'Please sign in again.');
+      } else {
+        Alert.alert('Airdrop failed', 'Please try again later.');
+      }
     }
   };
 
@@ -126,17 +173,25 @@ export default function AddFundsScreen() {
 
           {/* Devnet Airdrop */}
           <TouchableOpacity
-            style={[styles.airdropButton, airdropping && styles.airdropButtonDisabled]}
+            style={[styles.airdropButton, !canClaim && styles.airdropButtonDisabled]}
             onPress={handleAirdrop}
-            disabled={airdropping}
+            disabled={!canClaim}
             activeOpacity={0.8}
             accessibilityRole="button"
-            accessibilityLabel="Airdrop 2 SOL on devnet"
+            accessibilityLabel={
+              cooldownLabel
+                ? `Airdrop available in ${cooldownLabel}`
+                : `Airdrop ${amountSol} SOL on devnet`
+            }
           >
             {airdropping ? (
               <ActivityIndicator color="#000" />
             ) : (
-              <Text style={styles.airdropButtonText}>Airdrop 2 SOL (Devnet)</Text>
+              <Text style={styles.airdropButtonText}>
+                {cooldownLabel
+                  ? `Available in ${cooldownLabel}`
+                  : `Airdrop ${amountSol} SOL (Devnet)`}
+              </Text>
             )}
           </TouchableOpacity>
 
