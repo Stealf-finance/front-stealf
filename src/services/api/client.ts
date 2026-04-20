@@ -1,7 +1,7 @@
 const API_URL = process.env.EXPO_PUBLIC_API_URL;
 
 export class ApiError extends Error {
-  constructor(message: string, public status: number) {
+  constructor(message: string, public status: number, public data?: any) {
     super(message);
     this.name = 'ApiError';
   }
@@ -18,7 +18,7 @@ export async function apiGet(endpoint: string, token: string) {
 
   if (!response.ok) {
     const error = await response.json().catch(() => ({}));
-    throw new ApiError(error.error || `API error: ${response.status}`, response.status);
+    throw new ApiError(error.error || `API error: ${response.status}`, response.status, error);
   }
 
   const result = await response.json();
@@ -38,7 +38,7 @@ export async function apiPost(endpoint: string, token: string, data?: any) {
 
   if (!response.ok) {
     const error = await response.json().catch(() => ({}));
-    throw new ApiError(error.error || `API error: ${response.status}`, response.status);
+    throw new ApiError(error.error || `API error: ${response.status}`, response.status, error);
   }
 
   const result = await response.json();
@@ -57,7 +57,7 @@ export async function apiDelete(endpoint: string, token: string) {
 
   if (!response.ok) {
     const error = await response.json().catch(() => ({}));
-    throw new ApiError(error.error || `API error: ${response.status}`, response.status);
+    throw new ApiError(error.error || `API error: ${response.status}`, response.status, error);
   }
 
   const result = await response.json();
