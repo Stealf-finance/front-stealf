@@ -85,6 +85,10 @@ export default function SignUpScreen(){
       dispatch({ type: 'SET_FIELD', field: 'pseudo', value: data.pseudo });
       dispatch({ type: 'SET_STEP', step: 'verified' });
     },
+    onTimeout: () => {
+      if (__DEV__) console.log('Email verification polling timed out');
+      // Keep the user on the waiting screen; they can tap "Resend" to restart.
+    },
   });
 
   const onResendMagicLink = async () => {

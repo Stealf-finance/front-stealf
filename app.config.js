@@ -1,5 +1,10 @@
 import 'dotenv/config';
 
+// Arbitrary HTTP is only allowed outside production (dev server, LAN devices,
+// Hermes debugger). Production builds are HTTPS-only to prevent MITM on auth
+// tokens and wallet data. Toggle via APP_VARIANT=production in EAS profile.
+const isProduction = process.env.APP_VARIANT === 'production';
+
 export default {
   expo: {
     name: "stealf",
@@ -22,7 +27,7 @@ export default {
       infoPlist: {
         ITSAppUsesNonExemptEncryption: false,
         NSAppTransportSecurity: {
-          NSAllowsArbitraryLoads: true,
+          NSAllowsArbitraryLoads: !isProduction,
           NSAllowsLocalNetworking: true,
         },
       },
