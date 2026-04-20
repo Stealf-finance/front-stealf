@@ -2,6 +2,7 @@ import {
   createSignerFromPrivateKeyBytes,
   getUmbraClient,
   getUmbraRelayer,
+  getPollingTransactionForwarder,
 } from "@umbra-privacy/sdk";
 import bs58 from "bs58";
 import { walletKeyCache } from "../cache/walletKeyCache";
@@ -22,6 +23,9 @@ export const WSS_URL = process.env.EXPO_PUBLIC_SOLANA_WSS_URL || "";
 export const NETWORK = "devnet" as const;
 export const RELAYER_API = "https://relayer.api-devnet.umbraprivacy.com";
 export const INDEXER_API = "https://utxo-indexer.api-devnet.umbraprivacy.com";
+// Polling forwarder avoids flaky WebSocket on mobile; 90s is enough for slow
+// RPC responses without blocking the UI for too long on failure.
+const TX_CONFIRMATION_TIMEOUT_MS = 90_000;
 
 export type UmbraClient = Awaited<ReturnType<typeof getUmbraClient>>;
 
@@ -71,6 +75,10 @@ export async function getClient(): Promise<UmbraClient> {
       indexerApiEndpoint: INDEXER_API,
     },
     {
+      transactionForwarder: getPollingTransactionForwarder(
+        { rpcUrl: RPC_URL },
+        { defaultOptions: { timeoutMs: TX_CONFIRMATION_TIMEOUT_MS } } as any,
+      ),
       masterSeedStorage: {
         load: masterSeedStorage.load as any,
         store: masterSeedStorage.store as any,
@@ -127,6 +135,10 @@ export async function getCashClient(args: GetCashClientArgs): Promise<UmbraClien
       indexerApiEndpoint: INDEXER_API,
     },
     {
+      transactionForwarder: getPollingTransactionForwarder(
+        { rpcUrl: RPC_URL },
+        { defaultOptions: { timeoutMs: TX_CONFIRMATION_TIMEOUT_MS } } as any,
+      ),
       masterSeedStorage: {
         load: seedStorage.load as any,
         store: seedStorage.store as any,
