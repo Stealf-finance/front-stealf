@@ -7,21 +7,22 @@ import {
   Alert,
   ActivityIndicator,
 } from 'react-native';
-import { airdropFactory, lamports } from '@solana/kit';
-import { getRpc, getRpcSubscriptions, toAddress } from '../../services/solana/kit';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 
 import { LinearGradient } from 'expo-linear-gradient';
 import QRCode from 'react-native-qrcode-svg';
 import * as Clipboard from 'expo-clipboard';
 import { useAuth } from '../../contexts/AuthContext';
+import { useAuthenticatedApi } from '../../hooks/api/useApi';
 import CopyIcon from '../../assets/buttons/copier-coller.svg';
 
 export default function AddFundsScreen() {
   const router = useRouter();
   const { wallet = 'cash' } = useLocalSearchParams<{ wallet?: string }>();
   const { userData } = useAuth();
-  const walletAddress = wallet === 'stealf' ? userData?.stealf_wallet : userData?.cash_wallet;
+  const api = useAuthenticatedApi();
+  const walletType: 'cash' | 'stealf' = wallet === 'stealf' ? 'stealf' : 'cash';
+  const walletAddress = walletType === 'stealf' ? userData?.stealf_wallet : userData?.cash_wallet;
   const [copied, setCopied] = useState(false);
   const [airdropping, setAirdropping] = useState(false);
 
@@ -29,17 +30,31 @@ export default function AddFundsScreen() {
     if (!walletAddress) return;
     setAirdropping(true);
     try {
-      const rpc = getRpc();
-      const rpcSubscriptions = getRpcSubscriptions();
-      const airdrop = airdropFactory({ rpc, rpcSubscriptions } as any);
-      await airdrop({
-        commitment: 'confirmed',
-        recipientAddress: toAddress(walletAddress),
-        lamports: lamports(2_000_000_000n),
+      const result: any = await api.post('/api/faucet/claim', {
+        wallet: walletAddress,
+        walletType,
       });
-      Alert.alert('Airdrop', '2 SOL received!');
+      const sol = (result?.amountLamports ?? 2_000_000_000) / 1_000_000_000;
+      Alert.alert('Airdrop', `${sol} SOL received!`);
     } catch (err: any) {
-      Alert.alert('Airdrop Failed, try again later');
+      if (__DEV__) console.error('[Faucet] claim error:', err);
+      const status = err?.status ?? err?.response?.status;
+      const body = err?.body ?? err?.response?.data ?? {};
+
+      if (status === 429 && body?.nextAvailableAt) {
+        const next = new Date(body.nextAvailableAt);
+        const hours = Math.ceil((next.getTime() - Date.now()) / 3_600_000);
+        Alert.alert(
+          'Cooldown active',
+          `You can claim again in ~${hours}h.`,
+        );
+      } else if (status === 503) {
+        Alert.alert('Faucet unavailable', 'Faucet is temporarily out of funds. Try again later.');
+      } else if (status === 502) {
+        Alert.alert('Airdrop Failed', 'Network error, please try again.');
+      } else {
+        Alert.alert('Airdrop Failed', body?.error || 'Unknown error, try again later.');
+      }
     } finally {
       setAirdropping(false);
     }
