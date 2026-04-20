@@ -34,6 +34,10 @@ export default {
     },
     android: {
       package: "com.stealf.app",
+      // Forbid cleartext HTTP in production (explicit; matches iOS ATS posture).
+      // Android SDK 28+ already blocks cleartext by default, but being
+      // explicit protects against future targetSdk downgrades or config drift.
+      usesCleartextTraffic: !isProduction,
       adaptiveIcon: {
         foregroundImage: "./src/assets/logo/logo-transparent.png",
         backgroundColor: "#000000"
