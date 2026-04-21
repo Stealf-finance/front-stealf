@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import React, { createContext, useContext, useState, useEffect, useRef, ReactNode } from 'react';
 import { useTurnkey } from '@turnkey/react-native-wallet-kit';
 import { authStorage } from '../services/auth/authStorage';
 import { socketService } from '../services/real-time/socketService';
@@ -9,6 +9,7 @@ import { attachWalletListeners, detachWalletListeners } from '../hooks/wallet/us
 import { useQueryClient } from '@tanstack/react-query';
 import { umbraClearSeed } from '../services/umbra/seed';
 import { clearUmbraState } from '../hooks/transactions/useUmbra';
+import { setUnauthorizedHandler } from '../services/api/client';
 
 interface UserData {
   email?: string;
@@ -153,6 +154,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (__DEV__) console.error('Logout error:', error);
     }
   };
+
+  // Keep a ref to the latest logout so the 401 handler registered below
+  // always calls the current closure without having to re-register on every
+  // render (which would also make the unauthorized flag pointless).
+  const logoutRef = useRef(logout);
+  logoutRef.current = logout;
+
+  // Bind the API client's 401 handler once. When any API call returns 401
+  // (typically an expired Turnkey JWT), the client fires this handler which
+  // clears all local session state — the `(app)` auth guard then redirects
+  // to sign-in on the next render. Parallel 401s are already deduped inside
+  // the client.
+  useEffect(() => {
+    setUnauthorizedHandler(() => logoutRef.current());
+    return () => {
+      setUnauthorizedHandler(null);
+    };
+  }, []);
 
   const isAuthenticated = !!session && !!user && !!userDataState?.cash_wallet;
 
