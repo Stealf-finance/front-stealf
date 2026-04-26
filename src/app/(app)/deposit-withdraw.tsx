@@ -10,6 +10,7 @@ import {
 } from "react-native";
 import { StatusBar } from "expo-status-bar";
 import { LinearGradient } from "expo-linear-gradient";
+import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { useYieldDeposit } from "../../services/yield/deposit";
 import { useYieldWithdraw } from "../../services/yield/withdraw";
 import { useYieldBalance } from '../../services/yield/balance';
@@ -132,9 +133,16 @@ export default function DepositWithdrawModal({
     <Modal
       visible={visible}
       animationType="slide"
-      presentationStyle="formSheet"
+      transparent
       onRequestClose={handleClose}
     >
+      <GestureHandlerRootView style={{ flex: 1 }}>
+      <View style={styles.backdrop}>
+      <TouchableOpacity
+        style={styles.backdropTouch}
+        activeOpacity={1}
+        onPress={handleClose}
+      />
       <View style={styles.container}>
         <LinearGradient
           colors={["#000000", "#000000", "#000000"]}
@@ -245,14 +253,31 @@ export default function DepositWithdrawModal({
           )}
         </LinearGradient>
       </View>
+      </View>
+      </GestureHandlerRootView>
     </Modal>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
+  backdrop: {
     flex: 1,
+    backgroundColor: "rgba(0,0,0,0.5)",
+    justifyContent: "flex-end",
+  },
+  backdropTouch: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: "90%",
+  },
+  container: {
+    height: "90%",
     backgroundColor: "#000",
+    borderTopLeftRadius: 16,
+    borderTopRightRadius: 16,
+    overflow: "hidden",
   },
   background: {
     flex: 1,

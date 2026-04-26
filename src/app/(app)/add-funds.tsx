@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import {
   View,
   Text,
@@ -8,6 +8,7 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
+import { useQueryClient } from '@tanstack/react-query';
 
 import { LinearGradient } from 'expo-linear-gradient';
 import QRCode from 'react-native-qrcode-svg';
@@ -21,10 +22,24 @@ export default function AddFundsScreen() {
   const { wallet = 'cash' } = useLocalSearchParams<{ wallet?: string }>();
   const { userData } = useAuth();
   const api = useAuthenticatedApi();
+  const queryClient = useQueryClient();
   const walletType: 'cash' | 'stealf' = wallet === 'stealf' ? 'stealf' : 'cash';
   const walletAddress = walletType === 'stealf' ? userData?.stealf_wallet : userData?.cash_wallet;
   const [copied, setCopied] = useState(false);
   const [airdropping, setAirdropping] = useState(false);
+
+  // Auto-refresh balance every 5s while this screen is open. Catches airdrops
+  // from external sources (e.g. solfaucet.com) that don't trigger the Helius
+  // webhook → socket event chain.
+  useEffect(() => {
+    if (!walletAddress) return;
+    const queryKey = ['wallet-balance', walletAddress];
+    queryClient.invalidateQueries({ queryKey });
+    const interval = setInterval(() => {
+      queryClient.invalidateQueries({ queryKey });
+    }, 5000);
+    return () => clearInterval(interval);
+  }, [walletAddress, queryClient]);
 
   const handleAirdrop = async () => {
     if (!walletAddress) return;
@@ -36,6 +51,13 @@ export default function AddFundsScreen() {
       });
       const sol = (result?.amountLamports ?? 2_000_000_000) / 1_000_000_000;
       Alert.alert('Airdrop', `${sol} SOL received!`);
+      queryClient.invalidateQueries({ queryKey: ['wallet-balance', walletAddress] });
+      setTimeout(() => {
+        queryClient.invalidateQueries({ queryKey: ['wallet-balance', walletAddress] });
+      }, 4000);
+      setTimeout(() => {
+        queryClient.invalidateQueries({ queryKey: ['wallet-balance', walletAddress] });
+      }, 10000);
     } catch (err: any) {
       if (__DEV__) console.error('[Faucet] claim error:', err);
       const status = err?.status ?? err?.response?.status;

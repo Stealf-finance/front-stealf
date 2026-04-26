@@ -1,6 +1,24 @@
 import 'react-native-get-random-values';
 import QuickCrypto from 'react-native-quick-crypto';
 
+// Capture unhandled promise rejections (Turnkey SDK's storeSession →
+// clearAllSessions throws intermittently). Logs the full trace so we can
+// send it to the Turnkey team instead of losing it to a red screen.
+if (typeof (global as any).HermesInternal !== 'undefined') {
+  const tracking = require('promise/setimmediate/rejection-tracking');
+  tracking.enable({
+    allRejections: true,
+    onUnhandled: (id: number, err: any) => {
+      console.error('[UnhandledRejection] id=' + id, err?.message);
+      console.error('[UnhandledRejection] stack:', err?.stack);
+      if (err?.cause) {
+        console.error('[UnhandledRejection] cause:', err.cause?.message, err.cause?.stack);
+      }
+    },
+    onHandled: () => {},
+  });
+}
+
 // Polyfill crypto.subtle (Web Crypto API) — required by Umbra SDK
 if (!globalThis.crypto?.subtle) {
   (globalThis as any).crypto = {

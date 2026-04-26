@@ -19,7 +19,8 @@ import OfflineBanner from '../components/OfflineBanner';
 import { WelcomeLoader } from '../components/WelcomeLoader';
 import { validateEnv } from '../utils/validateEnv';
 import Logo from '../assets/logo/logo.svg';
-import { usePreloadZKeysOnMount } from '../zk';
+// Note: usePreloadZKeysOnMount moved to (tabs)/privacy.tsx — only loads when
+// user visits Privacy tab to avoid blocking cold start with multi-MB ZK keys.
 
 SplashScreen.preventAutoHideAsync();
 
@@ -43,7 +44,9 @@ function RootNavigator() {
   const router = useRouter();
   const segments = useSegments();
 
-  usePreloadZKeysOnMount();
+  // ZK preload moved to Privacy tab (lazy-load — keys only needed for
+  // Umbra transfers and they're 10-50MB each).
+  // usePreloadZKeysOnMount();
 
   usePendingClaims();
   usePendingClaimsForCash();

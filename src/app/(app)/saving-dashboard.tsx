@@ -11,7 +11,7 @@ import { useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useWalletInfos } from "../../hooks/wallet/useWalletInfos";
 import { useAuth } from "../../contexts/AuthContext";
-import { useYieldBalance, useYieldStats, useInvalidateYieldBalance } from "../../services/yield/balance";
+import { useYieldBalance, useYieldStats, useInvalidateYieldBalance, useRefreshYieldBalance } from "../../services/yield/balance";
 import DepositWithdrawModal from "./deposit-withdraw";
 
 import DepositIcon from '../../assets/buttons/deposit.svg';
@@ -31,16 +31,22 @@ export default function SavingsScreen() {
   const { data: yieldStats } = useYieldStats();
 
   const { data: yieldBalance, isLoading: balanceLoading, isFetching: balanceFetching } = useYieldBalance();
-  const invalidateYieldBalance = useInvalidateYieldBalance();
+  const refreshYieldBalance = useRefreshYieldBalance();
   const [balanceRefreshing, setBalanceRefreshing] = useState(false);
 
   const handleActionSuccess = useCallback(() => {
     setBalanceRefreshing(true);
-    setTimeout(() => {
-      invalidateYieldBalance();
-      setBalanceRefreshing(false);
-    }, MPC_DELAY_MS);
-  }, [invalidateYieldBalance]);
+    // Poll the backend a few times — MPC settlement takes ~5-15s on devnet,
+    // and the socket event isn't always reliable. Keeps refreshing until
+    // either the new balance lands or we give up after 30s.
+    const delays = [3000, 7000, 12000, 20000, 30000];
+    delays.forEach((delay) => {
+      setTimeout(() => {
+        refreshYieldBalance();
+      }, delay);
+    });
+    setTimeout(() => setBalanceRefreshing(false), 30000);
+  }, [refreshYieldBalance]);
 
   const openModal = (mode: "deposit" | "withdraw") => {
     setModalMode(mode);
@@ -48,6 +54,12 @@ export default function SavingsScreen() {
   };
 
   return (
+    <View style={styles.backdrop}>
+    <TouchableOpacity
+      style={styles.backdropTouch}
+      activeOpacity={1}
+      onPress={() => router.back()}
+    />
     <View style={styles.container}>
       <LinearGradient
         colors={['#000000', '#000000', '#000000']}
@@ -147,13 +159,29 @@ export default function SavingsScreen() {
         unit="SOL"
       />
     </View>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
+  backdrop: {
     flex: 1,
+    backgroundColor: "rgba(0,0,0,0.5)",
+    justifyContent: "flex-end",
+  },
+  backdropTouch: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: "70%",
+  },
+  container: {
+    height: "70%",
     backgroundColor: "#000000",
+    borderTopLeftRadius: 16,
+    borderTopRightRadius: 16,
+    overflow: "hidden",
   },
   scrollView: {
     flex: 1,

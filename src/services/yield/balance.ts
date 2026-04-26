@@ -1,5 +1,6 @@
 import { useAuth } from "../../contexts/AuthContext";
 import { useQuery, useQueryClient, QueryClient } from "@tanstack/react-query";
+import { useTurnkey } from "@turnkey/react-native-wallet-kit";
 import { LAMPORTS_PER_SOL } from "../solana/kit";
 import { socketService } from "../real-time/socketService";
 import { getUserIdHash } from "./deposit";
@@ -90,6 +91,24 @@ export function useYieldStats() {
     enabled: false,
     staleTime: Infinity,
   });
+}
+
+/**
+ * Trigger a fresh fetch of /api/yield/balance + /api/yield/stats and update
+ * the cache. Use after deposit/withdraw — invalidating React Query alone does
+ * nothing here because useYieldBalance has enabled:false (state is managed
+ * via prefetch + socket events).
+ */
+export function useRefreshYieldBalance() {
+  const queryClient = useQueryClient();
+  const { userData } = useAuth();
+  const { session } = useTurnkey();
+  const subOrgId = userData?.subOrgId;
+  return async () => {
+    const token = session?.token;
+    if (!subOrgId || !token) return;
+    await prefetchYieldData(queryClient, subOrgId, token);
+  };
 }
 
 export function useInvalidateYieldBalance() {

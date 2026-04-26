@@ -161,18 +161,38 @@ export function useYieldDeposit() {
       if (!privateKeyB58) throw new Error('No stealf_wallet key — wallet setup required');
 
       const signer = await createSignerFromBase58(privateKeyB58);
-      const rpcSubscriptions = getRpcSubscriptions();
 
       const compiled = compileTransaction(message);
       const signed = await signTransaction([signer.keyPair], compiled);
       assertIsTransactionWithinSizeLimit(signed);
 
-      const sendAndConfirm = sendAndConfirmTransactionFactory({
-        rpc: rpc as Parameters<typeof sendAndConfirmTransactionFactory>[0]['rpc'],
-        rpcSubscriptions: rpcSubscriptions as Parameters<typeof sendAndConfirmTransactionFactory>[0]['rpcSubscriptions'],
-      });
       const signature = getSignatureFromTransaction(signed);
-      await sendAndConfirm(signed, { commitment: 'confirmed' });
+      if (__DEV__) console.log('[useYieldDeposit] sending TX:', signature);
+
+      // Send transaction via raw RPC (avoid WebSocket which is flaky on Android Helius).
+      const { getBase64EncodedWireTransaction } = await import('@solana/kit');
+      const wireTx = getBase64EncodedWireTransaction(signed);
+      await rpc.sendTransaction(wireTx, {
+        encoding: 'base64',
+        skipPreflight: false,
+        preflightCommitment: 'confirmed',
+      } as any).send();
+
+      // Poll signature status until confirmed (max 60s).
+      const start = Date.now();
+      const TIMEOUT_MS = 60_000;
+      while (Date.now() - start < TIMEOUT_MS) {
+        await new Promise((r) => setTimeout(r, 1500));
+        const { value } = await rpc.getSignatureStatuses([signature] as any).send();
+        const status = value?.[0];
+        if (status?.confirmationStatus === 'confirmed' || status?.confirmationStatus === 'finalized') {
+          if (status.err) throw new Error(`Transaction failed: ${JSON.stringify(status.err)}`);
+          break;
+        }
+      }
+      if (Date.now() - start >= TIMEOUT_MS) {
+        throw new Error('Transaction confirmation timed out — check wallet balance before retrying');
+      }
 
       walletKeyCache.touch();
 

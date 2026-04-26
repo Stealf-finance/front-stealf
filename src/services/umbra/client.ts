@@ -3,6 +3,7 @@ import {
   getUmbraClient,
   getUmbraRelayer,
   getPollingTransactionForwarder,
+  getPollingComputationMonitor,
 } from "@umbra-privacy/sdk";
 import bs58 from "bs58";
 import { walletKeyCache } from "../cache/walletKeyCache";
@@ -26,6 +27,24 @@ export const INDEXER_API = "https://utxo-indexer.api-devnet.umbraprivacy.com";
 // Polling forwarder avoids flaky WebSocket on mobile; 90s is enough for slow
 // RPC responses without blocking the UI for too long on failure.
 const TX_CONFIRMATION_TIMEOUT_MS = 90_000;
+
+// Arcium MPC callbacks on devnet run on low-powered nodes — the default
+// 200-slot (~80s) window often isn't enough. Bump to 400 slots (~160s) so
+// legitimate slow callbacks complete instead of firing TX_TIMEOUT.
+const MPC_SLOT_WINDOW = 400;
+
+/**
+ * Wrap the polling computation monitor so every `prepareMonitor` call uses
+ * our longer slot window by default. Callers can still override per-call.
+ */
+function createComputationMonitor() {
+  const base = getPollingComputationMonitor({ rpcUrl: RPC_URL });
+  return {
+    ...base,
+    prepareMonitor: (address: any, options?: any) =>
+      base.prepareMonitor(address, { maxSlotWindow: MPC_SLOT_WINDOW, ...options }),
+  };
+}
 
 export type UmbraClient = Awaited<ReturnType<typeof getUmbraClient>>;
 
@@ -79,6 +98,7 @@ export async function getClient(): Promise<UmbraClient> {
         { rpcUrl: RPC_URL },
         { defaultOptions: { timeoutMs: TX_CONFIRMATION_TIMEOUT_MS } } as any,
       ),
+      computationMonitor: createComputationMonitor() as any,
       masterSeedStorage: {
         load: masterSeedStorage.load as any,
         store: masterSeedStorage.store as any,
@@ -139,6 +159,7 @@ export async function getCashClient(args: GetCashClientArgs): Promise<UmbraClien
         { rpcUrl: RPC_URL },
         { defaultOptions: { timeoutMs: TX_CONFIRMATION_TIMEOUT_MS } } as any,
       ),
+      computationMonitor: createComputationMonitor() as any,
       masterSeedStorage: {
         load: seedStorage.load as any,
         store: seedStorage.store as any,

@@ -18,10 +18,14 @@ import { useQueryClient } from '@tanstack/react-query';
 import { usePager } from '../../../navigation/PagerContext';
 import { useSplash } from '../../../contexts/SplashContext';
 import { useSolPrice } from '../../../hooks/useSolPrice';
+import { usePreloadZKeysOnMount } from '../../../zk';
 
 export default function PrivacyScreen() {
   const router = useRouter();
   usePager();
+  // Preload Umbra ZK circuits in background — only loaded when user first
+  // visits the Privacy tab (was firing at app boot before, slowing down cold start).
+  usePreloadZKeysOnMount();
   const { showSplash } = useSplash();
   const insets = useSafeAreaInsets();
   const { userData, setUserData } = useAuth();

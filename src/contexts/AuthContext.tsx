@@ -37,7 +37,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [bootDone, setBootDone] = useState(false);
 
   const sessionToken = session?.token;
-  const userId = user?.userId;
+  // Backend's verifyAuth derives userIdHash from req.user.organizationId in JWT.
+  // We must use session.organizationId here (the sub-org ID), not user.userId
+  // (which is a different identifier scoped to the sub-org).
+  const userId = (session as any)?.organizationId || user?.userId;
 
 
   useEffect(() => {

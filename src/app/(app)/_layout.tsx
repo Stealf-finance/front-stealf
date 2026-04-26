@@ -60,7 +60,12 @@ export default function AppLayout() {
           sheetAllowedDetents: [0.55],
         }} />
         <Stack.Screen name="transaction-history" options={{ ...SHEET_OPTIONS, sheetAllowedDetents: [0.85] }} />
-        <Stack.Screen name="saving-dashboard" options={SHEET_OPTIONS} />
+        <Stack.Screen name="saving-dashboard" options={{
+          presentation: 'transparentModal' as const,
+          animation: 'slide_from_bottom' as const,
+          headerShown: false,
+          contentStyle: { backgroundColor: 'transparent' },
+        }} />
         <Stack.Screen name="deposit-withdraw" options={MODAL_OPTIONS} />
         <Stack.Screen name="transfer" options={{
           ...SHEET_OPTIONS,

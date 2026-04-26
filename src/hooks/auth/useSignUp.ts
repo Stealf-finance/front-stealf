@@ -35,9 +35,11 @@ async function purgeTurnkeyKeychain(): Promise<void> {
   try {
     const Keychain = require('react-native-keychain');
     const services: string[] = await Keychain.getAllGenericPasswordServices();
-    const turnkeyServices = services.filter((s) => s.startsWith(TURNKEY_KEYCHAIN_PREFIX));
+    // TEST PER TURNKEY (Radu) — wipe ALL keychain services, not just Turnkey-prefixed.
+    // This will also clear stealf wallet keypair — only for diagnostic; revert after.
+    if (__DEV__) console.log('[purgeKeychain] wiping ALL services:', services.length);
     await Promise.all(
-      turnkeyServices.map((service) =>
+      services.map((service) =>
         Keychain.resetGenericPassword({ service }).catch(() => undefined)
       )
     );
@@ -157,13 +159,15 @@ export function useAuthFlow() {
       return { success: true, sessionToken: token, cashWallet: cashAddr };
     } catch (err: any) {
       if (__DEV__) {
-        console.error('Passkey creation failed:', err);
+        console.error('[Turnkey] signUpWithPasskey failed:', err?.message);
+        console.error('[Turnkey] stack:', err?.stack);
         let current: any = err?.cause;
         let depth = 1;
         while (current && depth < 5) {
-          console.error(`  cause[${depth}]:`, {
+          console.error(`[Turnkey] cause[${depth}]:`, {
             code: current?.code || current?.error,
             message: current?.message,
+            stack: current?.stack,
           });
           current = current?.cause;
           depth++;

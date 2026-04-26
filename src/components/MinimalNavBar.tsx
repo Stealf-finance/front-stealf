@@ -24,6 +24,7 @@ function MinimalNavBar({
       <TouchableOpacity
         onPress={() => onNavigateToPage('home')}
         activeOpacity={0.7}
+        style={styles.tabButton}
       >
         <Text style={[
           styles.navText,
@@ -31,12 +32,14 @@ function MinimalNavBar({
         ]}>
           Bank
         </Text>
+        {currentPage === 'home' && <View style={styles.activeUnderline} />}
       </TouchableOpacity>
 
       {/* Wealth (Privacy) */}
       <TouchableOpacity
         onPress={() => onNavigateToPage('privacy')}
         activeOpacity={0.7}
+        style={styles.tabButton}
       >
         <Text style={[
           styles.navText,
@@ -44,6 +47,7 @@ function MinimalNavBar({
         ]}>
           Stealth
         </Text>
+        {currentPage === 'privacy' && <View style={styles.activeUnderline} />}
       </TouchableOpacity>
 
       {/* Profile Circle with Initial */}
@@ -73,16 +77,26 @@ const styles = StyleSheet.create({
     gap: 20,
     backgroundColor: '#000',
   },
+  tabButton: {
+    alignItems: 'center',
+  },
   navText: {
     fontSize: 20,
     fontWeight: '500',
-    color: 'rgba(255, 255, 255, 0.4)',
+    color: 'rgba(255, 255, 255, 0.35)',
     fontFamily: 'Sansation-Regular',
   },
   navTextActive: {
-    color: 'rgba(255, 255, 255, 1)',
-    fontWeight: '600',
+    color: '#ffffff',
+    fontWeight: '700',
     fontFamily: 'Sansation-Bold',
+  },
+  activeUnderline: {
+    marginTop: 4,
+    height: 2,
+    width: 20,
+    borderRadius: 1,
+    backgroundColor: '#ffffff',
   },
   profileCircle: {
     width: 36,
