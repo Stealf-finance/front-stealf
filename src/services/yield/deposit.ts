@@ -109,8 +109,15 @@ export function useYieldDeposit() {
       const subOrgId = userData?.subOrgId;
       const stealfWallet = userData?.stealf_wallet;
 
-      if (!subOrgId || !stealfWallet) throw new Error('User not authenticated');
-      if (__DEV__) console.log('[useYieldDeposit] subOrgId:', subOrgId);
+      if (__DEV__) console.log('[useYieldDeposit] userData:', JSON.stringify({
+        hasSubOrgId: !!subOrgId,
+        hasStealfWallet: !!stealfWallet,
+        hasCashWallet: !!userData?.cash_wallet,
+        authMethod: (userData as any)?.authMethod,
+      }));
+
+      if (!subOrgId) throw new Error('Session expired — please sign in again');
+      if (!stealfWallet) throw new Error('Stealth wallet not set up — open the Stealth tab to create it');
 
       const mxeData = await api.get('/api/yield/mxe-pubkey');
       if (__DEV__) console.log('[useYieldDeposit] mxe-pubkey:', mxeData);

@@ -16,7 +16,8 @@ export function useYieldWithdraw() {
     try {
       const subOrgId = userData?.subOrgId;
       const stealfWallet = userData?.stealf_wallet;
-      if (!subOrgId || !stealfWallet) throw new Error('User not authenticated');
+      if (!subOrgId) throw new Error('Session expired — please sign in again');
+      if (!stealfWallet) throw new Error('Stealth wallet not set up — open the Stealth tab to create it');
 
       if (savingsBalance != null && amount > savingsBalance) {
         throw new Error(`Insufficient yield balance. Available: ${savingsBalance.toFixed(4)} SOL`);
