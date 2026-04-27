@@ -1,5 +1,8 @@
 import { useState } from 'react';
 import { useTurnkey } from '@turnkey/react-native-wallet-kit';
+import * as SecureStore from 'expo-secure-store';
+import { VersionedTransaction } from '@solana/web3.js';
+import type { Web3MobileWallet } from '@solana-mobile/mobile-wallet-adapter-protocol-web3js';
 import {
   getRpc,
   toAddress,
@@ -20,9 +23,21 @@ import {
 import { getTransactionEncoder } from '@solana/kit';
 import { guardTransaction } from '../../services/solana/transactionsGuard';
 import { walletKeyCache } from '../../services/cache/walletKeyCache';
+import { useAuth } from '../../contexts/AuthContext';
+import { MWA_AUTH_TOKEN_KEY } from '../../constants/walletAuth';
 
 const SYSTEM_PROGRAM = toAddress('11111111111111111111111111111111');
 const RPC_ENDPOINT = process.env.EXPO_PUBLIC_SOLANA_RPC_URL || '';
+
+const STEALF_IDENTITY = {
+  name: 'Stealf',
+  uri: 'https://stealf.xyz' as `${string}://${string}`,
+  icon: 'favicon.ico' as const,
+};
+
+const SOLANA_CHAIN = (
+  RPC_ENDPOINT.includes('devnet') ? 'solana:devnet' : 'solana:mainnet'
+) as 'solana:devnet' | 'solana:mainnet';
 
 function encodeTransferLamports(lamportsAmount: bigint): Uint8Array {
   const data = new Uint8Array(12);
@@ -86,6 +101,41 @@ export function transactionTurnkey() {
   };
 }
 
+/**
+ * Sign + send a SOL transfer via the Mobile Wallet Adapter (Seeker Seed Vault).
+ * Used as the stealth-wallet signing path for users authenticated with their
+ * Seeker wallet (authMethod === 'wallet').
+ */
+export async function transactionMWA(
+  fromAddress: string,
+  recipientAddress: string,
+  amount: number,
+): Promise<string> {
+  const authToken = await SecureStore.getItemAsync(MWA_AUTH_TOKEN_KEY);
+  const { transact } = require('@solana-mobile/mobile-wallet-adapter-protocol-web3js');
+
+  const { message } = await buildTransactionMessage(fromAddress, recipientAddress, amount);
+  const compiled = compileTransaction(message);
+  const wireBytes = getTransactionEncoder().encode(compiled);
+  const versionedTx = VersionedTransaction.deserialize(new Uint8Array(wireBytes));
+
+  const signature: string = await transact(async (wallet: Web3MobileWallet) => {
+    if (authToken) {
+      try {
+        await wallet.reauthorize({ auth_token: authToken, identity: STEALF_IDENTITY });
+      } catch {
+        await wallet.authorize({ chain: SOLANA_CHAIN, identity: STEALF_IDENTITY });
+      }
+    } else {
+      await wallet.authorize({ chain: SOLANA_CHAIN, identity: STEALF_IDENTITY });
+    }
+    const signatures = await wallet.signAndSendTransactions({ transactions: [versionedTx] });
+    return signatures[0];
+  });
+
+  return signature;
+}
+
 export async function transactionSimple(
   fromAddress: string,
   recipientAddress: string,
@@ -126,6 +176,7 @@ export function useSendTransaction() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const signTurnkey = transactionTurnkey();
+  const { isWalletAuth } = useAuth();
 
   const sendTransaction = async (
     fromAddress: string,
@@ -154,8 +205,12 @@ export function useSendTransaction() {
         throw err;
       }
 
+      // For wallet-auth (Seeker) users the stealth wallet IS the Seed Vault.
+      // Sign via MWA instead of the local BIP39 keypair.
+      const stealfSigner = isWalletAuth ? transactionMWA : transactionSimple;
+
       const txId = walletType === 'stealf'
-        ? await transactionSimple(fromAddress, recipientAddress, amount)
+        ? await stealfSigner(fromAddress, recipientAddress, amount)
         : await signTurnkey(fromAddress, recipientAddress, amount);
 
       return txId;

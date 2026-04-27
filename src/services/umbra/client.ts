@@ -7,6 +7,8 @@ import {
 } from "@umbra-privacy/sdk";
 import bs58 from "bs58";
 import { walletKeyCache } from "../cache/walletKeyCache";
+import { authStorage } from "../auth/authStorage";
+import { createMWAUmbraSigner } from "./mwaSigner";
 import {
   masterSeedStorage,
   setActiveWallet,
@@ -57,6 +59,48 @@ export function getCachedSignerKey(): string | null {
 }
 
 export async function getClient(): Promise<UmbraClient> {
+  const stored = await authStorage.getUserData();
+  const authMethod = stored?.authMethod as 'passkey' | 'wallet' | undefined;
+
+  // Seeker (MWA) users — stealth wallet is the Seed Vault, no local key.
+  if (authMethod === 'wallet') {
+    const walletAddress = stored?.stealf_wallet as string | undefined;
+    if (!walletAddress) {
+      throw new Error("No stealf_wallet address — reconnect your Seeker wallet");
+    }
+    setActiveWallet(walletAddress);
+
+    if (cachedSignerKey && cachedSignerKey !== walletAddress) {
+      cachedClient = null;
+    }
+    if (cachedClient) return cachedClient;
+
+    const signer = createMWAUmbraSigner({ walletAddress });
+    cachedClient = await getUmbraClient(
+      {
+        signer,
+        network: NETWORK,
+        rpcUrl: RPC_URL,
+        rpcSubscriptionsUrl: WSS_URL,
+        indexerApiEndpoint: INDEXER_API,
+      },
+      {
+        transactionForwarder: getPollingTransactionForwarder(
+          { rpcUrl: RPC_URL },
+          { defaultOptions: { timeoutMs: TX_CONFIRMATION_TIMEOUT_MS } } as any,
+        ),
+        computationMonitor: createComputationMonitor() as any,
+        masterSeedStorage: {
+          load: masterSeedStorage.load as any,
+          store: masterSeedStorage.store as any,
+        },
+      },
+    );
+    cachedSignerKey = walletAddress;
+    return cachedClient;
+  }
+
+  // Legacy passkey path — local BIP39 keypair.
   const privateKeyB58 = await walletKeyCache.getPrivateKey();
   if (!privateKeyB58) {
     throw new Error("No stealf_wallet key — wallet setup required");

@@ -1,8 +1,15 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { useTurnkey } from '@turnkey/react-native-wallet-kit';
+import * as SecureStore from 'expo-secure-store';
 import { authStorage } from '../services/auth/authStorage';
 import { socketService } from '../services/real-time/socketService';
 import { walletKeyCache } from '../services/cache/walletKeyCache';
+import {
+  AUTH_METHOD_KEY,
+  MWA_AUTH_TOKEN_KEY,
+  MWA_WALLET_ADDRESS_KEY,
+  WALLET_SESSION_TOKEN_KEY,
+} from '../constants/walletAuth';
 import { registerYieldSocketListener, unregisterYieldSocketListener, prefetchYieldData } from '../services/yield/balance';
 import { getUserIdHash } from '../services/yield/deposit';
 import { attachWalletListeners, detachWalletListeners } from '../hooks/wallet/useWalletInfos';
@@ -10,90 +17,121 @@ import { useQueryClient } from '@tanstack/react-query';
 import { umbraClearSeed } from '../services/umbra/seed';
 import { clearUmbraState } from '../hooks/transactions/useUmbra';
 
+export type AuthMethod = 'passkey' | 'wallet';
+
 interface UserData {
   email?: string;
   username?: string;
   cash_wallet?: string;
   stealf_wallet?: string;
   subOrgId?: string;
-  points?:number;
+  points?: number;
+  authMethod?: AuthMethod;
 }
 
 interface AuthContextType {
   isAuthenticated: boolean;
+  isWalletAuth: boolean;
   userData: UserData | null;
   loading: boolean;
   logout: () => Promise<void>;
-  setUserData: (data: UserData | null) => void;
+  setUserData: (data: UserData | null) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
+
+const API_URL = process.env.EXPO_PUBLIC_API_URL;
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const { user, session, logout: turnkeyLogout } = useTurnkey();
   const queryClient = useQueryClient();
   const [userDataState, setUserDataState] = useState<UserData | null>(null);
   const [loading, setLoading] = useState(true);
-  const [bootDone, setBootDone] = useState(false);
 
   const sessionToken = session?.token;
   // Backend's verifyAuth derives userIdHash from req.user.organizationId in JWT.
   // We must use session.organizationId here (the sub-org ID), not user.userId
   // (which is a different identifier scoped to the sub-org).
-  const userId = (session as any)?.organizationId || user?.userId;
+  const turnkeyUserId = (session as any)?.organizationId || user?.userId;
 
-
+  // Single source of truth: tries the persisted wallet session first, then falls
+  // back to Turnkey passkey state. Re-runs whenever the Turnkey session changes.
   useEffect(() => {
-    if (bootDone) return;
-
-    if (sessionToken && userId) {
-      setBootDone(true);
-      return;
-    }
-
-    const timer = setTimeout(() => {
-      if (__DEV__) console.log('[AuthContext] boot timeout — no session restored');
-      setBootDone(true);
-    }, 2000);
-
-    return () => clearTimeout(timer);
-  }, [sessionToken, userId, bootDone]);
-
-  useEffect(() => {
-    if (!bootDone) return;
-
     const loadAuth = async () => {
-      if (__DEV__) console.log('[AuthContext] loadAuth - session:', !!sessionToken, 'user:', !!userId);
+      if (__DEV__) {
+        console.log(
+          '[AuthContext] loadAuth — tk session:',
+          !!sessionToken,
+          'tk user:',
+          !!turnkeyUserId,
+        );
+      }
 
-      if (sessionToken && userId) {
-        const storedData = await authStorage.getUserData();
-        if (__DEV__) console.log('[AuthContext] storedData:', JSON.stringify(storedData));
+      const stored = await authStorage.getUserData();
 
+      // 1) Restore an active Seeker wallet session (validate JWT against backend).
+      if (stored?.authMethod === 'wallet' && stored?.stealf_wallet && stored?.cash_wallet) {
+        const walletToken = await SecureStore.getItemAsync(WALLET_SESSION_TOKEN_KEY);
+        if (walletToken) {
+          try {
+            const res = await fetch(`${API_URL}/api/users/${stored.cash_wallet}`, {
+              headers: { Authorization: `Bearer ${walletToken}` },
+            });
+            if (!res.ok) throw new Error('Token invalid');
+
+            if (__DEV__) console.log('[AuthContext] Restoring wallet session');
+            setUserDataState({ ...stored, authMethod: 'wallet' });
+            attachWalletListeners(queryClient);
+            socketService.connect(walletToken);
+            socketService.subscribeToWallet(stored.cash_wallet);
+            if (stored.stealf_wallet) socketService.subscribeToWallet(stored.stealf_wallet);
+            if (stored.subOrgId) {
+              socketService.subscribeToYield(stored.subOrgId, getUserIdHash(stored.subOrgId).toString('hex'));
+              registerYieldSocketListener(queryClient, stored.subOrgId);
+              prefetchYieldData(queryClient, stored.subOrgId, walletToken);
+            }
+            setLoading(false);
+            return;
+          } catch {
+            if (__DEV__) console.log('[AuthContext] wallet token invalid, clearing');
+            await authStorage.clearUserData();
+            await SecureStore.deleteItemAsync(WALLET_SESSION_TOKEN_KEY).catch(() => undefined);
+            await SecureStore.deleteItemAsync(MWA_AUTH_TOKEN_KEY).catch(() => undefined);
+            await SecureStore.deleteItemAsync(AUTH_METHOD_KEY).catch(() => undefined);
+          }
+        }
+      }
+
+      // 2) Standard Turnkey passkey path.
+      if (sessionToken && turnkeyUserId) {
         setUserDataState({
-          email: user?.userEmail || storedData?.email || '',
-          username: storedData?.username || '',
-          cash_wallet: storedData?.cash_wallet || '',
-          stealf_wallet: storedData?.stealf_wallet || '',
-          subOrgId: userId,
-          points: storedData?.points ?? 0,
+          email: user?.userEmail || stored?.email || '',
+          username: stored?.username || '',
+          cash_wallet: stored?.cash_wallet || '',
+          stealf_wallet: stored?.stealf_wallet || '',
+          subOrgId: turnkeyUserId,
+          points: stored?.points ?? 0,
+          authMethod: 'passkey',
         });
 
         attachWalletListeners(queryClient);
         socketService.connect(sessionToken);
-        if (storedData?.cash_wallet) socketService.subscribeToWallet(storedData.cash_wallet);
-        if (storedData?.stealf_wallet) socketService.subscribeToWallet(storedData.stealf_wallet);
-        if (userId) {
-          socketService.subscribeToYield(userId, getUserIdHash(userId).toString('hex'));
-          registerYieldSocketListener(queryClient, userId);
-          prefetchYieldData(queryClient, userId, sessionToken);
+        if (stored?.cash_wallet) socketService.subscribeToWallet(stored.cash_wallet);
+        if (stored?.stealf_wallet) socketService.subscribeToWallet(stored.stealf_wallet);
+        if (turnkeyUserId) {
+          socketService.subscribeToYield(turnkeyUserId, getUserIdHash(turnkeyUserId).toString('hex'));
+          registerYieldSocketListener(queryClient, turnkeyUserId);
+          prefetchYieldData(queryClient, turnkeyUserId, sessionToken);
         }
-      } else {
-        setUserDataState(null);
-        detachWalletListeners();
-        unregisterYieldSocketListener();
-        socketService.disconnect();
+        setLoading(false);
+        return;
       }
 
+      // 3) No valid session.
+      setUserDataState(null);
+      detachWalletListeners();
+      unregisterYieldSocketListener();
+      socketService.disconnect();
       setLoading(false);
     };
 
@@ -101,10 +139,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (__DEV__) console.error('[AuthContext] loadAuth crashed:', err);
       setLoading(false);
     });
-  }, [bootDone, sessionToken, userId]);
+  }, [sessionToken, turnkeyUserId]);
 
   const saveUserData = async (data: UserData | null) => {
-    if (__DEV__) console.log('[AuthContext] saveUserData called:', JSON.stringify(data));
+    if (__DEV__) console.log('[AuthContext] saveUserData:', JSON.stringify(data));
 
     if (data === null) {
       setUserDataState(null);
@@ -113,41 +151,52 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return;
     }
 
-    // Preserve stealf_wallet from local storage (never returned by backend)
     const existing = await authStorage.getUserData();
-    if (__DEV__) console.log('[AuthContext] existing in storage:', JSON.stringify(existing));
-
     const merged: UserData = {
       ...data,
       stealf_wallet: data.stealf_wallet || existing?.stealf_wallet || '',
+      authMethod: data.authMethod || existing?.authMethod,
     };
-
-    if (__DEV__) console.log('[AuthContext] merged result:', JSON.stringify(merged));
 
     setUserDataState(merged);
     await authStorage.setUserData(merged);
-    if (merged.cash_wallet) {
-      attachWalletListeners(queryClient);
-      if (session?.token) socketService.connect(session.token);
-      socketService.subscribeToWallet(merged.cash_wallet);
-      if (merged.stealf_wallet) {
-        socketService.subscribeToWallet(merged.stealf_wallet);
-      }
-      if (merged.subOrgId) {
-        socketService.subscribeToYield(merged.subOrgId, getUserIdHash(merged.subOrgId).toString('hex'));
-        registerYieldSocketListener(queryClient, merged.subOrgId);
-        if (session?.token) prefetchYieldData(queryClient, merged.subOrgId, session.token);
-      }
+
+    if (!merged.cash_wallet) return;
+
+    const token = merged.authMethod === 'wallet'
+      ? await SecureStore.getItemAsync(WALLET_SESSION_TOKEN_KEY)
+      : sessionToken;
+
+    if (!token) return;
+
+    attachWalletListeners(queryClient);
+    socketService.connect(token);
+    socketService.subscribeToWallet(merged.cash_wallet);
+    if (merged.stealf_wallet) socketService.subscribeToWallet(merged.stealf_wallet);
+    if (merged.subOrgId) {
+      socketService.subscribeToYield(merged.subOrgId, getUserIdHash(merged.subOrgId).toString('hex'));
+      registerYieldSocketListener(queryClient, merged.subOrgId);
+      prefetchYieldData(queryClient, merged.subOrgId, token);
     }
   };
 
   const logout = async () => {
     try {
-      await turnkeyLogout();
+      const isWallet = userDataState?.authMethod === 'wallet';
+      if (!isWallet) {
+        await turnkeyLogout();
+      } else {
+        await SecureStore.deleteItemAsync(WALLET_SESSION_TOKEN_KEY).catch(() => undefined);
+        await SecureStore.deleteItemAsync(MWA_AUTH_TOKEN_KEY).catch(() => undefined);
+        await SecureStore.deleteItemAsync(MWA_WALLET_ADDRESS_KEY).catch(() => undefined);
+        await SecureStore.deleteItemAsync(AUTH_METHOD_KEY).catch(() => undefined);
+      }
+
       await authStorage.clearUserData();
       await walletKeyCache.clearAll();
       await umbraClearSeed();
       clearUmbraState();
+
       setUserDataState(null);
       detachWalletListeners();
       unregisterYieldSocketListener();
@@ -157,12 +206,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  const isAuthenticated = !!session && !!user && !!userDataState?.cash_wallet;
+  const isWalletAuth = userDataState?.authMethod === 'wallet';
+  const isAuthenticated = isWalletAuth
+    ? !!userDataState?.stealf_wallet && !!userDataState?.cash_wallet
+    : !!session && !!user && !!userDataState?.cash_wallet;
 
   return (
     <AuthContext.Provider
       value={{
         isAuthenticated,
+        isWalletAuth,
         userData: userDataState,
         loading,
         logout,

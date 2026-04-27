@@ -11,6 +11,7 @@ import NetInfo from '@react-native-community/netinfo';
 import { TurnkeyProvider } from '@turnkey/react-native-wallet-kit';
 import { TURNKEY_CONFIG, TURNKEY_CALLBACKS } from '../constants/turnkey';
 import { AuthProvider, useAuth } from '../contexts/AuthContext';
+import { SessionProvider } from '../contexts/SessionContext';
 import { usePendingClaims } from '../hooks/wallet/usePendingClaims';
 import { usePendingClaimsForCash } from '../hooks/wallet/usePendingClaimsForCash';
 import { SplashProvider, useSplash } from '../contexts/SplashContext';
@@ -140,11 +141,13 @@ export default function RootLayout() {
         <ErrorBoundary>
           <QueryClientProvider client={queryClient}>
             <TurnkeyProvider config={TURNKEY_CONFIG} callbacks={TURNKEY_CALLBACKS}>
-              <AuthProvider>
-                <SplashProvider>
-                  <RootNavigator />
-                </SplashProvider>
-              </AuthProvider>
+              <SessionProvider>
+                <AuthProvider>
+                  <SplashProvider>
+                    <RootNavigator />
+                  </SplashProvider>
+                </AuthProvider>
+              </SessionProvider>
             </TurnkeyProvider>
           </QueryClientProvider>
         </ErrorBoundary>
