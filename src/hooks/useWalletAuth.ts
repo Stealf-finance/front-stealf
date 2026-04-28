@@ -112,6 +112,9 @@ export function useWalletAuth() {
           });
         } catch (e: any) {
           if (__DEV__) console.warn('[useWalletAuth] reauthorize session failed:', e?.message);
+          const msg = (e?.message || '').toString();
+          const cancelled = /cancel|declined|denied|user.*reject|back.*pressed/i.test(msg);
+          if (cancelled) throw e;
           await SecureStore.deleteItemAsync(MWA_AUTH_TOKEN_KEY).catch(() => undefined);
         }
       }

@@ -139,6 +139,12 @@ export async function transactionMWA(
       });
     } catch (e: any) {
       if (__DEV__) console.warn('[transactionMWA] reauthorize session failed:', e?.message);
+      // Preserve the auth_token on user-driven cancellations — only clear
+      // it for actual auth failures. Otherwise the user retries and gets
+      // the full authorize popup instead of the silent reauthorize path.
+      const msg = (e?.message || '').toString();
+      const cancelled = /cancel|declined|denied|user.*reject|back.*pressed/i.test(msg);
+      if (cancelled) throw e;
       await SecureStore.deleteItemAsync(MWA_AUTH_TOKEN_KEY).catch(() => undefined);
     }
   }
@@ -151,6 +157,52 @@ export async function transactionMWA(
     const signatures = await wallet.signAndSendTransactions({ transactions: [versionedTx] });
     return signatures[0];
   });
+}
+
+/**
+ * Sign + send a SOL transfer from the cash wallet via the backend Turnkey
+ * relay (POST /api/sign/cash-transaction). Used by Seeker (wallet-auth)
+ * users whose React Native Turnkey SDK has no session.
+ */
+export async function transactionCashViaBackend(
+  fromAddress: string,
+  recipientAddress: string,
+  amount: number,
+): Promise<string> {
+  const SecureStore = require('expo-secure-store');
+  const { WALLET_SESSION_TOKEN_KEY } = require('../../constants/walletAuth');
+  const token = await SecureStore.getItemAsync(WALLET_SESSION_TOKEN_KEY);
+  if (!token) throw new Error('Wallet session token missing');
+
+  const { message } = await buildTransactionMessage(fromAddress, recipientAddress, amount);
+  const compiled = compileTransaction(message);
+  const wireBytes = getTransactionEncoder().encode(compiled);
+  const unsignedHex = Buffer.from(wireBytes).toString('hex');
+
+  const res = await fetch(`${process.env.EXPO_PUBLIC_API_URL}/api/sign/cash-transaction`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+    body: JSON.stringify({ unsignedTransactionHex: unsignedHex }),
+  });
+  const json = await res.json();
+  if (!res.ok || !json?.success) throw new Error(json?.error || 'Backend signing failed');
+
+  const signedHex: string = json.data.signedTransactionHex;
+  const signedBytes = new Uint8Array(Buffer.from(signedHex, 'hex'));
+  const signedB64 = Buffer.from(signedBytes).toString('base64');
+
+  const rpc = getRpc();
+  const signature = await rpc.sendTransaction(signedB64 as any, { encoding: 'base64' }).send();
+
+  for (let i = 0; i < 30; i++) {
+    const { value } = await rpc.getSignatureStatuses([signature]).send();
+    const status = value[0];
+    if (status?.confirmationStatus === 'confirmed' || status?.confirmationStatus === 'finalized') break;
+    if (status?.err) throw new Error(`Transaction failed: ${JSON.stringify(status.err)}`);
+    await new Promise(r => setTimeout(r, 1500));
+  }
+
+  return signature;
 }
 
 export async function transactionSimple(
@@ -222,13 +274,15 @@ export function useSendTransaction() {
         throw err;
       }
 
-      // For wallet-auth (Seeker) users the stealth wallet IS the Seed Vault.
-      // Sign via MWA instead of the local BIP39 keypair.
+      // For wallet-auth (Seeker) users the stealth wallet IS the Seed Vault
+      // (sign via MWA) and the cash wallet has no in-device Turnkey session
+      // (sign via backend relay). Passkey users keep the original paths.
       const stealfSigner = isWalletAuth ? transactionMWA : transactionSimple;
+      const cashSigner = isWalletAuth ? transactionCashViaBackend : signTurnkey;
 
       const txId = walletType === 'stealf'
         ? await stealfSigner(fromAddress, recipientAddress, amount)
-        : await signTurnkey(fromAddress, recipientAddress, amount);
+        : await cashSigner(fromAddress, recipientAddress, amount);
 
       return txId;
     } catch (error: any) {

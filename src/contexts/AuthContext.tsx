@@ -97,6 +97,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             await authStorage.clearUserData();
             await SecureStore.deleteItemAsync(WALLET_SESSION_TOKEN_KEY).catch(() => undefined);
             await SecureStore.deleteItemAsync(MWA_AUTH_TOKEN_KEY).catch(() => undefined);
+            await SecureStore.deleteItemAsync(MWA_WALLET_ADDRESS_KEY).catch(() => undefined);
             await SecureStore.deleteItemAsync(AUTH_METHOD_KEY).catch(() => undefined);
           }
         }

@@ -28,6 +28,11 @@ import { useAuthenticatedApi } from '../../hooks/api/useApi';
 import { STEALF_JITO_VAULT } from '../../constants/solana';
 import { validateBalance } from '../solana/transactionsGuard';
 import { walletKeyCache } from '../cache/walletKeyCache';
+import { VersionedTransaction } from '@solana/web3.js';
+import type { Web3MobileWallet } from '@solana-mobile/mobile-wallet-adapter-protocol-web3js';
+import * as SecureStore from 'expo-secure-store';
+import { MWA_AUTH_TOKEN_KEY } from '../../constants/walletAuth';
+import { getTransactionEncoder } from '@solana/kit';
 
 const SYSTEM_PROGRAM = toAddress('11111111111111111111111111111111');
 const MEMO_PROGRAM = toAddress('MemoSq4gqABAXKb96qnH8TysNcWxMyWCqXgDLGmfcHr');
@@ -95,8 +100,58 @@ function encodeTransferLamports(lamportsAmount: bigint): Uint8Array {
   return data;
 }
 
+const STEALF_IDENTITY = {
+  name: 'Stealf',
+  uri: 'https://stealf.xyz' as `${string}://${string}`,
+  icon: 'favicon.ico' as const,
+};
+
+const SOLANA_CHAIN = (
+  process.env.EXPO_PUBLIC_SOLANA_RPC_URL?.includes('devnet')
+    ? 'solana:devnet'
+    : 'solana:mainnet'
+) as 'solana:devnet' | 'solana:mainnet';
+
+/**
+ * Sign + send a yield deposit transaction via the Seeker Seed Vault.
+ * Mirrors the MWA path used by transactionMWA: split reauthorize/authorize
+ * sessions to avoid CancellationException, persist rotated auth_token.
+ */
+async function signAndSendYieldDepositMWA(versionedTx: VersionedTransaction): Promise<string> {
+  const { transact } = require('@solana-mobile/mobile-wallet-adapter-protocol-web3js');
+  const storedToken = await SecureStore.getItemAsync(MWA_AUTH_TOKEN_KEY);
+
+  const inner = async (wallet: Web3MobileWallet, didReauth: boolean) => {
+    if (!didReauth) {
+      const auth = await wallet.authorize({ chain: SOLANA_CHAIN, identity: STEALF_IDENTITY });
+      if (auth?.auth_token) {
+        await SecureStore.setItemAsync(MWA_AUTH_TOKEN_KEY, auth.auth_token);
+      }
+    }
+    const sigs = await wallet.signAndSendTransactions({ transactions: [versionedTx] });
+    return sigs[0];
+  };
+
+  if (storedToken) {
+    try {
+      return await transact(async (wallet: Web3MobileWallet) => {
+        const auth = await wallet.reauthorize({ auth_token: storedToken, identity: STEALF_IDENTITY });
+        if (auth?.auth_token && auth.auth_token !== storedToken) {
+          await SecureStore.setItemAsync(MWA_AUTH_TOKEN_KEY, auth.auth_token);
+        }
+        return inner(wallet, true);
+      });
+    } catch (e: any) {
+      if (__DEV__) console.warn('[useYieldDeposit] reauthorize session failed:', e?.message);
+      await SecureStore.deleteItemAsync(MWA_AUTH_TOKEN_KEY).catch(() => undefined);
+    }
+  }
+
+  return await transact(async (wallet: Web3MobileWallet) => inner(wallet, false));
+}
+
 export function useYieldDeposit() {
-  const { userData } = useAuth();
+  const { userData, isWalletAuth } = useAuth();
   const api = useAuthenticatedApi();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -163,27 +218,37 @@ export function useYieldDeposit() {
         tx => appendTransactionMessageInstructions([transferInstruction, memoInstruction], tx),
       );
 
-      // Sign and send with stealf_wallet
-      const privateKeyB58 = await walletKeyCache.getPrivateKey();
-      if (!privateKeyB58) throw new Error('No stealf_wallet key — wallet setup required');
-
-      const signer = await createSignerFromBase58(privateKeyB58);
-
       const compiled = compileTransaction(message);
-      const signed = await signTransaction([signer.keyPair], compiled);
-      assertIsTransactionWithinSizeLimit(signed);
+      let signature: string;
 
-      const signature = getSignatureFromTransaction(signed);
-      if (__DEV__) console.log('[useYieldDeposit] sending TX:', signature);
+      if (isWalletAuth) {
+        // Seeker users: stealf_wallet IS the Seed Vault. Sign+send via MWA
+        // (signAndSendTransactions broadcasts on-chain in the same session).
+        const wireBytes = getTransactionEncoder().encode(compiled);
+        const versionedTx = VersionedTransaction.deserialize(new Uint8Array(wireBytes));
+        signature = await signAndSendYieldDepositMWA(versionedTx);
+        if (__DEV__) console.log('[useYieldDeposit] MWA signature:', signature);
+      } else {
+        // Passkey users: local BIP39 keypair from SecureStore.
+        const privateKeyB58 = await walletKeyCache.getPrivateKey();
+        if (!privateKeyB58) throw new Error('No stealf_wallet key — wallet setup required');
 
-      // Send transaction via raw RPC (avoid WebSocket which is flaky on Android Helius).
-      const { getBase64EncodedWireTransaction } = await import('@solana/kit');
-      const wireTx = getBase64EncodedWireTransaction(signed);
-      await rpc.sendTransaction(wireTx, {
-        encoding: 'base64',
-        skipPreflight: false,
-        preflightCommitment: 'confirmed',
-      } as any).send();
+        const signer = await createSignerFromBase58(privateKeyB58);
+        const signed = await signTransaction([signer.keyPair], compiled);
+        assertIsTransactionWithinSizeLimit(signed);
+
+        signature = getSignatureFromTransaction(signed);
+        if (__DEV__) console.log('[useYieldDeposit] sending TX:', signature);
+
+        // Send transaction via raw RPC (WebSocket is flaky on Android Helius).
+        const { getBase64EncodedWireTransaction } = await import('@solana/kit');
+        const wireTx = getBase64EncodedWireTransaction(signed);
+        await rpc.sendTransaction(wireTx, {
+          encoding: 'base64',
+          skipPreflight: false,
+          preflightCommitment: 'confirmed',
+        } as any).send();
+      }
 
       // Poll signature status until confirmed (max 60s).
       const start = Date.now();
@@ -201,7 +266,8 @@ export function useYieldDeposit() {
         throw new Error('Transaction confirmation timed out — check wallet balance before retrying');
       }
 
-      walletKeyCache.touch();
+      // Only the local-keypair path needs the cache TTL refresh.
+      if (!isWalletAuth) walletKeyCache.touch();
 
       return signature;
     } catch (err: any) {

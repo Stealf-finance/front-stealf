@@ -35,6 +35,17 @@ export interface CreateMWAUmbraSignerArgs {
   walletAddress: string;
 }
 
+/**
+ * Detect MWA errors that come from user action (closed Seed Vault dialog,
+ * pressed Back, denied biometric) rather than auth-token validity issues.
+ * We keep the cached token in those cases so the user isn't punished with
+ * a full authorize() popup on the next attempt.
+ */
+function isUserCancellation(e: any): boolean {
+  const msg = (e?.message || '').toString();
+  return /cancel|declined|denied|user.*reject|back.*pressed/i.test(msg);
+}
+
 async function openSession<T>(fn: (wallet: Web3MobileWallet) => Promise<T>): Promise<T> {
   const { transact } = require('@solana-mobile/mobile-wallet-adapter-protocol-web3js');
   const storedToken = await SecureStore.getItemAsync(MWA_AUTH_TOKEN_KEY);
@@ -59,7 +70,15 @@ async function openSession<T>(fn: (wallet: Web3MobileWallet) => Promise<T>): Pro
       return r;
     } catch (e: any) {
       if (__DEV__) console.warn('[mwaSigner] reauthorize session failed:', e?.message, e?.code);
-      await SecureStore.deleteItemAsync(MWA_AUTH_TOKEN_KEY).catch(() => undefined);
+      // Only drop the cached auth_token on actual auth failures. User-driven
+      // cancellations (taps Close/Back on the Seed Vault popup) are not a
+      // sign that the token is bad — keep it so the next attempt can still
+      // reauthorize silently instead of forcing a fresh authorize popup.
+      if (!isUserCancellation(e)) {
+        await SecureStore.deleteItemAsync(MWA_AUTH_TOKEN_KEY).catch(() => undefined);
+      } else {
+        throw e;
+      }
     }
   }
 

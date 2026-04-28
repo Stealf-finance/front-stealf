@@ -54,12 +54,27 @@ export type UmbraClient = Awaited<ReturnType<typeof getUmbraClient>>;
 
 let cachedClient: UmbraClient | null = null;
 let cachedSignerKey: string | null = null;
+// Dedupe concurrent getClient() calls so two simultaneous reads on a fresh
+// install don't race the SDK's masterSeedStorage.generate() override into
+// producing two different random seeds — the second store() would otherwise
+// orphan the first client's key hierarchy. All concurrent callers share the
+// same in-flight promise.
+let inFlightClient: Promise<UmbraClient> | null = null;
 
 export function getCachedSignerKey(): string | null {
   return cachedSignerKey;
 }
 
 export async function getClient(): Promise<UmbraClient> {
+  if (cachedClient) return cachedClient;
+  if (inFlightClient) return inFlightClient;
+  inFlightClient = buildClient().finally(() => {
+    inFlightClient = null;
+  });
+  return inFlightClient;
+}
+
+async function buildClient(): Promise<UmbraClient> {
   const stored = await authStorage.getUserData();
   const authMethod = stored?.authMethod as 'passkey' | 'wallet' | undefined;
 
