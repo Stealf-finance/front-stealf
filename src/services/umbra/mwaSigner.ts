@@ -36,25 +36,37 @@ export interface CreateMWAUmbraSignerArgs {
 }
 
 async function openSession<T>(fn: (wallet: Web3MobileWallet) => Promise<T>): Promise<T> {
-  const authToken = await SecureStore.getItemAsync(MWA_AUTH_TOKEN_KEY);
   const { transact } = require('@solana-mobile/mobile-wallet-adapter-protocol-web3js');
+  const storedToken = await SecureStore.getItemAsync(MWA_AUTH_TOKEN_KEY);
 
-  return transact(async (wallet: Web3MobileWallet) => {
-    let auth: any;
-    if (authToken) {
-      try {
-        auth = await wallet.reauthorize({ auth_token: authToken, identity: STEALF_IDENTITY });
-      } catch (e) {
-        if (__DEV__) console.warn('[mwaSigner] reauthorize failed, falling back to authorize:', (e as any)?.message);
-        auth = await wallet.authorize({ chain: SOLANA_CHAIN, identity: STEALF_IDENTITY });
-      }
-    } else {
-      auth = await wallet.authorize({ chain: SOLANA_CHAIN, identity: STEALF_IDENTITY });
+  // Try reauthorize first (silent if Seed Vault accepts the token). If it
+  // fails we MUST end the transact session before retrying — calling
+  // wallet.authorize() in the same session after a reauthorize failure
+  // leaves the MWA bridge in a broken state and the subsequent op aborts
+  // with CancellationException.
+  if (storedToken) {
+    try {
+      return await transact(async (wallet: Web3MobileWallet) => {
+        const auth = await wallet.reauthorize({
+          auth_token: storedToken,
+          identity: STEALF_IDENTITY,
+        });
+        if (auth?.auth_token && auth.auth_token !== storedToken) {
+          await SecureStore.setItemAsync(MWA_AUTH_TOKEN_KEY, auth.auth_token);
+        }
+        return fn(wallet);
+      });
+    } catch (e: any) {
+      if (__DEV__) console.warn('[mwaSigner] reauthorize session failed:', e?.message);
+      await SecureStore.deleteItemAsync(MWA_AUTH_TOKEN_KEY).catch(() => undefined);
     }
-    // Seed Vault rotates auth_token on each reauthorize — persist the new
-    // one so the next call can reauthorize silently instead of falling back
-    // to authorize() with the verify popup.
-    if (auth?.auth_token && auth.auth_token !== authToken) {
+  }
+
+  // Fresh authorize session (verify popup will show — first time or after
+  // reauthorize failed).
+  return await transact(async (wallet: Web3MobileWallet) => {
+    const auth = await wallet.authorize({ chain: SOLANA_CHAIN, identity: STEALF_IDENTITY });
+    if (auth?.auth_token) {
       await SecureStore.setItemAsync(MWA_AUTH_TOKEN_KEY, auth.auth_token);
     }
     return fn(wallet);

@@ -90,35 +90,42 @@ export function useWalletAuth() {
       const existingAuthToken = await SecureStore.getItemAsync(MWA_AUTH_TOKEN_KEY);
       const { transact } = require('@solana-mobile/mobile-wallet-adapter-protocol-web3js');
 
-      let result: { addressBase64: string; label: string; authToken: string };
+      const extract = (auth: any) => ({
+        addressBase64: auth.accounts[0].address,
+        label: auth.accounts[0].label || '',
+        authToken: auth.auth_token,
+      });
+
+      let result: { addressBase64: string; label: string; authToken: string } | null = null;
+
+      // Reauthorize attempt. On failure we MUST exit transact() before
+      // calling authorize — chaining them in the same session breaks the
+      // MWA bridge with CancellationException on later operations.
+      if (existingAuthToken) {
+        try {
+          result = await transact(async (wallet: Web3MobileWallet) => {
+            const auth = await wallet.reauthorize({
+              auth_token: existingAuthToken,
+              identity: STEALF_IDENTITY,
+            });
+            return extract(auth);
+          });
+        } catch (e: any) {
+          if (__DEV__) console.warn('[useWalletAuth] reauthorize session failed:', e?.message);
+          await SecureStore.deleteItemAsync(MWA_AUTH_TOKEN_KEY).catch(() => undefined);
+        }
+      }
+
       try {
-        result = await transact(async (wallet: Web3MobileWallet) => {
-          let auth;
-          if (existingAuthToken) {
-            try {
-              auth = await wallet.reauthorize({
-                auth_token: existingAuthToken,
-                identity: STEALF_IDENTITY,
-              });
-            } catch {
-              auth = await wallet.authorize({
-                chain: SOLANA_CHAIN,
-                identity: STEALF_IDENTITY,
-              });
-            }
-          } else {
-            auth = await wallet.authorize({
+        if (!result) {
+          result = await transact(async (wallet: Web3MobileWallet) => {
+            const auth = await wallet.authorize({
               chain: SOLANA_CHAIN,
               identity: STEALF_IDENTITY,
             });
-          }
-
-          return {
-            addressBase64: auth.accounts[0].address,
-            label: auth.accounts[0].label || '',
-            authToken: auth.auth_token,
-          };
-        });
+            return extract(auth);
+          });
+        }
       } finally {
         setMWAInProgress(false);
       }

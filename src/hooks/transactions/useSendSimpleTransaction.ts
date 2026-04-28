@@ -111,7 +111,6 @@ export async function transactionMWA(
   recipientAddress: string,
   amount: number,
 ): Promise<string> {
-  const authToken = await SecureStore.getItemAsync(MWA_AUTH_TOKEN_KEY);
   const { transact } = require('@solana-mobile/mobile-wallet-adapter-protocol-web3js');
 
   const { message } = await buildTransactionMessage(fromAddress, recipientAddress, amount);
@@ -119,26 +118,39 @@ export async function transactionMWA(
   const wireBytes = getTransactionEncoder().encode(compiled);
   const versionedTx = VersionedTransaction.deserialize(new Uint8Array(wireBytes));
 
-  const signature: string = await transact(async (wallet: Web3MobileWallet) => {
-    let auth: any;
-    if (authToken) {
-      try {
-        auth = await wallet.reauthorize({ auth_token: authToken, identity: STEALF_IDENTITY });
-      } catch (e) {
-        if (__DEV__) console.warn('[transactionMWA] reauthorize failed, falling back to authorize:', (e as any)?.message);
-        auth = await wallet.authorize({ chain: SOLANA_CHAIN, identity: STEALF_IDENTITY });
-      }
-    } else {
-      auth = await wallet.authorize({ chain: SOLANA_CHAIN, identity: STEALF_IDENTITY });
+  const storedToken = await SecureStore.getItemAsync(MWA_AUTH_TOKEN_KEY);
+
+  // Reauthorize-only attempt. If reauthorize fails inside transact(),
+  // calling authorize() in the same session breaks the MWA bridge —
+  // bail out, clear the bad token, and retry with a fresh authorize
+  // in a NEW transact() session.
+  if (storedToken) {
+    try {
+      return await transact(async (wallet: Web3MobileWallet) => {
+        const auth = await wallet.reauthorize({
+          auth_token: storedToken,
+          identity: STEALF_IDENTITY,
+        });
+        if (auth?.auth_token && auth.auth_token !== storedToken) {
+          await SecureStore.setItemAsync(MWA_AUTH_TOKEN_KEY, auth.auth_token);
+        }
+        const signatures = await wallet.signAndSendTransactions({ transactions: [versionedTx] });
+        return signatures[0];
+      });
+    } catch (e: any) {
+      if (__DEV__) console.warn('[transactionMWA] reauthorize session failed:', e?.message);
+      await SecureStore.deleteItemAsync(MWA_AUTH_TOKEN_KEY).catch(() => undefined);
     }
-    if (auth?.auth_token && auth.auth_token !== authToken) {
+  }
+
+  return await transact(async (wallet: Web3MobileWallet) => {
+    const auth = await wallet.authorize({ chain: SOLANA_CHAIN, identity: STEALF_IDENTITY });
+    if (auth?.auth_token) {
       await SecureStore.setItemAsync(MWA_AUTH_TOKEN_KEY, auth.auth_token);
     }
     const signatures = await wallet.signAndSendTransactions({ transactions: [versionedTx] });
     return signatures[0];
   });
-
-  return signature;
 }
 
 export async function transactionSimple(
