@@ -7,6 +7,7 @@ import { clearUmbraClient, clearCashClient } from "../../services/umbra/client";
 import { clearRegistration, ensureRegistered } from "../../services/umbra/registration";
 import { clearBurntUtxos } from "../../services/umbra/burntUtxos";
 import { umbraClearSeed } from "../../services/umbra/seed";
+import { useAuth } from "../../contexts/AuthContext";
 
 import { deposit, depositFromCash } from "../../services/umbra/operations/deposit";
 import { withdraw } from "../../services/umbra/operations/withdraw";
@@ -45,8 +46,24 @@ export function useUmbra() {
   } = useTurnkey();
   const cashWalletAccount = wallets?.[0]?.accounts?.[0] ?? null;
 
+  const { isWalletAuth } = useAuth();
+
   const wrap = useCallback(
     async <T>(op: UmbraOp, fn: () => Promise<T>): Promise<T> => {
+      // Seeker (MWA) users: every Umbra operation requires multiple sequential
+      // transact() sessions (master-seed signMessage + signTransactions),
+      // each popping a Seed Vault verify dialog. The flow either thrashes the
+      // user or aborts with CancellationException. Per CLAUDE.md Umbra is on
+      // hold awaiting mainnet anyway — surface a clean error instead.
+      if (isWalletAuth) {
+        throw new UmbraError({
+          code: "UNKNOWN",
+          rawMessage: "Umbra not available for Seeker wallets yet",
+          op,
+          userMessage: "Private transfers are coming soon for Seeker wallets — stay tuned!",
+        });
+      }
+
       setLoading(true);
       setCurrentOp(op);
       setError(null);
