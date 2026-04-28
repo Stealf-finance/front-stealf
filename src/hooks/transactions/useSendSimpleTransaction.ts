@@ -120,14 +120,19 @@ export async function transactionMWA(
   const versionedTx = VersionedTransaction.deserialize(new Uint8Array(wireBytes));
 
   const signature: string = await transact(async (wallet: Web3MobileWallet) => {
+    let auth: any;
     if (authToken) {
       try {
-        await wallet.reauthorize({ auth_token: authToken, identity: STEALF_IDENTITY });
-      } catch {
-        await wallet.authorize({ chain: SOLANA_CHAIN, identity: STEALF_IDENTITY });
+        auth = await wallet.reauthorize({ auth_token: authToken, identity: STEALF_IDENTITY });
+      } catch (e) {
+        if (__DEV__) console.warn('[transactionMWA] reauthorize failed, falling back to authorize:', (e as any)?.message);
+        auth = await wallet.authorize({ chain: SOLANA_CHAIN, identity: STEALF_IDENTITY });
       }
     } else {
-      await wallet.authorize({ chain: SOLANA_CHAIN, identity: STEALF_IDENTITY });
+      auth = await wallet.authorize({ chain: SOLANA_CHAIN, identity: STEALF_IDENTITY });
+    }
+    if (auth?.auth_token && auth.auth_token !== authToken) {
+      await SecureStore.setItemAsync(MWA_AUTH_TOKEN_KEY, auth.auth_token);
     }
     const signatures = await wallet.signAndSendTransactions({ transactions: [versionedTx] });
     return signatures[0];

@@ -228,6 +228,13 @@ export function parseUmbraError(err: any, op: UmbraOp): UmbraError {
   const rawMessage = rawMessageOf(err);
   const simulationLogs: string[] = err?.cause?.context?.logs || [];
 
+  // Mobile Wallet Adapter: bubbles up Java/Kotlin exceptions verbatim.
+  // CancellationException = user dismissed the Seed Vault popup or the
+  // transact() session was preempted (e.g. another MWA call started).
+  if (/CancellationException|cancelled|canceled|user.*declined/i.test(rawMessage)) {
+    return build(err, op, "USER_CANCELLED");
+  }
+
   if (/receiver is not registered/i.test(rawMessage)) {
     return build(err, op, "RECEIVER_NOT_REGISTERED");
   }
