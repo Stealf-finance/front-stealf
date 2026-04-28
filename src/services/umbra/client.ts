@@ -13,6 +13,7 @@ import {
   masterSeedStorage,
   setActiveWallet,
   createMasterSeedStorage,
+  generateRandomMasterSeed,
 } from "./seed";
 import {
   createTurnkeyUmbraSigner,
@@ -93,6 +94,12 @@ export async function getClient(): Promise<UmbraClient> {
         masterSeedStorage: {
           load: masterSeedStorage.load as any,
           store: masterSeedStorage.store as any,
+          // Override the SDK's default signMessage-based derivation. Seeker
+          // Seed Vault refuses to sign Umbra's 1700-byte derivation message
+          // (returns CancellationException with no biometric prompt). Generate
+          // a random 64-byte seed instead — SDK persists it via store() so
+          // subsequent loads return the same seed.
+          generate: (async () => generateRandomMasterSeed()) as any,
         },
       },
     );

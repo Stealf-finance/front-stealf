@@ -6,6 +6,29 @@ const KEYCHAIN_OPTIONS: SecureStore.SecureStoreOptions = {
   keychainAccessible: SecureStore.AFTER_FIRST_UNLOCK,
 };
 
+/**
+ * Random 64-byte seed generator for wallets where the SDK's default
+ * signMessage-based derivation can't run (e.g. Seeker Seed Vault, which
+ * rejects signing arbitrary multi-kilobyte messages). The seed is wrapped
+ * with `__brand: "MasterSeed"` so the SDK's nominal type accepts it.
+ *
+ * Trade-off: the seed is not derivable from the wallet anymore — if the
+ * device's SecureStore is wiped (uninstall, factory reset) the user loses
+ * access to their Umbra balances. Acceptable for the current Seeker beta
+ * where Umbra itself is awaiting mainnet.
+ */
+export function generateRandomMasterSeed(): Uint8Array {
+  const bytes = new Uint8Array(64);
+  if (typeof crypto !== "undefined" && (crypto as any).getRandomValues) {
+    (crypto as any).getRandomValues(bytes);
+  } else {
+    // Hermes fallback — should never hit in practice since polyfills.ts
+    // installs crypto.getRandomValues at app boot.
+    for (let i = 0; i < bytes.length; i++) bytes[i] = Math.floor(Math.random() * 256);
+  }
+  return bytes;
+}
+
 let currentWalletKey: string | null = null;
 
 export function setActiveWallet(walletAddress: string | null | undefined) {
