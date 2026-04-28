@@ -39,37 +39,41 @@ async function openSession<T>(fn: (wallet: Web3MobileWallet) => Promise<T>): Pro
   const { transact } = require('@solana-mobile/mobile-wallet-adapter-protocol-web3js');
   const storedToken = await SecureStore.getItemAsync(MWA_AUTH_TOKEN_KEY);
 
-  // Try reauthorize first (silent if Seed Vault accepts the token). If it
-  // fails we MUST end the transact session before retrying — calling
-  // wallet.authorize() in the same session after a reauthorize failure
-  // leaves the MWA bridge in a broken state and the subsequent op aborts
-  // with CancellationException.
   if (storedToken) {
     try {
-      return await transact(async (wallet: Web3MobileWallet) => {
+      if (__DEV__) console.log('[mwaSigner] opening reauthorize session');
+      const r = await transact(async (wallet: Web3MobileWallet) => {
         const auth = await wallet.reauthorize({
           auth_token: storedToken,
           identity: STEALF_IDENTITY,
         });
+        if (__DEV__) console.log('[mwaSigner] reauthorize OK, token rotated:', auth?.auth_token !== storedToken);
         if (auth?.auth_token && auth.auth_token !== storedToken) {
           await SecureStore.setItemAsync(MWA_AUTH_TOKEN_KEY, auth.auth_token);
         }
-        return fn(wallet);
+        if (__DEV__) console.log('[mwaSigner] running fn() inside reauth session');
+        const out = await fn(wallet);
+        if (__DEV__) console.log('[mwaSigner] fn() returned in reauth session');
+        return out;
       });
+      return r;
     } catch (e: any) {
-      if (__DEV__) console.warn('[mwaSigner] reauthorize session failed:', e?.message);
+      if (__DEV__) console.warn('[mwaSigner] reauthorize session failed:', e?.message, e?.code);
       await SecureStore.deleteItemAsync(MWA_AUTH_TOKEN_KEY).catch(() => undefined);
     }
   }
 
-  // Fresh authorize session (verify popup will show — first time or after
-  // reauthorize failed).
+  if (__DEV__) console.log('[mwaSigner] opening authorize session (fresh)');
   return await transact(async (wallet: Web3MobileWallet) => {
     const auth = await wallet.authorize({ chain: SOLANA_CHAIN, identity: STEALF_IDENTITY });
+    if (__DEV__) console.log('[mwaSigner] authorize OK');
     if (auth?.auth_token) {
       await SecureStore.setItemAsync(MWA_AUTH_TOKEN_KEY, auth.auth_token);
     }
-    return fn(wallet);
+    if (__DEV__) console.log('[mwaSigner] running fn() inside auth session');
+    const out = await fn(wallet);
+    if (__DEV__) console.log('[mwaSigner] fn() returned in auth session');
+    return out;
   });
 }
 
@@ -84,13 +88,17 @@ export function createMWAUmbraSigner(args: CreateMWAUmbraSignerArgs): any {
   const decoder = getTransactionDecoder();
 
   const signManyTx = async (txs: readonly SignableTransaction[]): Promise<SignedTransaction[]> => {
+    if (__DEV__) console.log('[mwaSigner] signTransactions — count:', txs.length);
     const versionedTxs = txs.map((tx) => {
       const wire = encoder.encode(tx) as Uint8Array;
       return VersionedTransaction.deserialize(new Uint8Array(wire));
     });
 
     const signed = await openSession(async (wallet) => {
-      return wallet.signTransactions({ transactions: versionedTxs });
+      if (__DEV__) console.log('[mwaSigner] calling wallet.signTransactions');
+      const result = await wallet.signTransactions({ transactions: versionedTxs });
+      if (__DEV__) console.log('[mwaSigner] signTransactions returned', result.length, 'sigs');
+      return result;
     });
 
     return signed.map((vTx, i) => {
@@ -109,11 +117,15 @@ export function createMWAUmbraSigner(args: CreateMWAUmbraSignerArgs): any {
   };
 
   const signOneMessage = async (message: Uint8Array) => {
+    if (__DEV__) console.log('[mwaSigner] signMessage — bytes:', message.length);
     const signatures = await openSession(async (wallet) => {
-      return wallet.signMessages({
+      if (__DEV__) console.log('[mwaSigner] calling wallet.signMessages');
+      const result = await wallet.signMessages({
         addresses: [args.walletAddress],
         payloads: [message],
       });
+      if (__DEV__) console.log('[mwaSigner] signMessages returned', result.length, 'sigs');
+      return result;
     });
 
     const signature = signatures[0];
