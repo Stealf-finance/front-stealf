@@ -13,7 +13,7 @@ interface ShieldedBalanceResult {
 
 
 export function useShieldedBalance() {
-  const { userData } = useAuth();
+  const { userData, isWalletAuth } = useAuth();
   const wallet = userData?.stealf_wallet || '';
 
   return useQuery<ShieldedBalanceResult>({
@@ -42,7 +42,9 @@ export function useShieldedBalance() {
         state: entry?.state ?? null,
       };
     },
-    enabled: !!wallet,
+    // Seeker users: Umbra master-seed derivation triggers a Seed Vault popup.
+    // Disable until Umbra mainnet — shielded balance shows 0 in the meantime.
+    enabled: !!wallet && !isWalletAuth,
     staleTime: 30_000,
   });
 }
