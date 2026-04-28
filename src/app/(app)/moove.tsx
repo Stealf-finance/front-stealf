@@ -151,6 +151,16 @@ export default function MooveScreen() {
       queryClient.invalidateQueries({ queryKey: ['shielded-balance'] });
       queryClient.invalidateQueries({ queryKey: ['pending-claims-cash'] });
 
+      // Backup refresh — the Helius webhook usually fires within a few seconds
+      // and pushes the new balance via socket, but this catches the cases
+      // where the webhook is delayed or the socket event is missed.
+      [3000, 8000, 20000].forEach((d) =>
+        setTimeout(() => {
+          queryClient.invalidateQueries({ queryKey: ['wallet-balance', userData.cash_wallet] });
+          queryClient.invalidateQueries({ queryKey: ['wallet-balance', userData.stealf_wallet] });
+        }, d),
+      );
+
       showSuccessAnimation();
     } catch (err: any) {
       if (__DEV__) console.error('[Moove] Transfer error:', err?.message, err);
