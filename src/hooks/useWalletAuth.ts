@@ -130,6 +130,8 @@ export function useWalletAuth() {
         setMWAInProgress(false);
       }
 
+      if (!result) throw new Error('MWA authorize did not return an account');
+
       const addressBytes = Buffer.from(result.addressBase64, 'base64');
       const addressBase58 = bs58.encode(addressBytes);
       const publicKeyHex = addressBytes.toString('hex');

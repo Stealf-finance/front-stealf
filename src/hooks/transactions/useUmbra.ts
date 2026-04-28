@@ -7,6 +7,11 @@ import { clearUmbraClient, clearCashClient } from "../../services/umbra/client";
 import { clearRegistration, ensureRegistered } from "../../services/umbra/registration";
 import { clearBurntUtxos } from "../../services/umbra/burntUtxos";
 import { umbraClearSeed } from "../../services/umbra/seed";
+import { useAuth } from "../../contexts/AuthContext";
+import {
+  backendSignCashTransaction,
+  backendSignCashMessage,
+} from "../../services/umbra/backendCashSigner";
 
 import { deposit, depositFromCash } from "../../services/umbra/operations/deposit";
 import { withdraw } from "../../services/umbra/operations/withdraw";
@@ -44,6 +49,15 @@ export function useUmbra() {
     wallets,
   } = useTurnkey();
   const cashWalletAccount = wallets?.[0]?.accounts?.[0] ?? null;
+
+  // Wallet-auth (Seeker) cash signing routes through the backend instead —
+  // there's no Turnkey React Native session and Seed Vault can't stamp the
+  // Turnkey API directly. The signer fns hit /api/sign/cash-* with the
+  // wallet JWT.
+  const { isWalletAuth, userData } = useAuth();
+  const walletAuthCashAccount = isWalletAuth && userData?.cash_wallet
+    ? { address: userData.cash_wallet }
+    : null;
 
   const wrap = useCallback(
     async <T>(op: UmbraOp, fn: () => Promise<T>): Promise<T> => {
@@ -85,25 +99,30 @@ export function useUmbra() {
     ),
 
     /**
-     * Cash → Stealth deposit (single tx, signed by cash wallet via Turnkey).
-     * Throws if Turnkey wallets aren't loaded yet.
+     * Cash → Stealth deposit (single tx, signed by cash wallet).
+     * - Passkey users: signed via Turnkey React Native SDK in the device.
+     * - Seeker (wallet-auth) users: signed via backend (POST /api/sign/cash-*)
+     *   because the RN Turnkey SDK has no session for them.
      */
     depositFromCash: useCallback(
       (destinationAddress: Address, mint: Address, amount: bigint) =>
         wrap("depositFromCash", async () => {
-          if (!cashWalletAccount || !turnkeySignTransaction || !turnkeySignMessage) {
+          const account = walletAuthCashAccount ?? cashWalletAccount;
+          const signTx = walletAuthCashAccount ? backendSignCashTransaction : turnkeySignTransaction;
+          const signMsg = walletAuthCashAccount ? backendSignCashMessage : turnkeySignMessage;
+          if (!account || !signTx || !signMsg) {
             throw new Error("Cash wallet not ready");
           }
           return depositFromCash({
-            walletAccount: cashWalletAccount as any,
-            signTransaction: turnkeySignTransaction as any,
-            signMessage: turnkeySignMessage as any,
+            walletAccount: account as any,
+            signTransaction: signTx as any,
+            signMessage: signMsg as any,
             destinationAddress,
             mint,
             amount,
           });
         }),
-      [wrap, cashWalletAccount, turnkeySignTransaction, turnkeySignMessage]
+      [wrap, cashWalletAccount, turnkeySignTransaction, turnkeySignMessage, walletAuthCashAccount]
     ),
 
     withdraw: useCallback(
