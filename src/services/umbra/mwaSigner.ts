@@ -91,14 +91,31 @@ export function createMWAUmbraSigner(args: CreateMWAUmbraSignerArgs): any {
     if (__DEV__) console.log('[mwaSigner] signTransactions — count:', txs.length);
     const versionedTxs = txs.map((tx) => {
       const wire = encoder.encode(tx) as Uint8Array;
-      return VersionedTransaction.deserialize(new Uint8Array(wire));
+      const vtx = VersionedTransaction.deserialize(new Uint8Array(wire));
+      if (__DEV__) {
+        console.log('[mwaSigner] tx[0] details:', {
+          version: vtx.version,
+          numInstructions: vtx.message.compiledInstructions.length,
+          numAccountKeys: vtx.message.staticAccountKeys.length,
+          hasALTs: (vtx.message as any).addressTableLookups?.length || 0,
+          serializedSize: wire.length,
+          feePayer: vtx.message.staticAccountKeys[0]?.toBase58(),
+          signerAddress: args.walletAddress,
+        });
+      }
+      return vtx;
     });
 
     const signed = await openSession(async (wallet) => {
       if (__DEV__) console.log('[mwaSigner] calling wallet.signTransactions');
-      const result = await wallet.signTransactions({ transactions: versionedTxs });
-      if (__DEV__) console.log('[mwaSigner] signTransactions returned', result.length, 'sigs');
-      return result;
+      try {
+        const result = await wallet.signTransactions({ transactions: versionedTxs });
+        if (__DEV__) console.log('[mwaSigner] signTransactions returned', result.length, 'sigs');
+        return result;
+      } catch (e: any) {
+        if (__DEV__) console.error('[mwaSigner] signTransactions threw:', e?.message, e?.code, e?.stack);
+        throw e;
+      }
     });
 
     return signed.map((vTx, i) => {
