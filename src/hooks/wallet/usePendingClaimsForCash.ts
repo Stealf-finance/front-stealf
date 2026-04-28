@@ -3,13 +3,11 @@ import { useAuth } from '../../contexts/AuthContext';
 import { fetchPendingClaimsForCash } from '../transactions/useUmbra';
 
 export function usePendingClaimsForCash() {
-  const { userData, isWalletAuth } = useAuth();
+  const { userData } = useAuth();
   const cashWallet = userData?.cash_wallet || '';
   const stealfWallet = userData?.stealf_wallet || '';
 
-  // Seeker (MWA) users: Umbra master-seed derivation triggers a Seed Vault
-  // popup every 30s on the refetch interval. Disable until Umbra mainnet.
-  const enabled = !!cashWallet && !!stealfWallet && !isWalletAuth;
+  const enabled = !!cashWallet && !!stealfWallet;
 
   return useQuery({
     queryKey: ['pending-claims-cash', cashWallet],
