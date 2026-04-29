@@ -14,6 +14,7 @@ import {
   MWA_AUTH_TOKEN_KEY,
   MWA_WALLET_ADDRESS_KEY,
   PENDING_STEALF_MWA_KEY,
+  PENDING_STEALF_MWA_OWNER_KEY,
 } from '../constants/walletAuth';
 import {
   clearStealfWalletType,
@@ -39,6 +40,10 @@ interface AuthContextType {
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
+
+function safeJsonParse(s: string): any {
+  try { return JSON.parse(s); } catch { return null; }
+}
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const { user, session, logout: turnkeyLogout } = useTurnkey();
@@ -81,12 +86,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         if (__DEV__) console.log('[AuthContext] storedData:', JSON.stringify(storedData));
 
         // 1) If the user just signed up via "Sign Up with Seeker Wallet", a
-        //    pending MWA address is sitting in SecureStore. Register it as
-        //    stealf_wallet now that we have a Turnkey session — skipping the
-        //    WalletSetup screen entirely.
+        //    pending MWA address is sitting in SecureStore. Verify the owner
+        //    tag matches the user who just authenticated (defends against
+        //    cross-user leak when User A's pending address survives a
+        //    cancelled signup and User B signs in next on the same device),
+        //    then register it as stealf_wallet — skipping WalletSetup.
         let resolvedStealf = storedData?.stealf_wallet || '';
         const pendingMwa = await SecureStore.getItemAsync(PENDING_STEALF_MWA_KEY).catch(() => null);
-        if (pendingMwa && !resolvedStealf) {
+        const pendingOwnerJson = await SecureStore.getItemAsync(PENDING_STEALF_MWA_OWNER_KEY).catch(() => null);
+        const pendingOwner = pendingOwnerJson ? safeJsonParse(pendingOwnerJson) : null;
+        const currentEmail = (user?.userEmail || storedData?.email || '').toLowerCase().trim();
+        const ownersMatch =
+          pendingOwner?.email && currentEmail && pendingOwner.email === currentEmail;
+
+        if (pendingMwa && !resolvedStealf && ownersMatch) {
           try {
             await apiPost('/api/wallet/privacy-wallet', sessionToken, { walletAddress: pendingMwa });
             await setStealfWalletType('mwa');
@@ -97,15 +110,32 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             if (__DEV__) console.warn('[AuthContext] pending-MWA registration failed:', err);
           } finally {
             await SecureStore.deleteItemAsync(PENDING_STEALF_MWA_KEY).catch(() => undefined);
+            await SecureStore.deleteItemAsync(PENDING_STEALF_MWA_OWNER_KEY).catch(() => undefined);
           }
+        } else if (pendingMwa && !ownersMatch) {
+          // Different user is finishing auth on this device — drop the leak.
+          await SecureStore.deleteItemAsync(PENDING_STEALF_MWA_KEY).catch(() => undefined);
+          await SecureStore.deleteItemAsync(PENDING_STEALF_MWA_OWNER_KEY).catch(() => undefined);
         }
 
-        // 2) On sign-in: if the user has a stealf_wallet on the backend AND
-        //    a stored MWA address that matches it, mark the type as 'mwa' so
-        //    stealth signing routes through Seed Vault. No-op for legacy
-        //    BIP39 users (their MWA_WALLET_ADDRESS_KEY won't match).
+        // 2) Recover Seeker stealf_wallet on a fresh install. The backend
+        //    doesn't persist stealf_wallet (privacy-by-design), so SecureStore
+        //    is the only source of truth. If our local cache is empty but the
+        //    user has a Seeker address sitting in MWA_WALLET_ADDRESS_KEY,
+        //    treat that as the stealth wallet and re-register it server-side.
         const mwaAddress = await SecureStore.getItemAsync(MWA_WALLET_ADDRESS_KEY).catch(() => null);
-        if (resolvedStealf && mwaAddress && mwaAddress === resolvedStealf) {
+        if (!resolvedStealf && mwaAddress) {
+          try {
+            await apiPost('/api/wallet/privacy-wallet', sessionToken, { walletAddress: mwaAddress });
+            await setStealfWalletType('mwa');
+            resolvedStealf = mwaAddress;
+            await authStorage.setUserData({ ...(storedData || {}), stealf_wallet: mwaAddress });
+            if (__DEV__) console.log('[AuthContext] recovered Seeker stealf_wallet from SecureStore');
+          } catch (err) {
+            if (__DEV__) console.warn('[AuthContext] Seeker recovery registration failed:', err);
+          }
+        } else if (resolvedStealf && mwaAddress && mwaAddress === resolvedStealf) {
+          // Sign-in: stealf_wallet matches stored Seeker address, mark type.
           await setStealfWalletType('mwa');
         }
 
@@ -192,6 +222,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       // again (re-pick local vs. Seeker, fresh auth token).
       await SecureStore.deleteItemAsync(MWA_AUTH_TOKEN_KEY).catch(() => undefined);
       await SecureStore.deleteItemAsync(MWA_WALLET_ADDRESS_KEY).catch(() => undefined);
+      // CRITICAL: also clear the pending sign-up MWA address. Otherwise a
+      // user who started "Sign Up with Seeker" but never finished can leak
+      // their wallet onto whoever next signs up on the same device.
+      await SecureStore.deleteItemAsync(PENDING_STEALF_MWA_KEY).catch(() => undefined);
+      await SecureStore.deleteItemAsync(PENDING_STEALF_MWA_OWNER_KEY).catch(() => undefined);
       await clearStealfWalletType();
       setUserDataState(null);
       detachWalletListeners();

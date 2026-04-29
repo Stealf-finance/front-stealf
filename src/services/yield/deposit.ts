@@ -144,6 +144,13 @@ async function signAndSendYieldDepositMWA(versionedTx: VersionedTransaction): Pr
       });
     } catch (e: any) {
       if (__DEV__) console.warn('[useYieldDeposit] reauthorize session failed:', e?.message);
+      // Preserve the auth_token on user-driven cancellations (Back / Close
+      // on the Seed Vault popup). Only nuke it for actual auth failures —
+      // otherwise every accidental dismiss forces the user through a full
+      // authorize() popup on the next try.
+      const msg = (e?.message || '').toString();
+      const cancelled = /cancel|declined|denied|user.*reject|back.*pressed/i.test(msg);
+      if (cancelled) throw e;
       await SecureStore.deleteItemAsync(MWA_AUTH_TOKEN_KEY).catch(() => undefined);
     }
   }

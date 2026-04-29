@@ -71,8 +71,10 @@ export default function PrivacyScreen() {
   const handleWalletSetup = async (choice: WalletSetupChoice) => {
     if (choice.mode === 'create') {
       if (generatedMnemonic && pendingWalletAddress) {
-        await registerPrivacyWallet(pendingWalletAddress);
+        // Set the type FIRST so a network failure on registerPrivacyWallet
+        // doesn't leave a stale 'mwa' type from a previous logged-out session.
         await setStealfWalletType('local');
+        await registerPrivacyWallet(pendingWalletAddress);
         setGeneratedMnemonic(undefined);
         setPendingWalletAddress(null);
         return;
@@ -93,8 +95,8 @@ export default function PrivacyScreen() {
         Alert.alert('Error', result.error || 'Failed to import wallet');
         return;
       }
-      await registerPrivacyWallet(result.walletAddress || '');
       await setStealfWalletType('local');
+      await registerPrivacyWallet(result.walletAddress || '');
     }
 
     if (choice.mode === 'mwa') {
@@ -107,8 +109,8 @@ export default function PrivacyScreen() {
         Alert.alert('Error', 'Failed to get Seeker wallet address');
         return;
       }
-      await registerPrivacyWallet(result.address);
       await setStealfWalletType('mwa');
+      await registerPrivacyWallet(result.address);
     }
   };
 

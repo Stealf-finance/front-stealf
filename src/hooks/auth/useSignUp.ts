@@ -35,13 +35,20 @@ async function purgeTurnkeyKeychain(): Promise<void> {
   try {
     const Keychain = require('react-native-keychain');
     const services: string[] = await Keychain.getAllGenericPasswordServices();
-    // TEST PER TURNKEY (Radu) — wipe ALL keychain services, not just Turnkey-prefixed.
-    // This will also clear stealf wallet keypair — only for diagnostic; revert after.
-    if (__DEV__) console.log('[purgeKeychain] wiping ALL services:', services.length);
+    // Scope-restricted purge: only Turnkey-managed services. The previous
+    // diagnostic version wiped the entire keychain and would silently
+    // destroy the local BIP39 stealth keypair (com.stealf.wallet) on every
+    // sign-up attempt — see audit. Keep the wipe to the Turnkey prefix
+    // (and a couple of common variants Radu's repro used).
+    const TURNKEY_PREFIXES = ['com.turnkey.', '@turnkey/', 'turnkey.'];
+    const turnkeyServices = services.filter((s) =>
+      TURNKEY_PREFIXES.some((prefix) => s.startsWith(prefix)),
+    );
+    if (__DEV__) console.log('[purgeKeychain] wiping Turnkey services:', turnkeyServices.length);
     await Promise.all(
-      services.map((service) =>
-        Keychain.resetGenericPassword({ service }).catch(() => undefined)
-      )
+      turnkeyServices.map((service) =>
+        Keychain.resetGenericPassword({ service }).catch(() => undefined),
+      ),
     );
   } catch (_) {
   }

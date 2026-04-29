@@ -21,7 +21,10 @@ import { useAuthFlow } from '../hooks/auth/useSignUp';
 import { useEmailVerificationPolling } from '../hooks/auth/useEmailVerificationPolling';
 import { useMWAAvailability } from '../hooks/useMWAAvailability';
 import { useWalletAuth } from '../hooks/useWalletAuth';
-import { PENDING_STEALF_MWA_KEY } from '../constants/walletAuth';
+import {
+  PENDING_STEALF_MWA_KEY,
+  PENDING_STEALF_MWA_OWNER_KEY,
+} from '../constants/walletAuth';
 
 interface SignUpState {
   step: 'email' | 'waiting' | 'verified';
@@ -148,6 +151,13 @@ export default function SignUpScreen(){
       return;
     }
     await SecureStore.setItemAsync(PENDING_STEALF_MWA_KEY, connect.address);
+    // Tag the pending address with the email/pseudo of the user who is
+    // about to sign up so AuthContext can refuse to apply it later if a
+    // different user finishes a sign-in on this device first.
+    await SecureStore.setItemAsync(
+      PENDING_STEALF_MWA_OWNER_KEY,
+      JSON.stringify({ email: email.toLowerCase().trim(), pseudo: pseudo.trim() }),
+    );
     await onEmailSubmit();
   };
 

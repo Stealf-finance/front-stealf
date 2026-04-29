@@ -10,10 +10,15 @@ import {
 import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
+import * as SecureStore from 'expo-secure-store';
 import { useSplash } from '../contexts/SplashContext';
 import { useSignIn } from '../hooks/auth/useSignIn';
 import { useMWAAvailability } from '../hooks/useMWAAvailability';
 import { useWalletAuth } from '../hooks/useWalletAuth';
+import {
+  MWA_AUTH_TOKEN_KEY,
+  MWA_WALLET_ADDRESS_KEY,
+} from '../constants/walletAuth';
 
 export default function SignInScreen() {
   const router = useRouter();
@@ -44,6 +49,10 @@ export default function SignInScreen() {
     }
     const result = await signInWithPasskey(showSplash);
     if (!result.success) {
+      // Roll back the MWA SecureStore writes — the user never authenticated,
+      // so the stored address shouldn't bias subsequent loadAuth checks.
+      await SecureStore.deleteItemAsync(MWA_AUTH_TOKEN_KEY).catch(() => undefined);
+      await SecureStore.deleteItemAsync(MWA_WALLET_ADDRESS_KEY).catch(() => undefined);
       Alert.alert(result.message || 'Error', result.description || 'An error occurred');
     }
   };

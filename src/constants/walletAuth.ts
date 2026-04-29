@@ -23,5 +23,13 @@ export type StealfWalletType = 'mwa' | 'local';
  * sign-up flow. The address is stashed here and consumed by AuthContext
  * after the Turnkey session lands, to auto-register stealf_wallet without
  * surfacing the WalletSetup screen.
+ *
+ * `PENDING_STEALF_MWA_OWNER_KEY` holds the email + pseudo of the user who
+ * initiated the flow, so we can refuse to apply this address if a
+ * DIFFERENT user signs in next on the same device (defends against the
+ * scenario where User A starts Seeker sign-up, never finishes, then User
+ * B signs in on the same device — without scoping, A's wallet would be
+ * silently registered for B).
  */
 export const PENDING_STEALF_MWA_KEY = 'pending_stealf_mwa_address';
+export const PENDING_STEALF_MWA_OWNER_KEY = 'pending_stealf_mwa_owner';
