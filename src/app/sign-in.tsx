@@ -12,16 +12,37 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 import { useSplash } from '../contexts/SplashContext';
 import { useSignIn } from '../hooks/auth/useSignIn';
+import { useMWAAvailability } from '../hooks/useMWAAvailability';
+import { useWalletAuth } from '../hooks/useWalletAuth';
 
 export default function SignInScreen() {
   const router = useRouter();
   const { showSplash } = useSplash();
   const { loading, isClientReady, signInWithPasskey } = useSignIn();
-  const buttonDisabled = loading || !isClientReady;
+  const { isMWAAvailable } = useMWAAvailability();
+  const walletAuth = useWalletAuth();
+  const buttonDisabled = loading || !isClientReady || walletAuth.loading;
 
   const handleSignIn = async () => {
     const result = await signInWithPasskey(showSplash);
 
+    if (!result.success) {
+      Alert.alert(result.message || 'Error', result.description || 'An error occurred');
+    }
+  };
+
+  const handleSeekerSignIn = async () => {
+    // Open the Seed Vault to confirm the user owns a Seeker wallet, then
+    // chain straight into the regular passkey login. After Turnkey lands,
+    // AuthContext compares the stored MWA address with the user's
+    // stealf_wallet from the backend and flags the type as 'mwa' if they
+    // match — no backend changes required.
+    const connect = await walletAuth.connectWallet();
+    if (!connect.success) {
+      if (connect.error) Alert.alert('Seeker', connect.error);
+      return;
+    }
+    const result = await signInWithPasskey(showSplash);
     if (!result.success) {
       Alert.alert(result.message || 'Error', result.description || 'An error occurred');
     }
@@ -67,6 +88,24 @@ export default function SignInScreen() {
               <Text style={styles.buttonText}>Sign In with Passkey</Text>
             )}
           </TouchableOpacity>
+
+          {/* Seeker Wallet (Android, MWA-capable wallet installed) */}
+          {isMWAAvailable && (
+            <TouchableOpacity
+              style={[styles.walletButton, buttonDisabled && styles.buttonDisabled]}
+              onPress={handleSeekerSignIn}
+              disabled={buttonDisabled}
+              activeOpacity={0.8}
+              accessibilityRole="button"
+              accessibilityLabel="Sign in with Seeker wallet"
+            >
+              {walletAuth.loading ? (
+                <ActivityIndicator color="#f1ece1" />
+              ) : (
+                <Text style={styles.walletButtonText}>Sign In with Seeker Wallet</Text>
+              )}
+            </TouchableOpacity>
+          )}
 
           {/* Sign Up Link */}
           <View style={styles.footer}>
@@ -133,6 +172,23 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontFamily: 'Sansation-Bold',
     color: '#000',
+  },
+  walletButton: {
+    backgroundColor: 'rgba(255,255,255,0.08)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.18)',
+    paddingVertical: 16,
+    paddingHorizontal: 32,
+    borderRadius: 12,
+    borderCurve: 'continuous',
+    width: '100%',
+    alignItems: 'center',
+    marginBottom: 24,
+  },
+  walletButtonText: {
+    fontSize: 16,
+    fontFamily: 'Sansation-Bold',
+    color: '#f1ece1',
   },
   footer: {
     flexDirection: 'row',

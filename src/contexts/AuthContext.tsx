@@ -13,8 +13,13 @@ import * as SecureStore from 'expo-secure-store';
 import {
   MWA_AUTH_TOKEN_KEY,
   MWA_WALLET_ADDRESS_KEY,
+  PENDING_STEALF_MWA_KEY,
 } from '../constants/walletAuth';
-import { clearStealfWalletType } from '../services/wallet/stealfWalletType';
+import {
+  clearStealfWalletType,
+  setStealfWalletType,
+} from '../services/wallet/stealfWalletType';
+import { apiPost } from '../services/api/client';
 
 interface UserData {
   email?: string;
@@ -75,11 +80,40 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         const storedData = await authStorage.getUserData();
         if (__DEV__) console.log('[AuthContext] storedData:', JSON.stringify(storedData));
 
+        // 1) If the user just signed up via "Sign Up with Seeker Wallet", a
+        //    pending MWA address is sitting in SecureStore. Register it as
+        //    stealf_wallet now that we have a Turnkey session — skipping the
+        //    WalletSetup screen entirely.
+        let resolvedStealf = storedData?.stealf_wallet || '';
+        const pendingMwa = await SecureStore.getItemAsync(PENDING_STEALF_MWA_KEY).catch(() => null);
+        if (pendingMwa && !resolvedStealf) {
+          try {
+            await apiPost('/api/wallet/privacy-wallet', sessionToken, { walletAddress: pendingMwa });
+            await setStealfWalletType('mwa');
+            resolvedStealf = pendingMwa;
+            await authStorage.setUserData({ ...(storedData || {}), stealf_wallet: pendingMwa });
+            if (__DEV__) console.log('[AuthContext] auto-registered MWA stealth wallet');
+          } catch (err) {
+            if (__DEV__) console.warn('[AuthContext] pending-MWA registration failed:', err);
+          } finally {
+            await SecureStore.deleteItemAsync(PENDING_STEALF_MWA_KEY).catch(() => undefined);
+          }
+        }
+
+        // 2) On sign-in: if the user has a stealf_wallet on the backend AND
+        //    a stored MWA address that matches it, mark the type as 'mwa' so
+        //    stealth signing routes through Seed Vault. No-op for legacy
+        //    BIP39 users (their MWA_WALLET_ADDRESS_KEY won't match).
+        const mwaAddress = await SecureStore.getItemAsync(MWA_WALLET_ADDRESS_KEY).catch(() => null);
+        if (resolvedStealf && mwaAddress && mwaAddress === resolvedStealf) {
+          await setStealfWalletType('mwa');
+        }
+
         setUserDataState({
           email: user?.userEmail || storedData?.email || '',
           username: storedData?.username || '',
           cash_wallet: storedData?.cash_wallet || '',
-          stealf_wallet: storedData?.stealf_wallet || '',
+          stealf_wallet: resolvedStealf,
           subOrgId: userId,
           points: storedData?.points ?? 0,
         });
@@ -87,7 +121,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         attachWalletListeners(queryClient);
         socketService.connect(sessionToken);
         if (storedData?.cash_wallet) socketService.subscribeToWallet(storedData.cash_wallet);
-        if (storedData?.stealf_wallet) socketService.subscribeToWallet(storedData.stealf_wallet);
+        if (resolvedStealf) socketService.subscribeToWallet(resolvedStealf);
         if (userId) {
           socketService.subscribeToYield(userId, getUserIdHash(userId).toString('hex'));
           registerYieldSocketListener(queryClient, userId);

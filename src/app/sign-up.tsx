@@ -15,9 +15,13 @@ import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import * as SecureStore from 'expo-secure-store';
 import VerifiedScreen from '../components/Verified';
 import { useAuthFlow } from '../hooks/auth/useSignUp';
 import { useEmailVerificationPolling } from '../hooks/auth/useEmailVerificationPolling';
+import { useMWAAvailability } from '../hooks/useMWAAvailability';
+import { useWalletAuth } from '../hooks/useWalletAuth';
+import { PENDING_STEALF_MWA_KEY } from '../constants/walletAuth';
 
 interface SignUpState {
   step: 'email' | 'waiting' | 'verified';
@@ -67,6 +71,8 @@ export default function SignUpScreen(){
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const authFlow = useAuthFlow();
+  const { isMWAAvailable } = useMWAAvailability();
+  const walletAuth = useWalletAuth();
 
   const [state, dispatch] = useReducer(signUpReducer, initialState);
   const { step, email, pseudo, inviteCode, loading, error, preAuthToken } = state;
@@ -119,6 +125,30 @@ export default function SignUpScreen(){
         dispatch({ type: 'SET_PRE_AUTH_TOKEN', token: result.preAuthToken });
       }
     }
+  };
+
+  /**
+   * Open Seed Vault first, stash the MWA address, then continue with the
+   * regular passkey sign-up. AuthContext picks up the stashed address after
+   * the user lands authenticated and registers it as their stealf_wallet
+   * (skipping the WalletSetup screen entirely).
+   */
+  const handleSeekerSignUp = async () => {
+    if (!email || !pseudo || !inviteCode) {
+      Alert.alert('Missing fields', 'Fill in pseudo, email and invite code first.');
+      return;
+    }
+    const connect = await walletAuth.connectWallet();
+    if (!connect.success) {
+      if (connect.error) Alert.alert('Seeker', connect.error);
+      return;
+    }
+    if (!connect.address) {
+      Alert.alert('Error', 'Failed to get Seeker wallet address');
+      return;
+    }
+    await SecureStore.setItemAsync(PENDING_STEALF_MWA_KEY, connect.address);
+    await onEmailSubmit();
   };
 
   if (step === 'verified' && email && pseudo) {
@@ -222,6 +252,24 @@ export default function SignUpScreen(){
                       <Text style={styles.buttonText}>Continue</Text>
                     )}
                   </TouchableOpacity>
+
+                  {/* Seeker Wallet sign-up — Android only, MWA wallet detected */}
+                  {isMWAAvailable && (
+                    <TouchableOpacity
+                      style={[styles.walletButton, (loading || walletAuth.loading) && styles.buttonDisabled]}
+                      onPress={handleSeekerSignUp}
+                      disabled={loading || walletAuth.loading || !email || !pseudo || !inviteCode}
+                      activeOpacity={0.8}
+                      accessibilityRole="button"
+                      accessibilityLabel="Sign up with Seeker wallet"
+                    >
+                      {walletAuth.loading ? (
+                        <ActivityIndicator color="#f1ece1" />
+                      ) : (
+                        <Text style={styles.walletButtonText}>Sign Up with Seeker Wallet</Text>
+                      )}
+                    </TouchableOpacity>
+                  )}
 
                   {/* Sign In Link */}
                   <View style={styles.footer}>
@@ -360,6 +408,24 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: '#000',
     fontFamily: 'Sansation-Bold',
+  },
+  walletButton: {
+    backgroundColor: 'rgba(255,255,255,0.08)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.18)',
+    paddingVertical: 16,
+    paddingHorizontal: 32,
+    borderRadius: 12,
+    borderCurve: 'continuous',
+    width: '100%',
+    alignItems: 'center',
+    marginTop: 12,
+    marginBottom: 16,
+  },
+  walletButtonText: {
+    fontSize: 16,
+    fontFamily: 'Sansation-Bold',
+    color: '#f1ece1',
   },
   errorText: {
     color: '#ff4444',

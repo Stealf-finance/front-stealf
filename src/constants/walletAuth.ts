@@ -16,3 +16,12 @@ export const MWA_WALLET_ADDRESS_KEY = 'mwa_wallet_address';
  */
 export const STEALF_WALLET_TYPE_KEY = 'stealf_wallet_type';
 export type StealfWalletType = 'mwa' | 'local';
+
+/**
+ * When the user starts sign-up via the "Sign Up with Seeker Wallet" button,
+ * we capture their MWA address before kicking off the normal passkey
+ * sign-up flow. The address is stashed here and consumed by AuthContext
+ * after the Turnkey session lands, to auto-register stealf_wallet without
+ * surfacing the WalletSetup screen.
+ */
+export const PENDING_STEALF_MWA_KEY = 'pending_stealf_mwa_address';
