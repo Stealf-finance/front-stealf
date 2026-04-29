@@ -23,8 +23,8 @@ import {
 import { getTransactionEncoder } from '@solana/kit';
 import { guardTransaction } from '../../services/solana/transactionsGuard';
 import { walletKeyCache } from '../../services/cache/walletKeyCache';
-import { useAuth } from '../../contexts/AuthContext';
 import { MWA_AUTH_TOKEN_KEY } from '../../constants/walletAuth';
+import { getStealfWalletType } from '../../services/wallet/stealfWalletType';
 
 const SYSTEM_PROGRAM = toAddress('11111111111111111111111111111111');
 const RPC_ENDPOINT = process.env.EXPO_PUBLIC_SOLANA_RPC_URL || '';
@@ -159,52 +159,6 @@ export async function transactionMWA(
   });
 }
 
-/**
- * Sign + send a SOL transfer from the cash wallet via the backend Turnkey
- * relay (POST /api/sign/cash-transaction). Used by Seeker (wallet-auth)
- * users whose React Native Turnkey SDK has no session.
- */
-export async function transactionCashViaBackend(
-  fromAddress: string,
-  recipientAddress: string,
-  amount: number,
-): Promise<string> {
-  const SecureStore = require('expo-secure-store');
-  const { WALLET_SESSION_TOKEN_KEY } = require('../../constants/walletAuth');
-  const token = await SecureStore.getItemAsync(WALLET_SESSION_TOKEN_KEY);
-  if (!token) throw new Error('Wallet session token missing');
-
-  const { message } = await buildTransactionMessage(fromAddress, recipientAddress, amount);
-  const compiled = compileTransaction(message);
-  const wireBytes = getTransactionEncoder().encode(compiled);
-  const unsignedHex = Buffer.from(wireBytes).toString('hex');
-
-  const res = await fetch(`${process.env.EXPO_PUBLIC_API_URL}/api/sign/cash-transaction`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-    body: JSON.stringify({ unsignedTransactionHex: unsignedHex }),
-  });
-  const json = await res.json();
-  if (!res.ok || !json?.success) throw new Error(json?.error || 'Backend signing failed');
-
-  const signedHex: string = json.data.signedTransactionHex;
-  const signedBytes = new Uint8Array(Buffer.from(signedHex, 'hex'));
-  const signedB64 = Buffer.from(signedBytes).toString('base64');
-
-  const rpc = getRpc();
-  const signature = await rpc.sendTransaction(signedB64 as any, { encoding: 'base64' }).send();
-
-  for (let i = 0; i < 30; i++) {
-    const { value } = await rpc.getSignatureStatuses([signature]).send();
-    const status = value[0];
-    if (status?.confirmationStatus === 'confirmed' || status?.confirmationStatus === 'finalized') break;
-    if (status?.err) throw new Error(`Transaction failed: ${JSON.stringify(status.err)}`);
-    await new Promise(r => setTimeout(r, 1500));
-  }
-
-  return signature;
-}
-
 export async function transactionSimple(
   fromAddress: string,
   recipientAddress: string,
@@ -245,7 +199,6 @@ export function useSendTransaction() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const signTurnkey = transactionTurnkey();
-  const { isWalletAuth } = useAuth();
 
   const sendTransaction = async (
     fromAddress: string,
@@ -274,15 +227,17 @@ export function useSendTransaction() {
         throw err;
       }
 
-      // For wallet-auth (Seeker) users the stealth wallet IS the Seed Vault
-      // (sign via MWA) and the cash wallet has no in-device Turnkey session
-      // (sign via backend relay). Passkey users keep the original paths.
-      const stealfSigner = isWalletAuth ? transactionMWA : transactionSimple;
-      const cashSigner = isWalletAuth ? transactionCashViaBackend : signTurnkey;
-
-      const txId = walletType === 'stealf'
-        ? await stealfSigner(fromAddress, recipientAddress, amount)
-        : await cashSigner(fromAddress, recipientAddress, amount);
+      // Cash wallet always signs via Turnkey RN SDK (passkey-derived session).
+      // Stealth wallet signs via MWA when the user picked Seeker at setup,
+      // otherwise via the local BIP39 keypair.
+      let txId: string;
+      if (walletType === 'stealf') {
+        const stealfType = await getStealfWalletType();
+        const stealfSigner = stealfType === 'mwa' ? transactionMWA : transactionSimple;
+        txId = await stealfSigner(fromAddress, recipientAddress, amount);
+      } else {
+        txId = await signTurnkey(fromAddress, recipientAddress, amount);
+      }
 
       return txId;
     } catch (error: any) {

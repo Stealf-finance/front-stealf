@@ -15,6 +15,7 @@ import {
   createMasterSeedStorage,
   generateRandomMasterSeed,
 } from "./seed";
+import { getStealfWalletType } from "../wallet/stealfWalletType";
 import {
   createTurnkeyUmbraSigner,
   type TurnkeyWalletAccount,
@@ -76,10 +77,11 @@ export async function getClient(): Promise<UmbraClient> {
 
 async function buildClient(): Promise<UmbraClient> {
   const stored = await authStorage.getUserData();
-  const authMethod = stored?.authMethod as 'passkey' | 'wallet' | undefined;
+  const stealfType = await getStealfWalletType();
 
-  // Seeker (MWA) users — stealth wallet is the Seed Vault, no local key.
-  if (authMethod === 'wallet') {
+  // Seeker / MWA stealth wallet — the address IS the Seed Vault account, no
+  // local key. Picked at wallet setup; persisted via setStealfWalletType.
+  if (stealfType === 'mwa') {
     const walletAddress = stored?.stealf_wallet as string | undefined;
     if (!walletAddress) {
       throw new Error("No stealf_wallet address — reconnect your Seeker wallet");
@@ -122,7 +124,9 @@ async function buildClient(): Promise<UmbraClient> {
     return cachedClient;
   }
 
-  // Legacy passkey path — local BIP39 keypair.
+  // Legacy / local BIP39 keypair path — used both by passkey users on every
+  // platform and by users who explicitly picked "Create new wallet" /
+  // "Import wallet" at setup time on a Seeker phone.
   const privateKeyB58 = await walletKeyCache.getPrivateKey();
   if (!privateKeyB58) {
     throw new Error("No stealf_wallet key — wallet setup required");

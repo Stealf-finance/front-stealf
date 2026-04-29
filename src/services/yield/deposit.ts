@@ -33,6 +33,7 @@ import type { Web3MobileWallet } from '@solana-mobile/mobile-wallet-adapter-prot
 import * as SecureStore from 'expo-secure-store';
 import { MWA_AUTH_TOKEN_KEY } from '../../constants/walletAuth';
 import { getTransactionEncoder } from '@solana/kit';
+import { getStealfWalletType } from '../wallet/stealfWalletType';
 
 const SYSTEM_PROGRAM = toAddress('11111111111111111111111111111111');
 const MEMO_PROGRAM = toAddress('MemoSq4gqABAXKb96qnH8TysNcWxMyWCqXgDLGmfcHr');
@@ -151,7 +152,7 @@ async function signAndSendYieldDepositMWA(versionedTx: VersionedTransaction): Pr
 }
 
 export function useYieldDeposit() {
-  const { userData, isWalletAuth } = useAuth();
+  const { userData } = useAuth();
   const api = useAuthenticatedApi();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -221,15 +222,17 @@ export function useYieldDeposit() {
       const compiled = compileTransaction(message);
       let signature: string;
 
-      if (isWalletAuth) {
-        // Seeker users: stealf_wallet IS the Seed Vault. Sign+send via MWA
+      const stealfType = await getStealfWalletType();
+
+      if (stealfType === 'mwa') {
+        // Stealth wallet IS the Seeker Seed Vault. Sign+send via MWA
         // (signAndSendTransactions broadcasts on-chain in the same session).
         const wireBytes = getTransactionEncoder().encode(compiled);
         const versionedTx = VersionedTransaction.deserialize(new Uint8Array(wireBytes));
         signature = await signAndSendYieldDepositMWA(versionedTx);
         if (__DEV__) console.log('[useYieldDeposit] MWA signature:', signature);
       } else {
-        // Passkey users: local BIP39 keypair from SecureStore.
+        // Local BIP39 keypair from SecureStore.
         const privateKeyB58 = await walletKeyCache.getPrivateKey();
         if (!privateKeyB58) throw new Error('No stealf_wallet key — wallet setup required');
 
@@ -267,7 +270,7 @@ export function useYieldDeposit() {
       }
 
       // Only the local-keypair path needs the cache TTL refresh.
-      if (!isWalletAuth) walletKeyCache.touch();
+      if (stealfType !== 'mwa') walletKeyCache.touch();
 
       return signature;
     } catch (err: any) {

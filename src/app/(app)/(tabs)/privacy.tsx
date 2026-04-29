@@ -19,6 +19,9 @@ import { usePager } from '../../../navigation/PagerContext';
 import { useSplash } from '../../../contexts/SplashContext';
 import { useSolPrice } from '../../../hooks/useSolPrice';
 import { usePreloadZKeysOnMount } from '../../../zk';
+import { useMWAAvailability } from '../../../hooks/useMWAAvailability';
+import { useWalletAuth } from '../../../hooks/useWalletAuth';
+import { setStealfWalletType } from '../../../services/wallet/stealfWalletType';
 
 export default function PrivacyScreen() {
   const router = useRouter();
@@ -31,6 +34,8 @@ export default function PrivacyScreen() {
   const { userData, setUserData } = useAuth();
   const setupWallet = useSetupWallet();
   const api = useAuthenticatedApi();
+  const { isMWAAvailable } = useMWAAvailability();
+  const walletAuth = useWalletAuth();
 
   const queryClient = useQueryClient();
   const [refreshing, setRefreshing] = useState(false);
@@ -67,6 +72,7 @@ export default function PrivacyScreen() {
     if (choice.mode === 'create') {
       if (generatedMnemonic && pendingWalletAddress) {
         await registerPrivacyWallet(pendingWalletAddress);
+        await setStealfWalletType('local');
         setGeneratedMnemonic(undefined);
         setPendingWalletAddress(null);
         return;
@@ -88,6 +94,21 @@ export default function PrivacyScreen() {
         return;
       }
       await registerPrivacyWallet(result.walletAddress || '');
+      await setStealfWalletType('local');
+    }
+
+    if (choice.mode === 'mwa') {
+      const result = await walletAuth.connectWallet();
+      if (!result.success) {
+        if (result.error) Alert.alert('Error', result.error);
+        return;
+      }
+      if (!result.address) {
+        Alert.alert('Error', 'Failed to get Seeker wallet address');
+        return;
+      }
+      await registerPrivacyWallet(result.address);
+      await setStealfWalletType('mwa');
     }
   };
 
@@ -123,8 +144,9 @@ export default function PrivacyScreen() {
       <WalletSetupScreen
         onComplete={handleWalletSetup}
         onCancel={() => { setGeneratedMnemonic(undefined); setPendingWalletAddress(null); }}
-        loading={setupWallet.loading}
+        loading={setupWallet.loading || walletAuth.loading}
         generatedMnemonic={generatedMnemonic}
+        mwaAvailable={isMWAAvailable}
       />
     );
   }

@@ -18,8 +18,6 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import VerifiedScreen from '../components/Verified';
 import { useAuthFlow } from '../hooks/auth/useSignUp';
 import { useEmailVerificationPolling } from '../hooks/auth/useEmailVerificationPolling';
-import { useMWAAvailability } from '../hooks/useMWAAvailability';
-import { useWalletAuth } from '../hooks/useWalletAuth';
 
 interface SignUpState {
   step: 'email' | 'waiting' | 'verified';
@@ -69,8 +67,6 @@ export default function SignUpScreen(){
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const authFlow = useAuthFlow();
-  const { isMWAAvailable } = useMWAAvailability();
-  const walletAuth = useWalletAuth();
 
   const [state, dispatch] = useReducer(signUpReducer, initialState);
   const { step, email, pseudo, inviteCode, loading, error, preAuthToken } = state;
@@ -123,45 +119,6 @@ export default function SignUpScreen(){
         dispatch({ type: 'SET_PRE_AUTH_TOKEN', token: result.preAuthToken });
       }
     }
-  };
-
-  const onWalletSignUp = async () => {
-    if (!email || !pseudo || !inviteCode) {
-      Alert.alert('Missing info', 'Pseudo, email and invite code are required.');
-      return;
-    }
-
-    const conn = await walletAuth.connectWallet();
-    if (!conn.success || !conn.publicKeyHex || !conn.address) {
-      if (conn.error) Alert.alert('Wallet error', conn.error);
-      return;
-    }
-
-    const result = await walletAuth.signUpWithWallet({
-      publicKeyHex: conn.publicKeyHex,
-      walletAddress: conn.address,
-      authToken: conn.authToken!,
-      email: email.trim().toLowerCase(),
-      pseudo: pseudo.trim(),
-      inviteCode: inviteCode.trim(),
-      label: conn.label,
-    });
-
-    if (result.success) return;
-
-    if (result.conflict) {
-      Alert.alert(
-        'Account exists',
-        result.error || 'This email or wallet is already registered.',
-        [
-          { text: 'Cancel', style: 'cancel' },
-          { text: 'Sign In', onPress: () => router.replace('/sign-in') },
-        ],
-      );
-      return;
-    }
-
-    if (result.error) Alert.alert('Sign-up failed', result.error);
   };
 
   if (step === 'verified' && email && pseudo) {
@@ -265,32 +222,6 @@ export default function SignUpScreen(){
                       <Text style={styles.buttonText}>Continue</Text>
                     )}
                   </TouchableOpacity>
-
-                  {/* Seeker Wallet sign-up — Android only when MWA wallet is available */}
-                  {isMWAAvailable && (
-                    <>
-                      <View style={styles.dividerRow}>
-                        <View style={styles.dividerLine} />
-                        <Text style={styles.dividerText}>or</Text>
-                        <View style={styles.dividerLine} />
-                      </View>
-
-                      <TouchableOpacity
-                        style={[styles.walletButton, walletAuth.loading && styles.buttonDisabled]}
-                        onPress={onWalletSignUp}
-                        disabled={walletAuth.loading || !email || !pseudo || !inviteCode}
-                        activeOpacity={0.8}
-                        accessibilityRole="button"
-                        accessibilityLabel="Sign up with Seeker wallet"
-                      >
-                        {walletAuth.loading ? (
-                          <ActivityIndicator color="rgba(240, 235, 220, 0.95)" />
-                        ) : (
-                          <Text style={styles.walletButtonText}>Sign Up with Seeker Wallet</Text>
-                        )}
-                      </TouchableOpacity>
-                    </>
-                  )}
 
                   {/* Sign In Link */}
                   <View style={styles.footer}>
@@ -523,37 +454,5 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontFamily: 'Sansation-Bold',
     color: 'rgba(240, 235, 220, 0.95)',
-  },
-  dividerRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    width: '100%',
-    marginTop: 16,
-    marginBottom: 16,
-  },
-  dividerLine: {
-    flex: 1,
-    height: 1,
-    backgroundColor: 'rgba(255,255,255,0.12)',
-  },
-  dividerText: {
-    color: 'rgba(255,255,255,0.45)',
-    fontSize: 12,
-    fontFamily: 'Sansation-Regular',
-    marginHorizontal: 12,
-  },
-  walletButton: {
-    backgroundColor: 'transparent',
-    paddingVertical: 18,
-    borderRadius: 30,
-    borderCurve: 'continuous',
-    borderWidth: 1,
-    borderColor: 'rgba(240, 235, 220, 0.4)',
-    alignItems: 'center',
-  },
-  walletButtonText: {
-    color: 'rgba(240, 235, 220, 0.95)',
-    fontSize: 17,
-    fontFamily: 'Sansation-Bold',
   },
 });

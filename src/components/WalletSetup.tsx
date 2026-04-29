@@ -20,18 +20,20 @@ type SetupStep = 'choose' | 'importWallet' | 'showMnemonic';
 
 export type WalletSetupChoice =
   | { mode: 'create'; storage: 'cold' }
-  | { mode: 'import'; storage: 'cold'; mnemonic: string };
+  | { mode: 'import'; storage: 'cold'; mnemonic: string }
+  | { mode: 'mwa'; storage: 'cold' };
 
 interface WalletSetupScreenProps {
   onComplete: (choice: WalletSetupChoice) => void;
   onCancel?: () => void;
   loading: boolean;
   generatedMnemonic?: string;
+  mwaAvailable?: boolean;
 }
 
 const WORD_COUNT = 12;
 
-export default function WalletSetupScreen({ onComplete, onCancel, loading, generatedMnemonic }: WalletSetupScreenProps) {
+export default function WalletSetupScreen({ onComplete, onCancel, loading, generatedMnemonic, mwaAvailable }: WalletSetupScreenProps) {
   const insets = useSafeAreaInsets();
   const [step, setStep] = useState<SetupStep>(generatedMnemonic ? 'showMnemonic' : 'choose');
   const [words, setWords] = useState<string[]>(() => Array(WORD_COUNT).fill(''));
@@ -172,6 +174,25 @@ export default function WalletSetupScreen({ onComplete, onCancel, loading, gener
                   <Text style={styles.optionDesc}>Use an existing seed phrase</Text>
                 </View>
               </TouchableOpacity>
+
+              {mwaAvailable && (
+                <TouchableOpacity
+                  style={styles.optionCard}
+                  onPress={() => onComplete({ mode: 'mwa', storage: 'cold' })}
+                  activeOpacity={0.7}
+                  disabled={loading}
+                  accessibilityRole="button"
+                  accessibilityLabel="Use Seeker wallet"
+                >
+                  <View style={styles.optionIcon}>
+                    <Ionicons name="phone-portrait-outline" size={24} color="white" />
+                  </View>
+                  <View style={styles.optionText}>
+                    <Text style={styles.optionTitle}>Use Seeker wallet</Text>
+                    <Text style={styles.optionDesc}>Sign with your built-in Seed Vault</Text>
+                  </View>
+                </TouchableOpacity>
+              )}
 
               {loading && (
                 <ActivityIndicator size="large" color="rgba(240, 235, 220, 0.95)" style={{ marginTop: 24 }} />

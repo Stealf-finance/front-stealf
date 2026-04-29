@@ -4,8 +4,6 @@ import { useTurnkey } from "@turnkey/react-native-wallet-kit";
 import { LAMPORTS_PER_SOL } from "../solana/kit";
 import { socketService } from "../real-time/socketService";
 import { getUserIdHash } from "./deposit";
-import * as SecureStore from "expo-secure-store";
-import { WALLET_SESSION_TOKEN_KEY } from "../../constants/walletAuth";
 
 const API_URL = process.env.EXPO_PUBLIC_API_URL;
 
@@ -103,15 +101,12 @@ export function useYieldStats() {
  */
 export function useRefreshYieldBalance() {
   const queryClient = useQueryClient();
-  const { userData, isWalletAuth } = useAuth();
+  const { userData } = useAuth();
   const { session } = useTurnkey();
   const subOrgId = userData?.subOrgId;
   return async () => {
-    if (!subOrgId) return;
-    const token = isWalletAuth
-      ? await SecureStore.getItemAsync(WALLET_SESSION_TOKEN_KEY)
-      : session?.token;
-    if (!token) return;
+    const token = session?.token;
+    if (!subOrgId || !token) return;
     await prefetchYieldData(queryClient, subOrgId, token);
   };
 }

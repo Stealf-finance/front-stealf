@@ -11,7 +11,7 @@ import { useShieldedBalance } from '../../../hooks/wallet/useShieldedBalance';
 import { useSolPrice } from '../../../hooks/useSolPrice';
 
 export default function ProfileScreen() {
-  const { userData, setUserData, logout, isWalletAuth } = useAuth();
+  const { userData, setUserData, logout } = useAuth();
   const api = useAuthenticatedApi();
   const { currentPage, navigateToPage } = usePager();
   const { deleteSubOrganization } = useTurnkey();
@@ -57,16 +57,10 @@ export default function ProfileScreen() {
         { text: 'Cancel', style: 'cancel' },
         { text: 'Delete', style: 'destructive', onPress: async () => {
           try {
-            // deleteSubOrganization requires an active Turnkey RN session,
-            // which wallet-auth (Seeker) users don't have — calling it would
-            // throw and leave the cash sub-org orphaned. Backend should
-            // handle Turnkey teardown for wallet users via DELETE /api/users/account.
-            if (!isWalletAuth) {
-              try {
-                await deleteSubOrganization({ deleteWithoutExport: true });
-              } catch (tkErr: any) {
-                if (__DEV__) console.warn('[deleteAccount] Turnkey sub-org delete failed:', tkErr?.message);
-              }
+            try {
+              await deleteSubOrganization({ deleteWithoutExport: true });
+            } catch (tkErr: any) {
+              if (__DEV__) console.warn('[deleteAccount] Turnkey sub-org delete failed:', tkErr?.message);
             }
             await api.del('/api/users/account');
             await logout();
