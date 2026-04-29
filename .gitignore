@@ -9,3 +9,12 @@ dist/
 .env.local
 .DS_Store
 src/.DS_Store
+
+# dApp Store signing artefacts — NEVER commit
+dapp-store/*.keystore
+dapp-store/*.jks
+dapp-store/keystore-credentials.txt
+dapp-store/publisher-keypair.json
+dapp-store/publisher-keypair*.json
+dapp-store/build/
+dapp-store/*.apk
