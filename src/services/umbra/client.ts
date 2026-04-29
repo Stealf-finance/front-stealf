@@ -132,13 +132,6 @@ async function buildClient(): Promise<UmbraClient> {
     throw new Error("No stealf_wallet key — wallet setup required");
   }
 
-  setActiveWallet(privateKeyB58);
-
-  if (cachedSignerKey && cachedSignerKey !== privateKeyB58) {
-    cachedClient = null;
-  }
-  if (cachedClient) return cachedClient;
-
   const keyBytes = bs58.decode(privateKeyB58);
   let signer;
   if (keyBytes.length === 64) {
@@ -154,6 +147,19 @@ async function buildClient(): Promise<UmbraClient> {
     fullKeyBytes.set(pubKeyRaw, 32);
     signer = await createSignerFromPrivateKeyBytes(fullKeyBytes);
   }
+
+  // Use the PUBLIC wallet address as the master-seed storage key. Previously
+  // we keyed on the raw base58 private key, which (a) leaked the private key
+  // material into SecureStore key names where it could surface in crash
+  // reporters and key-name logs, and (b) was unnecessarily sensitive given
+  // the public address uniquely identifies the wallet.
+  const walletAddress = stored?.stealf_wallet || (signer as any)?.address || privateKeyB58;
+  setActiveWallet(walletAddress);
+
+  if (cachedSignerKey && cachedSignerKey !== walletAddress) {
+    cachedClient = null;
+  }
+  if (cachedClient) return cachedClient;
 
   cachedClient = await getUmbraClient(
     {
@@ -176,7 +182,7 @@ async function buildClient(): Promise<UmbraClient> {
     }
   );
 
-  cachedSignerKey = privateKeyB58;
+  cachedSignerKey = walletAddress;
   return cachedClient;
 }
 

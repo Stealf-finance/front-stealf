@@ -9,6 +9,7 @@ import { attachWalletListeners, detachWalletListeners } from '../hooks/wallet/us
 import { useQueryClient } from '@tanstack/react-query';
 import { umbraClearSeed } from '../services/umbra/seed';
 import { clearUmbraState } from '../hooks/transactions/useUmbra';
+import { clearUmbraClient } from '../services/umbra/client';
 import * as SecureStore from 'expo-secure-store';
 import {
   MWA_AUTH_TOKEN_KEY,
@@ -96,13 +97,29 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         const pendingOwnerJson = await SecureStore.getItemAsync(PENDING_STEALF_MWA_OWNER_KEY).catch(() => null);
         const pendingOwner = pendingOwnerJson ? safeJsonParse(pendingOwnerJson) : null;
         const currentEmail = (user?.userEmail || storedData?.email || '').toLowerCase().trim();
-        const ownersMatch =
-          pendingOwner?.email && currentEmail && pendingOwner.email === currentEmail;
 
-        if (pendingMwa && !resolvedStealf && ownersMatch) {
+        // Three-state owner resolution:
+        //   - 'match'   → email is known on both sides AND they match → apply
+        //   - 'mismatch' → email known on both sides AND different → drop the leak
+        //   - 'unknown' → currentEmail is still empty (Turnkey hydrating after sessionToken)
+        //                  → DEFER. Next loadAuth fire (when user.userEmail lands)
+        //                  resolves the state. Don't drop, don't apply yet.
+        let ownerState: 'match' | 'mismatch' | 'unknown';
+        if (!currentEmail) {
+          ownerState = 'unknown';
+        } else if (pendingOwner?.email && pendingOwner.email === currentEmail) {
+          ownerState = 'match';
+        } else {
+          ownerState = 'mismatch';
+        }
+
+        if (pendingMwa && !resolvedStealf && ownerState === 'match') {
           try {
             await apiPost('/api/wallet/privacy-wallet', sessionToken, { walletAddress: pendingMwa });
             await setStealfWalletType('mwa');
+            // Discard any cached client built before the type flag flipped
+            // so the next getClient() rebuilds with the MWA signer.
+            clearUmbraClient();
             resolvedStealf = pendingMwa;
             await authStorage.setUserData({ ...(storedData || {}), stealf_wallet: pendingMwa });
             if (__DEV__) console.log('[AuthContext] auto-registered MWA stealth wallet');
@@ -112,11 +129,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             await SecureStore.deleteItemAsync(PENDING_STEALF_MWA_KEY).catch(() => undefined);
             await SecureStore.deleteItemAsync(PENDING_STEALF_MWA_OWNER_KEY).catch(() => undefined);
           }
-        } else if (pendingMwa && !ownersMatch) {
+        } else if (pendingMwa && ownerState === 'mismatch') {
           // Different user is finishing auth on this device — drop the leak.
           await SecureStore.deleteItemAsync(PENDING_STEALF_MWA_KEY).catch(() => undefined);
           await SecureStore.deleteItemAsync(PENDING_STEALF_MWA_OWNER_KEY).catch(() => undefined);
         }
+        // ownerState === 'unknown': do nothing. We'll re-evaluate when
+        // user.userEmail finishes hydrating (added to effect deps below).
 
         // 2) Recover Seeker stealf_wallet on a fresh install. The backend
         //    doesn't persist stealf_wallet (privacy-by-design), so SecureStore
@@ -128,6 +147,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           try {
             await apiPost('/api/wallet/privacy-wallet', sessionToken, { walletAddress: mwaAddress });
             await setStealfWalletType('mwa');
+            clearUmbraClient();
             resolvedStealf = mwaAddress;
             await authStorage.setUserData({ ...(storedData || {}), stealf_wallet: mwaAddress });
             if (__DEV__) console.log('[AuthContext] recovered Seeker stealf_wallet from SecureStore');
@@ -137,6 +157,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         } else if (resolvedStealf && mwaAddress && mwaAddress === resolvedStealf) {
           // Sign-in: stealf_wallet matches stored Seeker address, mark type.
           await setStealfWalletType('mwa');
+          clearUmbraClient();
         }
 
         setUserDataState({
@@ -171,7 +192,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (__DEV__) console.error('[AuthContext] loadAuth crashed:', err);
       setLoading(false);
     });
-  }, [bootDone, sessionToken, userId]);
+    // user?.userEmail is included so the pending-MWA owner check can defer
+    // until Turnkey finishes hydrating the user object after sessionToken
+    // arrives — otherwise first-time Seeker sign-ups silently drop the
+    // pending wallet because currentEmail is '' at that instant.
+  }, [bootDone, sessionToken, userId, user?.userEmail]);
 
   const saveUserData = async (data: UserData | null) => {
     if (__DEV__) console.log('[AuthContext] saveUserData called:', JSON.stringify(data));

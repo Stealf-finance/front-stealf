@@ -122,17 +122,10 @@ async function signAndSendYieldDepositMWA(versionedTx: VersionedTransaction): Pr
   const { transact } = require('@solana-mobile/mobile-wallet-adapter-protocol-web3js');
   const storedToken = await SecureStore.getItemAsync(MWA_AUTH_TOKEN_KEY);
 
-  const inner = async (wallet: Web3MobileWallet, didReauth: boolean) => {
-    if (!didReauth) {
-      const auth = await wallet.authorize({ chain: SOLANA_CHAIN, identity: STEALF_IDENTITY });
-      if (auth?.auth_token) {
-        await SecureStore.setItemAsync(MWA_AUTH_TOKEN_KEY, auth.auth_token);
-      }
-    }
-    const sigs = await wallet.signAndSendTransactions({ transactions: [versionedTx] });
-    return sigs[0];
-  };
-
+  // Reauthorize-only attempt. We MUST exit transact() before retrying with
+  // authorize() — chaining authorize() inside the same transact() session
+  // after reauthorize fails (or even after it succeeds, on some MWA impls)
+  // breaks the bridge with CancellationException.
   if (storedToken) {
     try {
       return await transact(async (wallet: Web3MobileWallet) => {
@@ -140,7 +133,8 @@ async function signAndSendYieldDepositMWA(versionedTx: VersionedTransaction): Pr
         if (auth?.auth_token && auth.auth_token !== storedToken) {
           await SecureStore.setItemAsync(MWA_AUTH_TOKEN_KEY, auth.auth_token);
         }
-        return inner(wallet, true);
+        const sigs = await wallet.signAndSendTransactions({ transactions: [versionedTx] });
+        return sigs[0];
       });
     } catch (e: any) {
       if (__DEV__) console.warn('[useYieldDeposit] reauthorize session failed:', e?.message);
@@ -155,7 +149,18 @@ async function signAndSendYieldDepositMWA(versionedTx: VersionedTransaction): Pr
     }
   }
 
-  return await transact(async (wallet: Web3MobileWallet) => inner(wallet, false));
+  // Fresh authorize session: single transact() with a single authorize()
+  // call followed directly by signAndSendTransactions. Mirrors the
+  // structure of transactionMWA — no nested helper, no risk of double
+  // authorize.
+  return await transact(async (wallet: Web3MobileWallet) => {
+    const auth = await wallet.authorize({ chain: SOLANA_CHAIN, identity: STEALF_IDENTITY });
+    if (auth?.auth_token) {
+      await SecureStore.setItemAsync(MWA_AUTH_TOKEN_KEY, auth.auth_token);
+    }
+    const sigs = await wallet.signAndSendTransactions({ transactions: [versionedTx] });
+    return sigs[0];
+  });
 }
 
 export function useYieldDeposit() {
