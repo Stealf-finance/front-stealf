@@ -52,7 +52,8 @@ export default {
     },
     plugins: [
       "expo-secure-store",
-      ["expo-router", { root: "src/app" }]
+      ["expo-router", { root: "src/app" }],
+      "./plugins/with-strip-sensitive-permissions"
     ],
     extra: {
       eas: {
