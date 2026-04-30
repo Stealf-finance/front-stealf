@@ -35,6 +35,7 @@
     },
     "dapp-store": {
       "autoIncrement": true,
+      "credentialsSource": "local",
       "android": {
         "buildType": "apk"
       },
