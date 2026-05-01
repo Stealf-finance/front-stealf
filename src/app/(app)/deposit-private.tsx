@@ -14,13 +14,17 @@ import * as Clipboard from 'expo-clipboard';
 import { StatusBar } from 'expo-status-bar';
 import { useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
+import { useQueryClient } from '@tanstack/react-query';
 import { LAMPORTS_PER_SOL, toAddress } from '../../services/solana/kit';
 import { useUmbra } from '../../hooks/transactions/useUmbra';
+import { useAuth } from '../../contexts/AuthContext';
 import { SOL_MINT } from '../../constants/solana';
 import ComebackIcon from '../../assets/buttons/comeback.svg';
 
 export default function DepositPrivateCash() {
   const router = useRouter();
+  const queryClient = useQueryClient();
+  const { userData } = useAuth();
   const [amount, setAmount] = useState('');
   const [showSuccessModal, setShowSuccessModal] = useState(false);
   const [transactionSignature, setTransactionSignature] = useState<string | null>(null);
@@ -48,9 +52,18 @@ export default function DepositPrivateCash() {
     try {
       const amountSOL = parseFloat(amount);
       const amountLamports = BigInt(Math.floor(amountSOL * LAMPORTS_PER_SOL));
-      const signature = await deposit(toAddress(SOL_MINT), amountLamports);
+      const result = await deposit(toAddress(SOL_MINT), amountLamports);
 
-      setTransactionSignature(typeof signature === 'string' ? signature : JSON.stringify(signature));
+      const sig = typeof result === 'string'
+        ? result
+        : (result as any)?.callbackSignature || (result as any)?.queueSignature || JSON.stringify(result);
+      setTransactionSignature(sig);
+
+      queryClient.invalidateQueries({ queryKey: ['shielded-balance'] });
+      setTimeout(() => {
+        queryClient.invalidateQueries({ queryKey: ['wallet-balance', userData?.stealf_wallet] });
+      }, 3000);
+
       setShowSuccessModal(true);
 
       Animated.sequence([
