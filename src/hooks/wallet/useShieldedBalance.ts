@@ -22,6 +22,14 @@ export function useShieldedBalance() {
       const balances = await fetchEncryptedBalances([SOL_MINT as Address]);
       const entry = balances.get(SOL_MINT as Address);
 
+      if (__DEV__) {
+        console.log('[useShieldedBalance] raw entry:', {
+          wallet,
+          state: entry?.state,
+          balance: typeof entry?.balance === 'bigint' ? entry.balance.toString() : entry?.balance,
+        });
+      }
+
       if (entry?.state === 'shared' && typeof entry.balance === 'bigint') {
         const lamports = entry.balance as bigint;
         // Sanity check: anything above 1B SOL is garbage (corrupted on-chain account or wrong keys)

@@ -54,15 +54,37 @@ export default function DepositPrivateCash() {
       const amountLamports = BigInt(Math.floor(amountSOL * LAMPORTS_PER_SOL));
       const result = await deposit(toAddress(SOL_MINT), amountLamports);
 
+      if (__DEV__) {
+        const r = result as any;
+        console.log('[DepositPrivateCash] deposit result:', {
+          queueSignature: r?.queueSignature,
+          callbackSignature: r?.callbackSignature,
+          callbackStatus: r?.callbackStatus,
+          callbackElapsedMs: r?.callbackElapsedMs,
+          rentClaimError: r?.rentClaimError,
+        });
+      }
+
       const sig = typeof result === 'string'
         ? result
         : (result as any)?.callbackSignature || (result as any)?.queueSignature || JSON.stringify(result);
       setTransactionSignature(sig);
 
-      queryClient.invalidateQueries({ queryKey: ['shielded-balance'] });
+      // Refetch shielded balance immediately AND with delays. The Umbra MPC
+      // callback is supposed to be finalized by the time deposit() resolves,
+      // but devnet RPCs can lag the encrypted state by a few seconds. Two
+      // delayed retries make the success modal's claim "balance updated"
+      // actually true.
+      const refetchShielded = () => {
+        queryClient.invalidateQueries({ queryKey: ['shielded-balance'] });
+        queryClient.refetchQueries({ queryKey: ['shielded-balance'] });
+      };
+      refetchShielded();
+      setTimeout(refetchShielded, 4_000);
+      setTimeout(refetchShielded, 12_000);
       setTimeout(() => {
         queryClient.invalidateQueries({ queryKey: ['wallet-balance', userData?.stealf_wallet] });
-      }, 3000);
+      }, 3_000);
 
       setShowSuccessModal(true);
 
