@@ -6,6 +6,7 @@ import type { Address } from "@solana/kit";
 import { getClient, getCashClient, type GetCashClientArgs } from "../client";
 import { ensureRegistered } from "../registration";
 import { UmbraError } from "../errors";
+import { UMBRA_OPERATION_DEPS } from "../operationDeps";
 
 /**
  * Deposit from the stealth wallet's public balance into its own encrypted
@@ -14,7 +15,10 @@ import { UmbraError } from "../errors";
 export async function deposit(mint: Address, amount: bigint) {
   await ensureRegistered();
   const client = await getClient();
-  const doDeposit = getPublicBalanceToEncryptedBalanceDirectDepositorFunction({ client });
+  const doDeposit = getPublicBalanceToEncryptedBalanceDirectDepositorFunction(
+    { client },
+    UMBRA_OPERATION_DEPS as any,
+  );
 
   return doDeposit(client.signer.address, mint, amount as any);
 }
@@ -49,6 +53,9 @@ export async function depositFromCash(args: DepositFromCashArgs) {
   }
   const { destinationAddress, mint, amount, ...cashClientArgs } = args;
   const client = await getCashClient(cashClientArgs);
-  const doDeposit = getPublicBalanceToEncryptedBalanceDirectDepositorFunction({ client });
+  const doDeposit = getPublicBalanceToEncryptedBalanceDirectDepositorFunction(
+    { client },
+    UMBRA_OPERATION_DEPS as any,
+  );
   return doDeposit(destinationAddress, mint, amount as any);
 }

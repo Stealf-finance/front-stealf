@@ -9,6 +9,7 @@ import {
 } from "../../../zk";
 import { getClient } from "../client";
 import { ensureRegistered } from "../registration";
+import { UMBRA_OPERATION_DEPS } from "../operationDeps";
 
 /** Private send: creates a UTXO claimable by `recipient`. */
 export async function sendPrivate(
@@ -21,7 +22,7 @@ export async function sendPrivate(
   const zkProver = createCreateUtxoWithReceiverUnlockerZkProver();
   const createUtxo = getEncryptedBalanceToReceiverClaimableUtxoCreatorFunction(
     { client },
-    { zkProver }
+    { zkProver, ...UMBRA_OPERATION_DEPS } as any,
   );
   return createUtxo({ destinationAddress: recipient, mint, amount: amount as any });
 }
@@ -37,7 +38,7 @@ export async function selfShield(
   const zkProver = createCreateUtxoWithEphemeralUnlockerZkProver();
   const createUtxo = getEncryptedBalanceToSelfClaimableUtxoCreatorFunction(
     { client },
-    { zkProver }
+    { zkProver, ...UMBRA_OPERATION_DEPS } as any,
   );
   return createUtxo({
     destinationAddress: destinationAddress ?? client.signer.address,

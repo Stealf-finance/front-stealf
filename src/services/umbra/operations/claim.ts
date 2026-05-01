@@ -17,6 +17,7 @@ import {
   recoverFromAlreadyBurnt,
   handleClaimResult,
 } from "../burntUtxos";
+import { UMBRA_OPERATION_DEPS } from "../operationDeps";
 
 async function ensureBlacklist() {
   const key = getCachedSignerKey();
@@ -32,7 +33,8 @@ export async function claimReceived(utxos: any[]) {
       zkProver: createClaimReceiverZkProver(),
       relayer: getRelayer(),
       fetchBatchMerkleProof: (client as any).fetchBatchMerkleProof,
-    }
+      ...UMBRA_OPERATION_DEPS,
+    } as any,
   );
 
   await ensureBlacklist();
@@ -56,7 +58,8 @@ export async function claimSelfToPublic(utxos: any[]) {
       zkProver: createClaimEphemeralZkProver(),
       relayer: getRelayer(),
       fetchBatchMerkleProof: (client as any).fetchBatchMerkleProof,
-    }
+      ...UMBRA_OPERATION_DEPS,
+    } as any,
   );
 
   await ensureBlacklist();
