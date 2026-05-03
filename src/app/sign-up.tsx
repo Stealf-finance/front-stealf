@@ -26,6 +26,13 @@ import {
   PENDING_STEALF_MWA_OWNER_KEY,
 } from '../constants/walletAuth';
 
+// Public invite code reserved for Seeker beta sign-ups. A matching row must
+// exist in the backend's InviteCode collection (one-time mongo insert,
+// see scripts/seed-seeker-invite.md) — the frontend just needs the literal
+// string. Anyone with a Seeker who installs the app can sign up with this;
+// no need to distribute personal codes.
+const SEEKER_BETA_INVITE_CODE = 'SEEKERBETA';
+
 interface SignUpState {
   step: 'email' | 'waiting' | 'verified';
   email: string;
@@ -135,10 +142,15 @@ export default function SignUpScreen(){
    * regular passkey sign-up. AuthContext picks up the stashed address after
    * the user lands authenticated and registers it as their stealf_wallet
    * (skipping the WalletSetup screen entirely).
+   *
+   * Seeker beta gating: anyone with a Seeker can join the beta without an
+   * invite code — clicking this button auto-injects the public Seeker beta
+   * code (SEEKERBETA) so the backend's invite-code check passes. The code
+   * itself just needs to exist as a row in the InviteCode collection.
    */
   const handleSeekerSignUp = async () => {
-    if (!email || !pseudo || !inviteCode) {
-      Alert.alert('Missing fields', 'Fill in pseudo, email and invite code first.');
+    if (!email || !pseudo) {
+      Alert.alert('Missing fields', 'Fill in pseudo and email first.');
       return;
     }
     const connect = await walletAuth.connectWallet();
@@ -158,7 +170,26 @@ export default function SignUpScreen(){
       PENDING_STEALF_MWA_OWNER_KEY,
       JSON.stringify({ email: email.toLowerCase().trim(), pseudo: pseudo.trim() }),
     );
-    await onEmailSubmit();
+    // Inject the Seeker beta code so the user never sees an invite-code
+    // field. handleEmailSubmit reads inviteCode from state, so push the
+    // value through the reducer before kicking off the submit.
+    const codeToUse = inviteCode || SEEKER_BETA_INVITE_CODE;
+    if (!inviteCode) {
+      dispatch({ type: 'SET_FIELD', field: 'inviteCode', value: SEEKER_BETA_INVITE_CODE });
+    }
+    await authFlow.handleEmailSubmit({
+      email,
+      pseudo,
+      inviteCode: codeToUse,
+      setStep,
+      setLoading,
+    }).then((result) => {
+      if (!result.success) {
+        Alert.alert('Error', result.message);
+      } else if (result.preAuthToken) {
+        dispatch({ type: 'SET_PRE_AUTH_TOKEN', token: result.preAuthToken });
+      }
+    });
   };
 
   if (step === 'verified' && email && pseudo) {
@@ -228,55 +259,64 @@ export default function SignUpScreen(){
                     />
                   </View>
 
-                  {/* Invite Code Input */}
-                  <View style={styles.inputGroup}>
-                    <Text style={styles.label}>Invite Code</Text>
-                    <TextInput
-                      style={styles.input}
-                      placeholder="Enter your invite code"
-                      placeholderTextColor="rgba(255, 255, 255, 0.3)"
-                      value={inviteCode}
-                      onChangeText={setInviteCode}
-                      autoCapitalize="characters"
-                      autoCorrect={false}
-                      editable={!loading}
-                      accessibilityLabel="Invite code"
-                    />
-                  </View>
+                  {/* Invite Code Input — hidden for Seeker users; the Seeker
+                      beta button below auto-injects a public code so anyone
+                      with a Seeker can join the beta without an invite. */}
+                  {!isMWAAvailable && (
+                    <View style={styles.inputGroup}>
+                      <Text style={styles.label}>Invite Code</Text>
+                      <TextInput
+                        style={styles.input}
+                        placeholder="Enter your invite code"
+                        placeholderTextColor="rgba(255, 255, 255, 0.3)"
+                        value={inviteCode}
+                        onChangeText={setInviteCode}
+                        autoCapitalize="characters"
+                        autoCorrect={false}
+                        editable={!loading}
+                        accessibilityLabel="Invite code"
+                      />
+                    </View>
+                  )}
 
                   {/* Error Message */}
                   {error && <Text style={styles.errorText}>{error}</Text>}
 
-                  {/* Submit Button */}
-                  <TouchableOpacity
-                    style={[styles.button, loading && styles.buttonDisabled]}
-                    onPress={onEmailSubmit}
-                    disabled={loading || !email || !pseudo || !inviteCode}
-                    activeOpacity={0.8}
-                    accessibilityRole="button"
-                    accessibilityLabel="Continue"
-                  >
-                    {loading ? (
-                      <ActivityIndicator color="#000" />
-                    ) : (
-                      <Text style={styles.buttonText}>Continue</Text>
-                    )}
-                  </TouchableOpacity>
+                  {/* Email + invite code path — only when not on Seeker.
+                      Seeker users have a single primary CTA below. */}
+                  {!isMWAAvailable && (
+                    <TouchableOpacity
+                      style={[styles.button, loading && styles.buttonDisabled]}
+                      onPress={onEmailSubmit}
+                      disabled={loading || !email || !pseudo || !inviteCode}
+                      activeOpacity={0.8}
+                      accessibilityRole="button"
+                      accessibilityLabel="Continue"
+                    >
+                      {loading ? (
+                        <ActivityIndicator color="#000" />
+                      ) : (
+                        <Text style={styles.buttonText}>Continue</Text>
+                      )}
+                    </TouchableOpacity>
+                  )}
 
-                  {/* Seeker Wallet sign-up — Android only, MWA wallet detected */}
+                  {/* Seeker Wallet sign-up — Android only, MWA wallet detected.
+                      Promoted to primary button on Seeker because the user
+                      doesn't need an invite code on this path. */}
                   {isMWAAvailable && (
                     <TouchableOpacity
-                      style={[styles.walletButton, (loading || walletAuth.loading) && styles.buttonDisabled]}
+                      style={[styles.button, (loading || walletAuth.loading) && styles.buttonDisabled]}
                       onPress={handleSeekerSignUp}
-                      disabled={loading || walletAuth.loading || !email || !pseudo || !inviteCode}
+                      disabled={loading || walletAuth.loading || !email || !pseudo}
                       activeOpacity={0.8}
                       accessibilityRole="button"
                       accessibilityLabel="Sign up with Seeker wallet"
                     >
                       {walletAuth.loading ? (
-                        <ActivityIndicator color="#f1ece1" />
+                        <ActivityIndicator color="#000" />
                       ) : (
-                        <Text style={styles.walletButtonText}>Sign Up with Seeker Wallet</Text>
+                        <Text style={styles.buttonText}>Sign Up with Seeker Wallet</Text>
                       )}
                     </TouchableOpacity>
                   )}
