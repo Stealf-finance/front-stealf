@@ -109,7 +109,17 @@ export function useWalletInfos(address: string) {
       const result = await createGetBalance(api, address)();
       return BalanceResponseSchema.parse(result);
     },
-    staleTime: Infinity,
+    // Socket.io balance:updated events (pushed by the backend's Helius webhook)
+    // are the primary source of truth, but they only fire after the backend has
+    // registered this wallet with its webhook AND Helius has actually picked
+    // up the on-chain change. A freshly-created stealth wallet, an externally
+    // funded address, or a missed/late webhook all leave the cached balance
+    // stuck at whatever the initial fetch returned. A 15s refetch interval is
+    // a cheap safety net that keeps the UI honest without flooding the backend.
+    staleTime: 5_000,
+    refetchInterval: 15_000,
+    refetchOnMount: 'always',
+    refetchOnWindowFocus: true,
     enabled: !!address,
   });
 
@@ -123,7 +133,11 @@ export function useWalletInfos(address: string) {
       const result = await createGetTransactionsHistory(api, address)();
       return HistoryResponseSchema.parse(result);
     },
-    staleTime: Infinity,
+    // Same reasoning as balance — history also comes via socket but a polled
+    // safety net catches missed transaction:new events.
+    staleTime: 10_000,
+    refetchInterval: 30_000,
+    refetchOnMount: 'always',
     enabled: !!address,
   });
 
