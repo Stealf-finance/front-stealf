@@ -40,6 +40,7 @@ export default function ShieldedDetailScreen({ onClose }: { onClose?: () => void
   const { data: shielded } = useShieldedBalance();
   const shieldedSol = shielded?.sol ?? 0;
   const shieldedBalance = shieldedSol * solPrice;
+  const isCorrupted = shielded?.state === 'corrupted';
   const shieldedAssets: { symbol: string; balance: number; balanceUSD: number }[] = shieldedSol > 0
     ? [{ symbol: 'SOL', balance: shieldedSol, balanceUSD: shieldedSol * solPrice }]
     : [];
@@ -86,6 +87,44 @@ export default function ShieldedDetailScreen({ onClose }: { onClose?: () => void
           <Text style={{ color: '#f1ece1', fontSize: 42, fontFamily: 'Sansation-Light', fontVariant: ['tabular-nums'], marginBottom: 28 }}>
             ${(shieldedBalance + investmentBalance).toFixed(2)}
           </Text>
+
+          {isCorrupted && (
+            <View
+              style={{
+                backgroundColor: 'rgba(255, 165, 0, 0.12)',
+                borderColor: 'rgba(255, 165, 0, 0.45)',
+                borderWidth: 1,
+                borderRadius: 12,
+                padding: 14,
+                marginBottom: 24,
+              }}
+            >
+              <Text
+                style={{
+                  color: '#ffb74d',
+                  fontSize: 14,
+                  fontFamily: 'Sansation-Bold',
+                  marginBottom: 6,
+                }}
+              >
+                Encrypted balance unreadable
+              </Text>
+              <Text
+                style={{
+                  color: 'rgba(255,255,255,0.75)',
+                  fontSize: 12,
+                  fontFamily: 'Sansation-Regular',
+                  lineHeight: 18,
+                }}
+              >
+                The on-chain ciphertext for this wallet was created with an
+                older encryption key that this device no longer has (typically
+                after a fresh install). New deposits won&apos;t produce a
+                readable total. Create a new stealth wallet from the wallet
+                setup screen to start with fresh keys.
+              </Text>
+            </View>
+          )}
 
           {/* Actions */}
           <View style={{ flexDirection: 'row', gap: 10, marginBottom: 32, flexWrap: 'wrap' }}>
