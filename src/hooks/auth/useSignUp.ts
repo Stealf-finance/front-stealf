@@ -257,8 +257,15 @@ export function useAuthFlow() {
    * Check email/pseudo availability and send magic link
    * Returns preAuthToken for polling verification status
    */
-  const handleEmailSubmit = async (params: Pick<UseAuthFlowParams, 'email' | 'pseudo' | 'inviteCode' | 'setStep' | 'setLoading'>) => {
-    const { email, pseudo, inviteCode, setStep, setLoading: setLoadingParam } = params;
+  const handleEmailSubmit = async (
+    params: Pick<UseAuthFlowParams, 'email' | 'pseudo' | 'inviteCode' | 'setStep' | 'setLoading'> & {
+      // When true, the request comes from the Seeker MWA sign-up button.
+      // Backend skips the invite-code check entirely. Other paths (iOS,
+      // non-Seeker Android) keep the existing single-use invite-code flow.
+      isSeeker?: boolean;
+    },
+  ) => {
+    const { email, pseudo, inviteCode, isSeeker, setStep, setLoading: setLoadingParam } = params;
 
     if (!email) {
       return { success: false, message: 'Email is required' };
@@ -278,7 +285,11 @@ export function useAuthFlow() {
       const response = await fetch(`${API_URL}/api/users/check-availability`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, pseudo, inviteCode }),
+        body: JSON.stringify({
+          email,
+          pseudo,
+          ...(isSeeker ? { isSeeker: true } : { inviteCode }),
+        }),
       });
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));

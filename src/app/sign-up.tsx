@@ -26,13 +26,6 @@ import {
   PENDING_STEALF_MWA_OWNER_KEY,
 } from '../constants/walletAuth';
 
-// Public invite code reserved for Seeker beta sign-ups. A matching row must
-// exist in the backend's InviteCode collection (one-time mongo insert,
-// see scripts/seed-seeker-invite.md) — the frontend just needs the literal
-// string. Anyone with a Seeker who installs the app can sign up with this;
-// no need to distribute personal codes.
-const SEEKER_BETA_INVITE_CODE = 'SEEKERBETA';
-
 interface SignUpState {
   step: 'email' | 'waiting' | 'verified';
   email: string;
@@ -143,10 +136,11 @@ export default function SignUpScreen(){
    * the user lands authenticated and registers it as their stealf_wallet
    * (skipping the WalletSetup screen entirely).
    *
-   * Seeker beta gating: anyone with a Seeker can join the beta without an
-   * invite code — clicking this button auto-injects the public Seeker beta
-   * code (SEEKERBETA) so the backend's invite-code check passes. The code
-   * itself just needs to exist as a row in the InviteCode collection.
+   * Seeker beta gating: this path passes isSeeker: true to the backend,
+   * which skips the invite-code check entirely. Anyone with a Seeker who
+   * downloads the app from the Solana dApp Store can sign up — no per-user
+   * code required. The flag is not a security boundary, just a dispatch
+   * marker; only this button sets it and the backend trusts it for beta.
    */
   const handleSeekerSignUp = async () => {
     if (!email || !pseudo) {
@@ -170,26 +164,19 @@ export default function SignUpScreen(){
       PENDING_STEALF_MWA_OWNER_KEY,
       JSON.stringify({ email: email.toLowerCase().trim(), pseudo: pseudo.trim() }),
     );
-    // Inject the Seeker beta code so the user never sees an invite-code
-    // field. handleEmailSubmit reads inviteCode from state, so push the
-    // value through the reducer before kicking off the submit.
-    const codeToUse = inviteCode || SEEKER_BETA_INVITE_CODE;
-    if (!inviteCode) {
-      dispatch({ type: 'SET_FIELD', field: 'inviteCode', value: SEEKER_BETA_INVITE_CODE });
-    }
-    await authFlow.handleEmailSubmit({
+    const result = await authFlow.handleEmailSubmit({
       email,
       pseudo,
-      inviteCode: codeToUse,
+      inviteCode: '',
+      isSeeker: true,
       setStep,
       setLoading,
-    }).then((result) => {
-      if (!result.success) {
-        Alert.alert('Error', result.message);
-      } else if (result.preAuthToken) {
-        dispatch({ type: 'SET_PRE_AUTH_TOKEN', token: result.preAuthToken });
-      }
     });
+    if (!result.success) {
+      Alert.alert('Error', result.message);
+    } else if (result.preAuthToken) {
+      dispatch({ type: 'SET_PRE_AUTH_TOKEN', token: result.preAuthToken });
+    }
   };
 
   if (step === 'verified' && email && pseudo) {
